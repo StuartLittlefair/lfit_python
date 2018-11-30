@@ -757,7 +757,7 @@ if __name__ == "__main__":
     f.write("\nFor this model:\n\n")
     f.write("Chisq          = %.2f (%d D.O.F)\n" % (model.chisq(x,y,e,w),dataSize - model.npars - 1))
     f.write("ln prior       = %.2f\n" % model.ln_prior())
-    f.write("ln likelihood = %.2f\n" % model.ln_like(x,y,e,w))
+    # f.write("ln likelihood = %.2f\n" % model.ln_like(x,y,e,w))
     f.write("ln probability = %.2f\n" % model.ln_prob(x,y,e,w))
     f.close()
 
@@ -794,6 +794,7 @@ if __name__ == "__main__":
 
         # CV model
         ax1.plot(xf,yf)
+        ax1.title(files[iecl])
         ax1.plot(xf,model.cv.yrs, label='Sec')
         ax1.plot(xf,model.cv.ys, label='Spt')
         ax1.plot(xf,model.cv.ywd, label='WD')
