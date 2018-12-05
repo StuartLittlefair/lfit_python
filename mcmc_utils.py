@@ -4,6 +4,7 @@ import pandas as pd
 import emcee
 import dask.dataframe as dd
 import seaborn
+from os import stat
 try:
     import triangle
     # This triangle should have a method corner
@@ -280,9 +281,74 @@ def flatchain(chain, npars, nskip=0, thin=1):
     the steps of the chain are highly correlated'''
     return chain[:, nskip::thin, :].reshape((-1, npars))
 
+def reverse_readline(filename, buf_size=8192):
+    """A generator that returns the lines of a file in reverse order
+    Taken from 
+    https://stackoverflow.com/questions/2301789/read-a-file-in-reverse-order-using-python
+    """
+    with open(filename) as fh:
+        segment = None
+        offset = 0
+        fh.seek(0, os.SEEK_END)
+        file_size = remaining_size = fh.tell()
+        while remaining_size > 0:
+            offset = min(file_size, offset + buf_size)
+            fh.seek(file_size - offset)
+            buffer = fh.read(min(remaining_size, buf_size))
+            remaining_size -= buf_size
+            lines = buffer.split('\n')
+            # the first line of the buffer is probably not a complete line so
+            # we'll save it and append it to the last line of the next buffer
+            # we read
+            if segment is not None:
+                # if the previous chunk starts right from the beginning of line
+                # do not concact the segment to the last line of new chunk
+                # instead, yield the segment first 
+                if buffer[-1] != '\n':
+                    lines[-1] += segment
+                else:
+                    yield segment
+            segment = lines[0]
+            for index in range(len(lines) - 1, 0, -1):
+                if lines[index]:
+                    yield lines[index]
+        # Don't yield None if the file was empty
+        if segment is not None:
+            yield segment
 
-def readchain(file, nskip=0, thin=1):
-    data = pd.read_csv(file, header=None, compression=None, delim_whitespace=True)
+def readchain(file, nskip=0, thin=1., memory=10):
+    '''Memory is the amount of memory available to read the file into, in Gigabytes'''
+    # Get filesize in Gb
+    filesize = stat(file).st_size
+    # The max file size we can read is set by the amount of memory we have. 
+    if filesize > memory*1e9:
+        ### TODO: Read in only the tail of the chainfile. 
+        # Temporary solution, read in a sample of the chain.
+        print("Warning! The supplied chain file ({:.1f}Gb) is larger than {:.1f}Gb.".format(filesize/1e9, memory))
+        # Count the lines
+        with open(file, 'r') as f:
+            linesize = 0
+            nsample = 50
+            for i in range(nsample):
+                line = f.readline()
+                linesize += len(line.encode('utf-8'))
+            linesize /= nsample
+        nlines = int(filesize / linesize)
+
+        print("A line is ~{} bytes, and the file contains {} lines".format(linesize, nlines))
+
+        # only read every nth line
+        n = 2*filesize / (memory*1e9)
+        n = np.ceil(n)
+        # Skips is a list of indeces to NOT read
+        skips = [x for x in range(nlines) if x%n != 0]
+
+        print("Sampling it by reading only every {}th line in the chain, to reduce to a {:.1f}Gb file...".format(n, filesize/(1e9*n)))
+        data = pd.read_csv(file, header=None, compression=None, delim_whitespace=True,
+                            skiprows=skips)
+    else:
+        # read in whole file
+        data = pd.read_csv(file, header=None, compression=None, delim_whitespace=True)
     data = np.array(data)
     nwalkers = int(data[:, 0].max()+1)
     nprod = int(data.shape[0]/nwalkers)
