@@ -742,11 +742,11 @@ if __name__ == "__main__":
     dataSize = np.sum((xa.size for xa in x))
     print("Chisq          = %.2f (%d D.O.F)" % (model.chisq(x,y,e,w),dataSize - model.npars - 1))
     print("ln prior       = %.2f" % model.ln_prior())
-    print("ln likelihood = %.2f" % model.ln_like(x,y,e,w))
+    # print("ln likelihood = %.2f" % model.ln_like(x,y,e,w))
     print("ln probability = %.2f" % model.ln_prob(x,y,e,w))
     print('\nFrom wrapper functions:\n')
     print("ln prior       = %.2f" % ln_prior(params))
-    print("ln likelihood = %.2f" % ln_like(params,x,y,e,w))
+    # print("ln likelihood = %.2f" % ln_like(params,x,y,e,w))
     print("ln probability = %.2f" % ln_prob(params,x,y,e,w))
 
     # Save these to file
@@ -758,7 +758,7 @@ if __name__ == "__main__":
     f.write("Chisq          = %.2f (%d D.O.F)\n" % (model.chisq(x,y,e,w),dataSize - model.npars - 1))
     f.write("ln prior       = %.2f\n" % model.ln_prior())
     # f.write("ln likelihood = %.2f\n" % model.ln_like(x,y,e,w))
-    f.write("ln probability = %.2f\n" % model.ln_prob(x,y,e,w))
+    # f.write("ln probability = %.2f\n" % model.ln_prob(x,y,e,w))
     f.close()
 
     # Plot model & data
@@ -794,7 +794,7 @@ if __name__ == "__main__":
 
         # CV model
         ax1.plot(xf,yf)
-        ax1.title(files[iecl])
+        ax1.set_title(files[iecl])
         ax1.plot(xf,model.cv.yrs, label='Sec')
         ax1.plot(xf,model.cv.ys, label='Spt')
         ax1.plot(xf,model.cv.ywd, label='WD')
@@ -882,7 +882,8 @@ if __name__ == "__main__":
         for ax in plt.gcf().get_axes()[::2]:
             ax.yaxis.set_major_locator(MaxNLocator(prune='both'))
 
-        plt.subplots_adjust(bottom=0.095, top=0.965, left=0.12, right=0.975)
+        # plt.subplots_adjust(bottom=0.095, top=0.965, left=0.12, right=0.975)
+        plt.tight_layout()
 
         # Save plot images
         plt.savefig(output_plots[iecl])
