@@ -794,7 +794,7 @@ if __name__ == "__main__":
 
         # CV model
         ax1.plot(xf,yf)
-        ax1.set_title(files[iecl])
+        ax1.set_title(output_plots[iecl])
         ax1.plot(xf,model.cv.yrs, label='Sec')
         ax1.plot(xf,model.cv.ys, label='Spt')
         ax1.plot(xf,model.cv.ywd, label='WD')
