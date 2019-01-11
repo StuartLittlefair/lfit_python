@@ -6,7 +6,7 @@ import numpy as np
 import sys
 import os
 
-def animate(i, fig, ax, file):
+def watch_lnlike(i, fig, ax, file):
     # Read data from 'file.dat'
     if os.path.isfile(file):
         try:
@@ -27,14 +27,16 @@ def animate(i, fig, ax, file):
             stdChisq  = np.std(chisqs, axis=0)
 
             ax.clear()
+            # Add back in the labels
+            ax.set_title(file)
+            ax.set_ylabel('Ln(liklihood)')
+            ax.set_xlabel('Iteration')
+            # Tighten the range
+            ax.set_xlim(0, N)
+            # Plot data
             ax.fill_between(range(N), meanChisq+stdChisq, meanChisq-stdChisq, color='green', alpha=0.3)
             ax.plot(range(N), meanChisq, color='red')
 
-            # ax.set_title(file)
-            # ax.set_ylabel('Ln(liklihood)')
-            # ax.set_xlabel('Iteration')
-
-            # Format the x-axis for dates (label formatting, rotation)
             fig.tight_layout()
         except:
             print("  Empty chain_prod file!", end='\r')
@@ -54,7 +56,6 @@ ax = fig.add_subplot(111)
 ax.set_title(file)
 ax.set_ylabel('Ln(liklihood)')
 ax.set_xlabel('Iteration')
-plt.tight_layout()
 ani = animation.FuncAnimation(fig, animate, fargs=(fig, ax, file), interval=10000)
 plt.tight_layout()
 plt.show()
