@@ -17,57 +17,6 @@ import time
 # Could open the file, store as a global variable, and every x seconds, read in from the last cursor
 # position to the end of the file, and append that to a global data variable?
 
-def watch_params(i, paramFig, paramAx, file, pars):
-    # Read data from 'file.dat'
-    if os.path.isfile(file):
-        try:
-            data = np.genfromtxt(file, delimiter=' ', dtype=float)
-            nWalkers = data[-1,0] + 1
-            nWalkers = int(nWalkers)
-            # print("{} Walkers".format(nWalkers))
-
-            # The data has one walker per line. Collect them
-            walkerChains = np.array([data[i::nWalkers] for i in range(nWalkers)])
-
-            N = len(walkerChains[0])
-
-            # chisqs = walkerChains[:,:,-1] * (-1)
-
-            # meanChisq = np.mean(chisqs, paramAxis=0)
-            # stdChisq  = np.std(chisqs, paramAxis=0)
-
-            paramAx[0].set_title(file)
-            paramAx[-1].set_xlabel('Iteration')
-
-            for i, p in enumerate(pars):
-                # Collect the parameter values
-                param_values = walkerChains[:,:,p]
-                # Make them appropriate for plotting
-                mean_param   = np.mean(param_values, axis=0)
-                std_param    = np.std(param_values, axis=0)
-
-                # Clear previous lines, or we have a memory leak
-                paramAx[i].clear()
-                # I don't like having a gap before the line starts
-                paramAx[i].set_xlim(0.0, N)
-
-                # Fill standard deviation
-                paramAx[i].fill_between(range(N),
-                                        mean_param+std_param,
-                                        mean_param-std_param,
-                                        color='green', alpha=0.3
-                                        )
-                # Plot mean line
-                paramAx[i].plot(range(N), mean_param, color='red')
-
-            # Add back in the labels
-            for i, label in enumerate(labels):
-                paramAx[i].set_ylabel(label)
-
-        except:
-            pass
-
-
 def pause(interval):
     """
     Pause for *interval* seconds.
@@ -102,9 +51,12 @@ if __name__ == "__main__":
     Plots the ln(like), and optionally N parameters, but labels are needed too.
     '''
 
+    # Interactivity on
     plt.ion()
 
+    # Get the args passed via command line
     args = sys.argv[1:]
+    # Check everything is fine
     try:
         nWalkers = int(args[0])
         file = args[1]
@@ -112,7 +64,7 @@ if __name__ == "__main__":
         labels = pars[::2]
         pars   = np.array(pars[1::2], dtype=int)
     except:
-        print("Please supply a file!")
+        print("Wrong input!")
         exit()
 
     if pars != []:
@@ -128,7 +80,7 @@ if __name__ == "__main__":
         # paramAx[-1].set_xlabel('Iteration')
 
 
-
+    # Set up plotting area
     likeFig = plt.figure(figsize=[7,4])
     likeAx = likeFig.add_subplot(111)
     likeAx.set_title(file)
@@ -138,28 +90,35 @@ if __name__ == "__main__":
     plt.tight_layout()
     plt.subplots_adjust(hspace=0.0)
 
+    # Open the plotting window
+    plt.show()
+
+    # Ideally the code would figure this out
     # nWalkers = input("How many walkers are you using: ")
     nWalkers = int(nWalkers)
 
-    plt.show()
-
+    # Open the file, and keep it open
     f = open(file, 'r')
+
+    # Tracker variables
     curline = 1
     step = 1
     pstep = 0
+
+    # Limit the amount of memory we use at a time
     linelimit = int(500000/nWalkers) * nWalkers
     print("Limited to reading {} lines at a time ({} steps)".format(linelimit, linelimit/nWalkers))
 
     while True:
         print("  Reading file...")
 
-        # Reset walkers
+        # Reset walkers, dims: (step, walker, parameters) 
         walkers  = np.full((100, nWalkers, len(pars)+1), np.nan, dtype=np.float64)
         # For each step, we have an entry for each walker, with slots for each parameter
         len_walkers = walkers.shape[0]
 
         # Read to the end of the file
-        nlines = 1          # How many lines have we read on this pass?
+        nlines = 0          # How many lines have we read on this pass?
         i = 0               # What index to we store the data to?
         first_step = 9e99   # What is the first step read in on this pass?
         flag = False
@@ -176,7 +135,7 @@ if __name__ == "__main__":
             # Which walker are we?
             w = int(line[0])
             # What step are we up to now?
-            step = np.ceil(curline / nWalkers)
+            step = np.ceil(curline / nWalkers) - 1
             step = int(step)
 
             # Where to store the data in our array?
@@ -202,6 +161,7 @@ if __name__ == "__main__":
                 # Free up memory
                 del new_array
 
+
             # Gather the desired numbers
             lnlike = line[-1]
             parVals = []
@@ -210,23 +170,25 @@ if __name__ == "__main__":
             values = [lnlike] + parVals
             values = np.array(values)
 
+
             # Store
             # print("Storing {}".format(i))
             walkers[i, w, :] = values
+
 
             if nlines == linelimit:
                 flag = True
                 break
 
-            line = f.readline()
             curline += 1
             nlines  += 1
+            line = f.readline()
 
         curstep = step
 
         print("Read in {} lines, or {:.2f} steps!".format(nlines, nlines/nWalkers))
         print("I want to plot from step {} to step {}".format(pstep, curstep))
-        print("Slicing the first {} steps from the walkers".format(i-1))
+        print("Slicing the first {} steps from the walkers".format(i))
         chisqs = walkers[:i,:,0]
         print(chisqs.shape)
 
@@ -234,7 +196,7 @@ if __name__ == "__main__":
         stdChisq  = np.nanstd(chisqs, axis=1, dtype=np.float64)
 
         N = meanChisq.shape[0]
-        Xrange = np.arange(first_step, first_step+N)
+        Xrange = np.arange(pstep, pstep+N)
 
         # Tighten the range
         likeAx.set_xlim(0, curstep)
@@ -254,8 +216,10 @@ if __name__ == "__main__":
         del walkers
 
         if not flag:
-            plt.pause(120)
+            plt.pause(1)
         else:
-            plt.pause(10)
+            plt.pause(1)
+
+        input('Hit enter to update  ')
 
     f.close()
