@@ -106,14 +106,14 @@ if __name__ == "__main__":
     pstep = 0
 
     # Limit the amount of memory we use at a time
-    linelimit = int(500000/nWalkers) * nWalkers
+    linelimit = int(100000/nWalkers) * nWalkers
     print("Limited to reading {} lines at a time ({} steps)".format(linelimit, linelimit/nWalkers))
 
     while True:
         print("  Reading file...")
 
-        # Reset walkers, dims: (step, walker, parameters) 
-        walkers  = np.full((100, nWalkers, len(pars)+1), np.nan, dtype=np.float64)
+        # Reset walkers, dims: (step, walker, parameters)
+        walkers  = np.full((1000, nWalkers, len(pars)+1), np.nan, dtype=np.float64)
         # For each step, we have an entry for each walker, with slots for each parameter
         len_walkers = walkers.shape[0]
 
@@ -220,6 +220,8 @@ if __name__ == "__main__":
         else:
             plt.pause(1)
 
-        input('Hit enter to update  ')
+        stop = input('Hit enter to update, type stop to stop: ')
+        if stop.lower() == 'stop':
+            break
 
     f.close()
