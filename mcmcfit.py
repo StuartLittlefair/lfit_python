@@ -882,13 +882,14 @@ if __name__ == "__main__":
         for ax in plt.gcf().get_axes()[::2]:
             ax.yaxis.set_major_locator(MaxNLocator(prune='both'))
 
+        plt.gcf().set_size_inches(18.5, 10.5)
         # plt.subplots_adjust(bottom=0.095, top=0.965, left=0.12, right=0.975)
         plt.tight_layout()
 
         # Save plot images
-        plt.savefig(output_plots[iecl])
-        if toFit and useGP:
-            plt.close()
-        else:
-            plt.show()
-
+        plt.savefig(output_plots[iecl]+'.png')
+        #if toFit and useGP:
+        #    plt.close()
+        #else:
+        #    plt.show()
+        plt.close()
