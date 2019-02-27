@@ -864,6 +864,7 @@ if __name__ == "__main__":
         ax1.set_xlim(start,end)
         ax1.tick_params(top=True,right=True)
         ax2.tick_params(top=True,right=True)
+        ax2.axhline(0.0, color='black', linestyle='--')
         #ax2.set_xlim(ax1.get_xlim())
         #ax2.set_xlim(-0.1,0.12)
         if useGP:
