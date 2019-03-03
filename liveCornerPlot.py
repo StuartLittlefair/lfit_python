@@ -340,6 +340,8 @@ parNameTemplate = ['wdFlux_{0}', 'dFlux_{0}', 'sFlux_{0}', 'rsFlux_{0}',
 # Extract the desired columns.
 var = [0,1,2,3,6,7,9,10,11,12,13,14,15,16,17, 4, 5, 8]
 var = np.array(var)
+
+var = np.array([4, 5, 8])
 toPlot = flat[2250000::1000,var]
 print("Extracted the desired columns...")
 
@@ -348,7 +350,7 @@ parNames = [template.format('0') for template in parNameTemplate]
 print(toPlot.shape)
 print(len(parNames), parNames)
 print(len(var), var)
-fig = corner(toPlot, bins=50, labels=parNames)
+fig = corner(toPlot, bins=50, labels=['q', 'dphi', 'rwd'])
 plt.savefig('eclipse_1.png')
 plt.close()
 del toPlot
