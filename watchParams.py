@@ -6,6 +6,7 @@ import matplotlib.dates as mdates
 import matplotlib.animation as animation
 
 from datetime import datetime
+from datetime import timedelta
 
 import numpy as np
 
@@ -58,7 +59,7 @@ if __name__ == "__main__":
         nWalkers = int(args[0])
         file = args[1]
     except:
-        print("Wrong input!")
+        print("Usage: watchParams <nWalkers> <chain file>")
         exit()
 
     pars   = []
@@ -81,6 +82,8 @@ if __name__ == "__main__":
             pars.append(par)
             labels.append(label)
 
+    twait = input("How long to wait between file reads (s): ")
+    twait = float(twait)
 
     # Open the file, and keep it open
     while True:
@@ -90,7 +93,7 @@ if __name__ == "__main__":
         except:
             for j in range(60):
                 print(" Waiting for file to be created{: <4}".format('.'*(j%4)), end='\r')
-                time.sleep(0.5)
+                time.sleep(300)
     print("Opened file OK!                   ")
 
     # Ideally the code would figure this out
@@ -130,7 +133,7 @@ if __name__ == "__main__":
     pstep = 0
 
     # Limit the amount of memory we use at a time
-    linelimit = int(100000/nWalkers) * nWalkers
+    linelimit = int(300000/nWalkers) * nWalkers
     print("Limited to reading {} lines at a time ({} steps)".format(linelimit, linelimit/nWalkers))
 
     while True:
@@ -147,10 +150,11 @@ if __name__ == "__main__":
         flag = False
 
         # Read in the file until we hit the end. If a step wasn't fully read in, discard it.
-        flag = True
-        store = True
+        flag = True # If true at the end, wait a while before re-scanning the file. If false, immediately re-scan the file
         iloc = 0
-        while flag:
+
+        newline = True
+        while newline:
             # Store a set of walkers' individual step
             temp = np.full((nWalkers, len(pars)+1), np.nan, dtype=np.float64)
 
@@ -163,20 +167,19 @@ if __name__ == "__main__":
                 if newline == '':
                     # The file is over.
                     print("Last line read in:\n{}".format(line))
-                    flag = False
-                    # If the walker number is 0, we are on the first line of a new step. If not,
-                    # we got a bit into the next step and we need to decriment the step counter.
-                    if w != 0:
-                        step -= 1
+                    flag = True
                     break
                 else:
+                    line = newline
+                    nlines += 1
+                    curline += 1
+
                     # Have we hit the memory limit?
                     if nlines == linelimit - 1:
                         print("Hit the line limit! Storing {} walkers".format(j+1))
                         flag = False
-                    line = newline
-                    nlines += 1
-                    curline += 1
+                        newline = False
+                        break
 
                 line = np.array(line.split(), dtype=np.float64)
 
@@ -189,13 +192,6 @@ if __name__ == "__main__":
                 step = np.ceil(curline / nWalkers) - 1
                 step = int(step)
 
-                # This clause restarts the storage if w isnt its expected value. This effectively
-                # causes the script to keep scanning for the next instance of w = 0
-                if w != j:
-                    print("Walker mismatch!!")
-                    store = False
-                    break
-
                 # Gather the desired numbers
                 lnlike = line[-1]
                 parVals = []
@@ -207,34 +203,33 @@ if __name__ == "__main__":
 
                 temp[j, :] = values
 
-            if store:
-                # Is our array going to be big enough?
-                if iloc == len_walkers-1:
-                    shape = list(walkers.shape)
-                    newShape = list(shape)
-                    newShape[0] += 1000
-                    # print("  Expanding array from {} to {}...".format(shape, newShape))
 
-                    # nans are ignored when we ask for the mean and standard deviation
-                    new_array = np.full(newShape, np.nan, dtype=np.float64)
-                    # Inject the old data into the new array
-                    new_array[0:len_walkers, :, :] = walkers
+            # Is our array going to be big enough?
+            if iloc == len_walkers-1:
+                shape = list(walkers.shape)
+                newShape = list(shape)
+                newShape[0] += 1000
+                # print("  Expanding array from {} to {}...".format(shape, newShape))
 
-                    # Copy the array into the old variable
-                    walkers = np.array(new_array)
-                    len_walkers = walkers.shape[0]
-                    # Free up memory
-                    del new_array
+                # nans are ignored when we ask for the mean and standard deviation
+                new_array = np.full(newShape, np.nan, dtype=np.float64)
+                # Inject the old data into the new array
+                new_array[0:len_walkers, :, :] = walkers
 
-                walkers[iloc, :, :] = temp
-                iloc += 1
-                curstep = step
-            else:
-                print("Skipping the rest of this step - j: {}".format(j))
+                # Copy the array into the old variable
+                walkers = np.array(new_array)
+                len_walkers = walkers.shape[0]
+                # Free up memory
+                del new_array
+
+            walkers[iloc, :, :] = temp
+            iloc += 1
+            curstep = step
+
 
         print("Read in {} lines, or {:.2f} steps!".format(nlines, nlines/nWalkers))
         print("I want to plot from step {} to step {}".format(pstep, curstep))
-        print("Slicing the first {} steps from the walkers".format(i))
+        print("Slicing the first {} steps from the walkers".format(iloc))
         chisqs = walkers[:iloc,:,0]
         print(chisqs.shape)
 
@@ -281,10 +276,14 @@ if __name__ == "__main__":
 
         del walkers
 
-        if flag:
-            plt.pause(300)
-        else:
-            plt.pause(0.01)
 
+        if flag:
+            # Now we want to wait a while.
+            now = datetime.now()
+            t_next = now + timedelta(seconds=twait)
+            print("Reading file next at {}".format(t_next.strftime("%H:%M:%S")))
+            plt.pause(twait)
+        else:
+            plt.pause(0.1)
 
     f.close()
