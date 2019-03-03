@@ -172,7 +172,7 @@ print("Extracted the desired columns...")
 print("Constructing corner plot...")
 oname = 'eclipse_1.png'
 parNames = [template.format('0') for template in parNameTemplate]
-fig = triangle.corner(toPlot, bins=50, labels=['q', 'dphi', 'rwd'])
+fig = triangle.corner(toPlot, bins=50, labels=parNames)
 plt.savefig(oname)
 print("Saved {}".format(oname))
 plt.close()
