@@ -344,6 +344,10 @@ parNameTemplate = [
     'fis_{0}',
     'dexp_{0}',
     'phi0_{0}',
+    'exp1_{0}',
+    'exp2_{0}',
+    'tilt_{0}',
+    'yaw_{0}'
     'q', 
     'dphi', 
     'rwd'
