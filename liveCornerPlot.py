@@ -191,7 +191,7 @@ plt.savefig('eclispe_2.png')
 plt.close()
 del toPlot
 
-var = list(range(34, 50))
+var = list(range(34, 49))
 var += [4, 5, 8]
 var = np.array(var)
 toPlot = flat[2250000::1000,var]
