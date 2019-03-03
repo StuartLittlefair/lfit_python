@@ -317,38 +317,8 @@ def reverse_readline(filename, buf_size=8192):
             yield segment
 
 def readchain(file, nskip=0, thin=1., memory=10):
-    '''Memory is the amount of memory available to read the file into, in Gigabytes'''
-    # Get filesize in Gb
-    filesize = stat(file).st_size
-    # The max file size we can read is set by the amount of memory we have. 
-    if filesize > memory*1e9:
-        ### TODO: Read in only the tail of the chainfile. 
-        # Temporary solution, read in a sample of the chain.
-        print("Warning! The supplied chain file ({:.1f}Gb) is larger than {:.1f}Gb.".format(filesize/1e9, memory))
-        # Count the lines
-        with open(file, 'r') as f:
-            linesize = 0
-            nsample = 50
-            for i in range(nsample):
-                line = f.readline()
-                linesize += len(line.encode('utf-8'))
-            linesize /= nsample
-        nlines = int(filesize / linesize)
-
-        print("A line is ~{} bytes, and the file contains {} lines".format(linesize, nlines))
-
-        # only read every nth line
-        n = 2*filesize / (memory*1e9)
-        n = np.ceil(n)
-        # Skips is a list of indeces to NOT read
-        skips = [x for x in range(nlines) if x%n != 0]
-
-        print("Sampling it by reading only every {}th line in the chain, to reduce to a {:.1f}Gb file...".format(n, filesize/(1e9*n)))
-        data = pd.read_csv(file, header=None, compression=None, delim_whitespace=True,
-                            skiprows=skips)
-    else:
-        # read in whole file
-        data = pd.read_csv(file, header=None, compression=None, delim_whitespace=True)
+    # read in whole file
+    data = pd.read_csv(file, header=None, compression=None, delim_whitespace=True)
     data = np.array(data)
     nwalkers = int(data[:, 0].max()+1)
     nprod = int(data.shape[0]/nwalkers)

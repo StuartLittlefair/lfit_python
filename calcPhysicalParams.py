@@ -258,7 +258,7 @@ if __name__ == "__main__":
     data = zip(qVals,dphiVals,rwVals,twdVals,pVals)
     solvedParams = PB.map(psolve,data,multiprocess=True)
 
-    print 'Writing out results...'
+    print('Writing out results...')
     # loop over these results and put all the solutions in our results table
     iStep = 0
     bar = ProgressBar()
@@ -268,5 +268,5 @@ if __name__ == "__main__":
         if thisResult is not None:
             results.add_row(thisResult)
 
-    print 'Found solutions for %d percent of samples in MCMC chain' % (100*float(len(results))/float(chainLength))
+    print('Found solutions for %d percent of samples in MCMC chain' % (100*float(len(results))/float(chainLength)))
     results.write('physicalparams.log',format='ascii.commented_header')
