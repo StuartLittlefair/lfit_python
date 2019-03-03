@@ -363,7 +363,7 @@ plt.close()
 del toPlot
 
 var = list(range(19, 34))
-var += [4, 5, 8])
+var += [4, 5, 8]
 var = np.array(var)
 toPlot = flat[:,var]
 print("Extracted the desired columns...")
