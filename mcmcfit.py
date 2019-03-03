@@ -889,8 +889,8 @@ if __name__ == "__main__":
 
         # Save plot images
         plt.savefig(output_plots[iecl]+'.png')
-        #if toFit and useGP:
-        #    plt.close()
-        #else:
-        #    plt.show()
+        if toFit and useGP:
+           plt.close()
+        else:
+           plt.show()
         plt.close()
