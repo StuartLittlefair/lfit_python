@@ -168,7 +168,7 @@ var = [0,1,2,3,6,7,9,10,11,12,13,14,15,16,17, 4, 5, 8]
 var = np.array(var)
 var = np.array([4, 5, 8])
 
-toPlot = flat[2250000::1000,var]
+toPlot = flat[2250000::100,var]
 print("Extracted the desired columns...")
 
 print("Constructing corner plot...")
@@ -186,7 +186,7 @@ del toPlot
 var = list(range(19, 34))
 var += [4, 5, 8]
 var = np.array(var)
-toPlot = flat[2250000::1000,var]
+toPlot = flat[2250000::100,var]
 print("Extracted the desired columns...")
 
 print("Constructing corner plot...")
@@ -204,7 +204,7 @@ del toPlot
 var = list(range(34, 49))
 var += [4, 5, 8]
 var = np.array(var)
-toPlot = flat[2250000::1000,var]
+toPlot = flat[2250000::100,var]
 print("Extracted the desired columns...")
 
 print("Constructing corner plot...")
