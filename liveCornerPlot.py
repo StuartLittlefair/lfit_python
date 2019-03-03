@@ -332,7 +332,7 @@ flat = mcmc_utils.flatchain(chain, 49)
 print("Flat chain has the shape {}".format(flat.shape))
 
 # Column labels
-parNameTemplate = ['wdFlux_{0}', 'dFlux_{0}', 'sFlux_{0}', 'rsFlux_{0}'
+parNameTemplate = ['wdFlux_{0}', 'dFlux_{0}', 'sFlux_{0}', 'rsFlux_{0}',
         'rdisc_{0}', 'ulimb_{0}', 'scale_{0}', 'az_{0}', 'fis_{0}', 'dexp_{0}', 
         'phi0_{0}', 'exp1_{0}', 'exp2_{0}', 'tilt_{0}', 'yaw_{0}',
         'q', 'dphi', 'rwd']
