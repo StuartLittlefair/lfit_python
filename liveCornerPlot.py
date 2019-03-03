@@ -6,6 +6,7 @@ from matplotlib.ticker import ScalarFormatter
 import numpy as np
 import mcmc_utils
 
+from triangle import corner
 
 def hist2d(x, y, bins=20, range=None, weights=None, levels=None, smooth=None,
            ax=None, color=None, plot_datapoints=True, plot_density=True,
