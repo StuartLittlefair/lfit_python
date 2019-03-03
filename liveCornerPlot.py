@@ -350,8 +350,8 @@ parNameTemplate = [
 ]
 
 # Extract the desired columns.
-var = [0,1,2,3,6,7,10,11,12,13,14,15,16,17,18]
-var.append([4, 5, 8])
+var = [0,1,2,3,6,7,10,11,12,13,14,15,16,17,18, 4, 5, 8]
+var = np.array(var)
 toPlot = flat[:,var]
 print("Extracted the desired columns...")
 
@@ -362,8 +362,9 @@ plt.savefig('eclipse_1.png')
 plt.close()
 del toPlot
 
-var = np.arange(19, 34)
-var.append([4, 5, 8])
+var = list(range(19, 34))
+var += [4, 5, 8])
+var = np.array(var)
 toPlot = flat[:,var]
 print("Extracted the desired columns...")
 
@@ -374,8 +375,9 @@ plt.savefig('eclispe_2.png')
 plt.close()
 del toPlot
 
-var = np.arange(34, 50)
-var.append([4, 5, 8])
+var = list(range(34, 50))
+var += [4, 5, 8]
+var = np.array(var)
 toPlot = flat[:,var]
 print("Extracted the desired columns...")
 
