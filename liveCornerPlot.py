@@ -332,29 +332,13 @@ flat = mcmc_utils.flatchain(chain, 49)
 print("Flat chain has the shape {}".format(flat.shape))
 
 # Column labels
-parNameTemplate = [
-    'wdFlux_{0}',
-    'dFlux_{0}',
-    'sFlux_{0}',
-    'rsFlux_{0}',
-    'rdisc_{0}',
-    'ulimb_{0}',
-    'scale_{0}',
-    'az_{0}',
-    'fis_{0}',
-    'dexp_{0}',
-    'phi0_{0}',
-    'exp1_{0}',
-    'exp2_{0}',
-    'tilt_{0}',
-    'yaw_{0}'
-    'q', 
-    'dphi', 
-    'rwd'
-]
+parNameTemplate = ['wdFlux_{0}', 'dFlux_{0}', 'sFlux_{0}', 'rsFlux_{0}'
+        'rdisc_{0}', 'ulimb_{0}', 'scale_{0}', 'az_{0}', 'fis_{0}', 'dexp_{0}', 
+        'phi0_{0}', 'exp1_{0}', 'exp2_{0}', 'tilt_{0}', 'yaw_{0}',
+        'q', 'dphi', 'rwd']
 
 # Extract the desired columns.
-var = [0,1,2,3,6,7,10,11,12,13,14,15,16,17,18, 4, 5, 8]
+var = [0,1,2,3,6,7,9,10,11,12,13,14,15,16,17, 4, 5, 8]
 var = np.array(var)
 toPlot = flat[2250000::1000,var]
 print("Extracted the desired columns...")
@@ -389,7 +373,7 @@ toPlot = flat[2250000::1000,var]
 print("Extracted the desired columns...")
 
 print("Constructing corner plot...")
-parNames = [template.format('0') for template in parNameTemplate]
+parNames = [template.format('2') for template in parNameTemplate]
 fig = corner(toPlot, bins=50, labels=parNames)
 plt.savefig()
 plt.close()
