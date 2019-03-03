@@ -17,57 +17,6 @@ import time
 # Could open the file, store as a global variable, and every x seconds, read in from the last cursor
 # position to the end of the file, and append that to a global data variable?
 
-def watch_params(i, paramFig, paramAx, file, pars):
-    # Read data from 'file.dat'
-    if os.path.isfile(file):
-        try:
-            data = np.genfromtxt(file, delimiter=' ', dtype=float)
-            nWalkers = data[-1,0] + 1
-            nWalkers = int(nWalkers)
-            # print("{} Walkers".format(nWalkers))
-
-            # The data has one walker per line. Collect them
-            walkerChains = np.array([data[i::nWalkers] for i in range(nWalkers)])
-
-            N = len(walkerChains[0])
-
-            # chisqs = walkerChains[:,:,-1] * (-1)
-
-            # meanChisq = np.mean(chisqs, paramAxis=0)
-            # stdChisq  = np.std(chisqs, paramAxis=0)
-
-            paramAx[0].set_title(file)
-            paramAx[-1].set_xlabel('Iteration')
-
-            for i, p in enumerate(pars):
-                # Collect the parameter values
-                param_values = walkerChains[:,:,p]
-                # Make them appropriate for plotting
-                mean_param   = np.mean(param_values, axis=0)
-                std_param    = np.std(param_values, axis=0)
-
-                # Clear previous lines, or we have a memory leak
-                paramAx[i].clear()
-                # I don't like having a gap before the line starts
-                paramAx[i].set_xlim(0.0, N)
-
-                # Fill standard deviation
-                paramAx[i].fill_between(range(N),
-                                        mean_param+std_param,
-                                        mean_param-std_param,
-                                        color='green', alpha=0.3
-                                        )
-                # Plot mean line
-                paramAx[i].plot(range(N), mean_param, color='red')
-
-            # Add back in the labels
-            for i, label in enumerate(labels):
-                paramAx[i].set_ylabel(label)
-
-        except:
-            pass
-
-
 def pause(interval):
     """
     Pause for *interval* seconds.
@@ -97,144 +46,203 @@ def pause(interval):
 
 if __name__ == "__main__":
     '''
-    watchParams <chain file> [<column> <column label>]*N
+    watchParams <nWalkers> <chain file> [<column> <column label>]*N
 
     Plots the ln(like), and optionally N parameters, but labels are needed too.
     '''
 
-    plt.ion()
-
+    # Get the args passed via command line
     args = sys.argv[1:]
+    # Check everything is fine
     try:
         nWalkers = int(args[0])
         file = args[1]
-        pars = np.array(args[2:])
-        labels = pars[::2]
-        pars   = np.array(pars[1::2], dtype=int)
     except:
-        print("Please supply a file!")
+        print("Wrong input!")
         exit()
 
-    if pars != []:
-        print("Plotting of individual parameters not yet supported :(")
-        # print("Plotting the parameters in columns:")
-        # print(pars)
-        # print(labels)
+    pars   = []
+    labels = []
+    while True:
+        cont = input("Plot parameter evolution [y/n]: ")
+        cont = cont.lower() == 'y'
 
-        # paramFig, paramAx = plt.subplots(len(pars), figsize=[7,4], sharex=True)
-        # paramAx[0].set_title(file)
-        # for i, label in enumerate(labels):
-        #     paramAx[i].set_ylabel(label)
-        # paramAx[-1].set_xlabel('Iteration')
+        if not cont:
+            print("")
+            break
+        else:
+            par = input("Which column in the chain file do you want to plot: ")
+            label = input("What label should I apply to this: ")
+
+            par = int(par)
+
+            print("Plotting column {} with the label '{}'\n".format(par, label))
+
+            pars.append(par)
+            labels.append(label)
 
 
+    # Open the file, and keep it open
+    while True:
+        try:
+            f = open(file, 'r')
+            break
+        except:
+            for j in range(60):
+                print(" Waiting for file to be created{: <4}".format('.'*(j%4)), end='\r')
+                time.sleep(0.5)
+    print("Opened file OK!                   ")
 
+    # Ideally the code would figure this out
+    # nWalkers = input("How many walkers are you using: ")
+    nWalkers = int(nWalkers)
+
+    # Interactivity on
+    plt.ion()
+    # Set up plotting area for log(like)
     likeFig = plt.figure(figsize=[7,4])
     likeAx = likeFig.add_subplot(111)
     likeAx.set_title(file)
     likeAx.set_ylabel('Ln(liklihood)')
     likeAx.set_xlabel('Iteration')
 
+    # Plotting area for parameters to watch
+    if pars != []:
+        paramFig, paramAx = plt.subplots(len(pars), figsize=[7,4], sharex=True)
+        # If we only asked for one parameter to be watched, we need to support indexing still
+        if len(pars) == 1:
+            paramAx = [paramAx]
+
+        paramAx[0].set_title(file)
+        for i, label in enumerate(labels):
+            paramAx[i].set_ylabel(label)
+        paramAx[-1].set_xlabel('Iteration')
+
     plt.tight_layout()
     plt.subplots_adjust(hspace=0.0)
 
-    # nWalkers = input("How many walkers are you using: ")
-    nWalkers = int(nWalkers)
-
+    # Open the plotting window
     plt.show()
 
-    f = open(file, 'r')
+    # Tracker variables
     curline = 1
-    step = 1
+    step = 0
     pstep = 0
-    linelimit = int(500000/nWalkers) * nWalkers
+
+    # Limit the amount of memory we use at a time
+    linelimit = int(100000/nWalkers) * nWalkers
     print("Limited to reading {} lines at a time ({} steps)".format(linelimit, linelimit/nWalkers))
 
     while True:
         print("  Reading file...")
 
-        # Reset walkers
-        walkers  = np.full((100, nWalkers, len(pars)+1), np.nan, dtype=np.float64)
+        # Reset walkers, dims: (step, walker, parameters)
+        walkers  = np.full((1000, nWalkers, len(pars)+1), np.nan, dtype=np.float64)
         # For each step, we have an entry for each walker, with slots for each parameter
         len_walkers = walkers.shape[0]
 
         # Read to the end of the file
-        nlines = 1          # How many lines have we read on this pass?
+        nlines = 0          # How many lines have we read on this pass?
         i = 0               # What index to we store the data to?
-        first_step = 9e99   # What is the first step read in on this pass?
         flag = False
 
-        line = f.readline()
-        while line:
-            # Information gathering. Where do I put the data?
-            line = np.array(line.split(), dtype=np.float64)
+        # Read in the file until we hit the end. If a step wasn't fully read in, discard it.
+        flag = True
+        store = True
+        iloc = 0
+        while flag:
+            # Store a set of walkers' individual step
+            temp = np.full((nWalkers, len(pars)+1), np.nan, dtype=np.float64)
 
-            # Check for infinities:
-            if np.any(np.isinf(line)):
+            print("Step {:5}      ".format(step), end='\r')
+
+            for j in range(nWalkers):
+                # Get the next line
+                newline = f.readline().strip()
+                # Are we at the end of the file?
+                if newline == '':
+                    # The file is over.
+                    print("Last line read in:\n{}".format(line))
+                    flag = False
+                    # If the walker number is 0, we are on the first line of a new step. If not,
+                    # we got a bit into the next step and we need to decriment the step counter.
+                    if w != 0:
+                        step -= 1
+                    break
+                else:
+                    # Have we hit the memory limit?
+                    if nlines == linelimit - 1:
+                        print("Hit the line limit! Storing {} walkers".format(j+1))
+                        flag = False
+                    line = newline
+                    nlines += 1
+                    curline += 1
+
+                line = np.array(line.split(), dtype=np.float64)
+
+                # Check for infinities:
                 line[np.isinf(line)] = np.nan
 
-            # Which walker are we?
-            w = int(line[0])
-            # What step are we up to now?
-            step = np.ceil(curline / nWalkers)
-            step = int(step)
+                # Which walker are we?
+                w = int(line[0])
+                # What step are we up to now?
+                step = np.ceil(curline / nWalkers) - 1
+                step = int(step)
 
-            # Where to store the data in our array?
-            if first_step == 9e99:
-                first_step = step
-            i = step - first_step
+                # This clause restarts the storage if w isnt its expected value. This effectively
+                # causes the script to keep scanning for the next instance of w = 0
+                if w != j:
+                    print("Walker mismatch!!")
+                    store = False
+                    break
 
-            # Is our array going to be big enough?
-            if i == len_walkers-1:
-                shape = list(walkers.shape)
-                newShape = list(shape)
-                newShape[0] += 1000
-                # print("  Expanding array from {} to {}...".format(shape, newShape))
+                # Gather the desired numbers
+                lnlike = line[-1]
+                parVals = []
+                for par in pars:
+                    parVals.append(line[par])
+                values = [lnlike] + parVals
+                values = np.array(values)
 
-                # nans are ignored when we ask for the mean and standard deviation
-                new_array = np.full(newShape, np.nan, dtype=np.float64)
-                # Inject the old data into the new array
-                new_array[0:len_walkers, :, :] = walkers
 
-                # Copy the array into the old variable
-                walkers = np.array(new_array)
-                len_walkers = walkers.shape[0]
-                # Free up memory
-                del new_array
+                temp[j, :] = values
 
-            # Gather the desired numbers
-            lnlike = line[-1]
-            parVals = []
-            for par in pars:
-                parVals.append(line[par])
-            values = [lnlike] + parVals
-            values = np.array(values)
+            if store:
+                # Is our array going to be big enough?
+                if iloc == len_walkers-1:
+                    shape = list(walkers.shape)
+                    newShape = list(shape)
+                    newShape[0] += 1000
+                    # print("  Expanding array from {} to {}...".format(shape, newShape))
 
-            # Store
-            # print("Storing {}".format(i))
-            walkers[i, w, :] = values
+                    # nans are ignored when we ask for the mean and standard deviation
+                    new_array = np.full(newShape, np.nan, dtype=np.float64)
+                    # Inject the old data into the new array
+                    new_array[0:len_walkers, :, :] = walkers
 
-            if nlines == linelimit:
-                flag = True
-                break
+                    # Copy the array into the old variable
+                    walkers = np.array(new_array)
+                    len_walkers = walkers.shape[0]
+                    # Free up memory
+                    del new_array
 
-            line = f.readline()
-            curline += 1
-            nlines  += 1
-
-        curstep = step
+                walkers[iloc, :, :] = temp
+                iloc += 1
+                curstep = step
+            else:
+                print("Skipping the rest of this step - j: {}".format(j))
 
         print("Read in {} lines, or {:.2f} steps!".format(nlines, nlines/nWalkers))
         print("I want to plot from step {} to step {}".format(pstep, curstep))
-        print("Slicing the first {} steps from the walkers".format(i-1))
-        chisqs = walkers[:i,:,0]
+        print("Slicing the first {} steps from the walkers".format(i))
+        chisqs = walkers[:iloc,:,0]
         print(chisqs.shape)
 
         meanChisq = np.nanmean(chisqs, axis=1, dtype=np.float64)
         stdChisq  = np.nanstd(chisqs, axis=1, dtype=np.float64)
 
         N = meanChisq.shape[0]
-        Xrange = np.arange(first_step, first_step+N)
+        Xrange = np.arange(pstep, pstep+N)
 
         # Tighten the range
         likeAx.set_xlim(0, curstep)
@@ -246,16 +254,37 @@ if __name__ == "__main__":
                             )
         likeAx.plot(Xrange, meanChisq, color='red')
 
+        for j, par in enumerate(pars):
+            chisqs = walkers[:iloc, :, j+1]
+
+            meanChisq = np.nanmean(chisqs, axis=1, dtype=np.float64)
+            stdChisq  = np.nanstd(chisqs, axis=1, dtype=np.float64)
+
+            paramAx[j].set_xlim(0, curstep)
+
+            # Plot data
+            paramAx[j].fill_between(Xrange,
+                                meanChisq+stdChisq,
+                                meanChisq-stdChisq,
+                                color='green', alpha=0.3
+                                )
+            paramAx[j].plot(Xrange, meanChisq, color='red')
+
+
         likeFig.tight_layout()
         likeFig.canvas.draw_idle()
+        if pars != []:
+            paramFig.tight_layout()
+            paramFig.canvas.draw_idle()
 
         pstep = curstep
 
         del walkers
 
-        if not flag:
-            plt.pause(120)
+        if flag:
+            plt.pause(300)
         else:
-            plt.pause(10)
+            plt.pause(0.01)
+
 
     f.close()
