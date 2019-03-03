@@ -183,7 +183,7 @@ del toPlot
 
 
 
-var = list(range(19, 34))
+var = list(range(18, 33))
 var += [4, 5, 8]
 var = np.array(var)
 toPlot = flat[2250000::100,var]
@@ -201,7 +201,7 @@ del toPlot
 
 
 
-var = list(range(34, 49))
+var = list(range(33, 48))
 var += [4, 5, 8]
 var = np.array(var)
 toPlot = flat[2250000::100,var]
