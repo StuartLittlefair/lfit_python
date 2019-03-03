@@ -357,6 +357,9 @@ print("Extracted the desired columns...")
 
 print("Constructing corner plot...")
 parNames = [template.format('0') for template in parNameTemplate]
+print(toPlot.shape)
+print(len(parNames), parNames)
+print(len(var), var)
 fig = corner(toPlot, bins=50, labels=parNames)
 plt.savefig('eclipse_1.png')
 plt.close()
