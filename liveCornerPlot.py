@@ -160,23 +160,28 @@ parNameTemplate = ['wdFlux_{0}', 'dFlux_{0}', 'sFlux_{0}', 'rsFlux_{0}',
         'phi0_{0}', 'exp1_{0}', 'exp2_{0}', 'tilt_{0}', 'yaw_{0}',
         'q', 'dphi', 'rwd']
 
+
+
+
 # Extract the desired columns.
 var = [0,1,2,3,6,7,9,10,11,12,13,14,15,16,17, 4, 5, 8]
 var = np.array(var)
-
 var = np.array([4, 5, 8])
+
 toPlot = flat[2250000::1000,var]
 print("Extracted the desired columns...")
 
 print("Constructing corner plot...")
+oname = 'eclipse_1.png'
 parNames = [template.format('0') for template in parNameTemplate]
-print(toPlot.shape)
-print(len(parNames), parNames)
-print(len(var), var)
 fig = triangle.corner(toPlot, bins=50, labels=['q', 'dphi', 'rwd'])
-plt.savefig('eclipse_1.png')
+plt.savefig(oname)
+print("Saved {}".format(oname))
 plt.close()
 del toPlot
+
+
+
 
 var = list(range(19, 34))
 var += [4, 5, 8]
@@ -185,11 +190,16 @@ toPlot = flat[2250000::1000,var]
 print("Extracted the desired columns...")
 
 print("Constructing corner plot...")
+oname = 'eclipse_2.png'
 parNames = [template.format('1') for template in parNameTemplate]
 fig = triangle.corner(toPlot, bins=50, labels=parNames)
-plt.savefig('eclispe_2.png')
+plt.savefig(oname)
+print("Saved {}".format(oname))
 plt.close()
 del toPlot
+
+
+
 
 var = list(range(34, 49))
 var += [4, 5, 8]
@@ -198,8 +208,10 @@ toPlot = flat[2250000::1000,var]
 print("Extracted the desired columns...")
 
 print("Constructing corner plot...")
+oname = 'eclipse_3.png'
 parNames = [template.format('2') for template in parNameTemplate]
 fig = triangle.corner(toPlot, bins=50, labels=parNames)
-plt.savefig()
+plt.savefig(oname)
+print("Saved {}".format(oname))
 plt.close()
 del toPlot
