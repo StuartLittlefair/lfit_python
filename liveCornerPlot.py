@@ -15,7 +15,7 @@ except (AttributeError, ImportError):
     # We want the other package
     import corner as triangle
 
-# def corner(toPlot, labels=None, bins=20):
+# def triangle.corner(toPlot, labels=None, bins=20):
 
 #     # Try filling in labels from pandas.DataFrame columns.
 #     if labels is None:
@@ -173,7 +173,7 @@ parNames = [template.format('0') for template in parNameTemplate]
 print(toPlot.shape)
 print(len(parNames), parNames)
 print(len(var), var)
-fig = corner(toPlot, bins=50, labels=['q', 'dphi', 'rwd'])
+fig = triangle.corner(toPlot, bins=50, labels=['q', 'dphi', 'rwd'])
 plt.savefig('eclipse_1.png')
 plt.close()
 del toPlot
@@ -186,7 +186,7 @@ print("Extracted the desired columns...")
 
 print("Constructing corner plot...")
 parNames = [template.format('1') for template in parNameTemplate]
-fig = corner(toPlot, bins=50, labels=parNames)
+fig = triangle.corner(toPlot, bins=50, labels=parNames)
 plt.savefig('eclispe_2.png')
 plt.close()
 del toPlot
@@ -199,7 +199,7 @@ print("Extracted the desired columns...")
 
 print("Constructing corner plot...")
 parNames = [template.format('2') for template in parNameTemplate]
-fig = corner(toPlot, bins=50, labels=parNames)
+fig = triangle.corner(toPlot, bins=50, labels=parNames)
 plt.savefig()
 plt.close()
 del toPlot
