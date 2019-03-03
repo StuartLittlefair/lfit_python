@@ -356,7 +356,7 @@ parNameTemplate = [
 # Extract the desired columns.
 var = [0,1,2,3,6,7,10,11,12,13,14,15,16,17,18, 4, 5, 8]
 var = np.array(var)
-toPlot = flat[::100,var]
+toPlot = flat[2250000::1000,var]
 print("Extracted the desired columns...")
 
 print("Constructing corner plot...")
@@ -372,7 +372,7 @@ del toPlot
 var = list(range(19, 34))
 var += [4, 5, 8]
 var = np.array(var)
-toPlot = flat[::100,var]
+toPlot = flat[2250000::1000,var]
 print("Extracted the desired columns...")
 
 print("Constructing corner plot...")
@@ -385,7 +385,7 @@ del toPlot
 var = list(range(34, 50))
 var += [4, 5, 8]
 var = np.array(var)
-toPlot = flat[::100,var]
+toPlot = flat[2250000::1000,var]
 print("Extracted the desired columns...")
 
 print("Constructing corner plot...")
