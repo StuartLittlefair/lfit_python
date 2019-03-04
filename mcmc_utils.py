@@ -283,7 +283,7 @@ def flatchain(chain, npars, nskip=0, thin=1):
 
 def reverse_readline(filename, buf_size=8192):
     """A generator that returns the lines of a file in reverse order
-    Taken from 
+    Taken from
     https://stackoverflow.com/questions/2301789/read-a-file-in-reverse-order-using-python
     """
     with open(filename) as fh:
@@ -303,7 +303,7 @@ def reverse_readline(filename, buf_size=8192):
             if segment is not None:
                 # if the previous chunk starts right from the beginning of line
                 # do not concact the segment to the last line of new chunk
-                # instead, yield the segment first 
+                # instead, yield the segment first
                 if buffer[-1] != '\n':
                     lines[-1] += segment
                 else:
