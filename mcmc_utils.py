@@ -128,6 +128,11 @@ def fracWithin(pdf, val):
 
 
 def thumbPlot(chain, labels, **kwargs):
+    #TODO:
+    # This is insensitive to large plots, and (at least on my machine) crashes the program if
+    # there are dozens of plots to make.
+    # - Could add a 'sampling' subroutine, and plot the params of each eclipse on separate plots (18 params per plot)
+    # - Could take user-supplied params to plot?
     seaborn.set(style='ticks')
     seaborn.set_style({"xtick.direction": "in","ytick.direction": "in"})
     fig = triangle.corner(chain, labels=labels, bins=50,
