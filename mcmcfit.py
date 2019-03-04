@@ -241,16 +241,15 @@ class LCModel(Model):
                 print("Got a warning! Saving params.")
                 # If we haven't already got a broken pars file, make one with the right headers.
                 if not isfile('broken_pars.txt'):
+                    print("Creating broken_pars.txt")
                     with open('broken_pars.txt', 'w') as f:
                         for i in self.plist:
                             f.write('{},'.format(i.name))
                         f.write('\n')
 
                 # Add the parameters that caused the problem
-                with open('broken_pars.txt', 'w+') as f:
+                with open('broken_pars.txt', 'a') as f:
                     for i in self.plist:
-                        pars[i.name] = i.currVal
-                        parNames.append(i.name)
                         f.write('{},'.format(i.currVal))
                     f.write('\n')
 
