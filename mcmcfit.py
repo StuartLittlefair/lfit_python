@@ -17,11 +17,19 @@ from collections import MutableSequence
 from model import Model
 import time
 
+from os.path import isfile
+
 sys.settrace
 
 # parallellise with MPIPool
 from emcee.utils import MPIPool
 from six.moves import range
+
+
+import warnings
+
+warnings.filterwarnings('error')
+
 
 class LCModel(Model):
     """CV lightcurve model for multiple eclipses.
@@ -216,18 +224,37 @@ class LCModel(Model):
             retVal += -np.inf
 
         if complex:
-            # BS exponential parameters
-            # Total extent of bright spot is scale*(e1/e2)**(1/e2)
-            # Limit this to half an inner lagrangian distance
-            scaleTemplate = 'scale_{0}'
-            exp1Template = 'exp1_{0}'
-            exp2Template = 'exp2_{0}'
-            for iecl in range(self.necl):
-                sc = self.getParam(scaleTemplate.format(iecl))
-                e1 = self.getParam(exp1Template.format(iecl))
-                e2 = self.getParam(exp2Template.format(iecl))
-                if sc.currVal*(e1.currVal/e2.currVal)**(1.0/e2.currVal) > 0.5:
-                    retVal += -np.inf
+            try:
+                # BS exponential parameters
+                # Total extent of bright spot is scale*(e1/e2)**(1/e2)
+                # Limit this to half an inner lagrangian distance
+                scaleTemplate = 'scale_{0}'
+                exp1Template = 'exp1_{0}'
+                exp2Template = 'exp2_{0}'
+                for iecl in range(self.necl):
+                    sc = self.getParam(scaleTemplate.format(iecl))
+                    e1 = self.getParam(exp1Template.format(iecl))
+                    e2 = self.getParam(exp2Template.format(iecl))
+                    if sc.currVal*(e1.currVal/e2.currVal)**(1.0/e2.currVal) > 0.5:
+                        retVal += -np.inf
+            except Warning:
+                print("Got a warning! Saving params.")
+                # If we haven't already got a broken pars file, make one with the right headers.
+                if not isfile('broken_pars.txt'):
+                    with open('broken_pars.txt', 'w') as f:
+                        for i in self.plist:
+                            f.write('{},'.format(i.name))
+                        f.write('\n')
+
+                # Add the parameters that caused the problem
+                with open('broken_pars.txt', 'w+') as f:
+                    for i in self.plist:
+                        pars[i.name] = i.currVal
+                        parNames.append(i.name)
+                        f.write('{},'.format(i.currVal))
+                    f.write('\n')
+
+                retVal += -np.inf
 
         return retVal
 
