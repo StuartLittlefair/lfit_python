@@ -25,11 +25,7 @@ sys.settrace
 from emcee.utils import MPIPool
 from six.moves import range
 
-
-import warnings
-
-warnings.filterwarnings('error')
-
+warnings.simplefilter("error", RuntimeWarning)
 
 class LCModel(Model):
     """CV lightcurve model for multiple eclipses.
@@ -237,7 +233,7 @@ class LCModel(Model):
                     e2 = self.getParam(exp2Template.format(iecl))
                     if sc.currVal*(e1.currVal/e2.currVal)**(1.0/e2.currVal) > 0.5:
                         retVal += -np.inf
-            except Warning:
+            except:
                 print("Got a warning! Saving params.")
                 # If we haven't already got a broken pars file, make one with the right headers.
                 if not isfile('broken_pars.txt'):
