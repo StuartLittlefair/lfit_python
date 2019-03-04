@@ -316,9 +316,14 @@ def reverse_readline(filename, buf_size=8192):
         if segment is not None:
             yield segment
 
-def readchain(file, nskip=0, thin=1., memory=10):
+def readchain(file, columns=None, headers=None):
     # read in whole file
-    data = pd.read_csv(file, header=None, compression=None, delim_whitespace=True)
+    try:
+        columns == None
+        data = pd.read_csv(file, header=headers, compression=None, delim_whitespace=True)
+    except:
+        columns = list(columns)
+        data = pd.read_csv(file, header=headers, compression=None, delim_whitespace=True, usecols=columns)
     data = np.array(data)
     nwalkers = int(data[:, 0].max()+1)
     nprod = int(data.shape[0]/nwalkers)
