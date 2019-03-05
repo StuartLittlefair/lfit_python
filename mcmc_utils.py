@@ -128,11 +128,6 @@ def fracWithin(pdf, val):
 
 
 def thumbPlot(chain, labels, **kwargs):
-    #TODO:
-    # This is insensitive to large plots, and (at least on my machine) crashes the program if
-    # there are dozens of plots to make.
-    # - Could add a 'sampling' subroutine, and plot the params of each eclipse on separate plots (18 params per plot)
-    # - Could take user-supplied params to plot?
     seaborn.set(style='ticks')
     seaborn.set_style({"xtick.direction": "in","ytick.direction": "in"})
     fig = triangle.corner(chain, labels=labels, bins=50,
@@ -321,14 +316,31 @@ def reverse_readline(filename, buf_size=8192):
         if segment is not None:
             yield segment
 
-def readchain(file, columns=None, headers=None):
+def readchain(file, columns=None):
+    '''
+    Returns the chain in <file> as a numpy array of dimensions (nwalkers, nprod, npars)
+    If <columns> is given, only read in those columns. Reduces memory usage.
+    '''
     # read in whole file
     try:
         columns == None
-        data = pd.read_csv(file, header=headers, compression=None, delim_whitespace=True)
+        data = pd.read_csv(file, header=None, compression=None, delim_whitespace=True)
     except:
         columns = list(columns)
-        data = pd.read_csv(file, header=headers, compression=None, delim_whitespace=True, usecols=columns)
+        columns = [int(c) for c in columns]
+
+        # Make sure we read in the walker number
+        if 0 not in columns:
+            columns.append(0)
+
+        # If the likelihood isnt in the columns to be read in, add it
+        with open(file, 'r') as f:
+            line = f.readline().strip()
+            npar = len(line) - 1
+        if npar not in columns and -1 not in columns:
+            columns.append(npar)
+
+        data = pd.read_csv(file, header=None, compression=None, delim_whitespace=True, usecols=columns)
     data = np.array(data)
     nwalkers = int(data[:, 0].max()+1)
     nprod = int(data.shape[0]/nwalkers)
