@@ -25,7 +25,6 @@ sys.settrace
 from emcee.utils import MPIPool
 from six.moves import range
 
-warnings.simplefilter("error", RuntimeWarning)
 
 class LCModel(Model):
     """CV lightcurve model for multiple eclipses.
@@ -220,36 +219,38 @@ class LCModel(Model):
             retVal += -np.inf
 
         if complex:
-            try:
-                # BS exponential parameters
-                # Total extent of bright spot is scale*(e1/e2)**(1/e2)
-                # Limit this to half an inner lagrangian distance
-                scaleTemplate = 'scale_{0}'
-                exp1Template = 'exp1_{0}'
-                exp2Template = 'exp2_{0}'
-                for iecl in range(self.necl):
-                    sc = self.getParam(scaleTemplate.format(iecl))
-                    e1 = self.getParam(exp1Template.format(iecl))
-                    e2 = self.getParam(exp2Template.format(iecl))
-                    if sc.currVal*(e1.currVal/e2.currVal)**(1.0/e2.currVal) > 0.5:
-                        retVal += -np.inf
-            except:
-                print("Got a warning! Saving params.")
-                # If we haven't already got a broken pars file, make one with the right headers.
-                if not isfile('broken_pars.txt'):
-                    print("Creating broken_pars.txt")
-                    with open('broken_pars.txt', 'w') as f:
+            with warnings.catch_warnings():
+                warnings.simplefilter("error", RuntimeWarning)
+                try:
+                    # BS exponential parameters
+                    # Total extent of bright spot is scale*(e1/e2)**(1/e2)
+                    # Limit this to half an inner lagrangian distance
+                    scaleTemplate = 'scale_{0}'
+                    exp1Template = 'exp1_{0}'
+                    exp2Template = 'exp2_{0}'
+                    for iecl in range(self.necl):
+                        sc = self.getParam(scaleTemplate.format(iecl))
+                        e1 = self.getParam(exp1Template.format(iecl))
+                        e2 = self.getParam(exp2Template.format(iecl))
+                        if sc.currVal*(e1.currVal/e2.currVal)**(1.0/e2.currVal) > 0.5:
+                            retVal += -np.inf
+                except:
+                    print("Got a warning! Saving params.")
+                    # If we haven't already got a broken pars file, make one with the right headers.
+                    if not isfile('broken_pars.txt'):
+                        print("Creating broken_pars.txt")
+                        with open('broken_pars.txt', 'w') as f:
+                            for i in self.plist:
+                                f.write('{},'.format(i.name))
+                            f.write('\n')
+
+                    # Add the parameters that caused the problem
+                    with open('broken_pars.txt', 'a') as f:
                         for i in self.plist:
-                            f.write('{},'.format(i.name))
+                            f.write('{},'.format(i.currVal))
                         f.write('\n')
 
-                # Add the parameters that caused the problem
-                with open('broken_pars.txt', 'a') as f:
-                    for i in self.plist:
-                        f.write('{},'.format(i.currVal))
-                    f.write('\n')
-
-                retVal += -np.inf
+                    retVal += -np.inf
 
         return retVal
 
@@ -764,11 +765,11 @@ if __name__ == "__main__":
     dataSize = np.sum((xa.size for xa in x))
     print("Chisq          = %.2f (%d D.O.F)" % (model.chisq(x,y,e,w),dataSize - model.npars - 1))
     print("ln prior       = %.2f" % model.ln_prior())
-    # print("ln likelihood = %.2f" % model.ln_like(x,y,e,w))
+    print("ln likelihood = %.2f" % model.ln_like(x,y,e,w))
     print("ln probability = %.2f" % model.ln_prob(x,y,e,w))
     print('\nFrom wrapper functions:\n')
     print("ln prior       = %.2f" % ln_prior(params))
-    # print("ln likelihood = %.2f" % ln_like(params,x,y,e,w))
+    print("ln likelihood = %.2f" % ln_like(params,x,y,e,w))
     print("ln probability = %.2f" % ln_prob(params,x,y,e,w))
 
     # Save these to file
@@ -779,8 +780,8 @@ if __name__ == "__main__":
     f.write("\nFor this model:\n\n")
     f.write("Chisq          = %.2f (%d D.O.F)\n" % (model.chisq(x,y,e,w),dataSize - model.npars - 1))
     f.write("ln prior       = %.2f\n" % model.ln_prior())
-    # f.write("ln likelihood = %.2f\n" % model.ln_like(x,y,e,w))
-    # f.write("ln probability = %.2f\n" % model.ln_prob(x,y,e,w))
+    f.write("ln likelihood = %.2f\n" % model.ln_like(x,y,e,w))
+    f.write("ln probability = %.2f\n" % model.ln_prob(x,y,e,w))
     f.close()
 
     # Plot model & data
