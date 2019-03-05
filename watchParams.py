@@ -68,6 +68,34 @@ if __name__ == "__main__":
         cont = input("Plot parameter evolution [y/n]: ")
         cont = cont.lower() == 'y'
 
+        if labels == []:
+            necl = input("How many eclipses: ")
+            necl = int(necl)
+
+            parNames = ['wdFlux_{0}', 'dFlux_{0}', 'sFlux_{0}', 'rsFlux_{0}', 'q', 'dphi',\
+                'rdisc_{0}', 'ulimb_{0}', 'rwd', 'scale_{0}', 'az_{0}', 'fis_{0}', 'dexp_{0}', 'phi0_{0}']
+
+            parNameTemplate = ['wdFlux_{0}', 'dFlux_{0}', 'sFlux_{0}', 'rsFlux_{0}',\
+                'rdisc_{0}', 'ulimb_{0}', 'scale_{0}', 'az_{0}', 'fis_{0}', 'dexp_{0}', 'phi0_{0}']
+
+            # complex has extra parameters
+            complex = input("Complex bright spot? ")
+            if complex.lower()[0] == 'y':
+                parNames.extend(['exp1_{0}', 'exp2_{0}', 'tilt_{0}', 'yaw_{0}'])
+                parNameTemplate.extend(['exp1_{0}', 'exp2_{0}', 'tilt_{0}', 'yaw_{0}'])
+
+            # Format labels
+            parNames = [t.format(0) for t in parNames]
+            for i in range(necl-1):
+                for name in parNameTemplate:
+                    parNames.append(name.format(i+1))
+
+            print("The columns go in the following order:")
+            print("{:3d} - {} (ignore)".format(0, 'Walker ID'))
+            for i, name in enumerate(parNames):
+                print("{:3d} - {}".format(i+1, name))
+            print("\nDon't forget to account for unfitted parameters in your input file!\n")
+
         if not cont:
             print("")
             break
@@ -76,6 +104,8 @@ if __name__ == "__main__":
             label = input("What label should I apply to this: ")
 
             par = int(par)
+            if label == '':
+                label = parNames[par-1]
 
             print("Plotting column {} with the label '{}'\n".format(par, label))
 
@@ -93,7 +123,7 @@ if __name__ == "__main__":
         except:
             for j in range(60):
                 print(" Waiting for file to be created{: <4}".format('.'*(j%4)), end='\r')
-                time.sleep(300)
+                time.sleep(twait)
     print("Opened file OK!                   ")
 
     # Ideally the code would figure this out
