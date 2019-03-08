@@ -47,7 +47,7 @@ def pause(interval):
 
 if __name__ == "__main__":
     '''
-    watchParams <nWalkers> <chain file> [<column> <column label>]*N
+    watchParams <chain file>
 
     Plots the ln(like), and optionally N parameters, but labels are needed too.
     '''
@@ -56,10 +56,9 @@ if __name__ == "__main__":
     args = sys.argv[1:]
     # Check everything is fine
     try:
-        nWalkers = int(args[0])
-        file = args[1]
+        file = args[0]
     except:
-        print("Usage: watchParams <nWalkers> <chain file>")
+        print("Usage: watchParams <chain file>")
         exit()
 
     pars   = []
@@ -68,12 +67,16 @@ if __name__ == "__main__":
         cont = input("Plot parameter evolution [y/n]: ")
         cont = cont.lower() == 'y'
 
+        if not cont:
+            print("")
+            break
+
         if labels == []:
             necl = input("How many eclipses: ")
             necl = int(necl)
 
-            parNames = ['wdFlux_{0}', 'dFlux_{0}', 'sFlux_{0}', 'rsFlux_{0}', 'q', 'dphi',\
-                'rdisc_{0}', 'ulimb_{0}', 'rwd', 'scale_{0}', 'az_{0}', 'fis_{0}', 'dexp_{0}', 'phi0_{0}']
+            parNames = ['wdFlux_0', 'dFlux_0', 'sFlux_0', 'rsFlux_0', 'q', 'dphi',\
+                'rdisc_0', 'ulimb_0', 'rwd', 'scale_0', 'az_0', 'fis_0', 'dexp_0', 'phi0_0']
 
             parNameTemplate = ['wdFlux_{0}', 'dFlux_{0}', 'sFlux_{0}', 'rsFlux_{0}',\
                 'rdisc_{0}', 'ulimb_{0}', 'scale_{0}', 'az_{0}', 'fis_{0}', 'dexp_{0}', 'phi0_{0}']
@@ -81,11 +84,10 @@ if __name__ == "__main__":
             # complex has extra parameters
             complex = input("Complex bright spot? ")
             if complex.lower()[0] == 'y':
-                parNames.extend(['exp1_{0}', 'exp2_{0}', 'tilt_{0}', 'yaw_{0}'])
+                parNames.extend(['exp1_0', 'exp2_0', 'tilt_0', 'yaw_0'])
                 parNameTemplate.extend(['exp1_{0}', 'exp2_{0}', 'tilt_{0}', 'yaw_{0}'])
 
             # Format labels
-            parNames = [t.format(0) for t in parNames]
             for i in range(necl-1):
                 for name in parNameTemplate:
                     parNames.append(name.format(i+1))
@@ -96,24 +98,26 @@ if __name__ == "__main__":
                 print("{:3d} - {}".format(i+1, name))
             print("\nDon't forget to account for unfitted parameters in your input file!\n")
 
-        if not cont:
-            print("")
-            break
-        else:
-            par = input("Which column in the chain file do you want to plot: ")
-            label = input("What label should I apply to this: ")
+        par = input("Which column in the chain file do you want to plot: ")
+        label = input("What label should I apply to this: ")
 
-            par = int(par)
-            if label == '':
-                label = parNames[par-1]
+        par = int(par)
+        if label == '':
+            label = parNames[par-1]
 
-            print("Plotting column {} with the label '{}'\n".format(par, label))
+        print("Plotting column {} with the label '{}'\n".format(par, label))
 
-            pars.append(par)
-            labels.append(label)
+        pars.append(par)
+        labels.append(label)
 
     twait = input("How long to wait between file reads (s): ")
-    twait = float(twait)
+    twait = int(twait)
+
+    # fun little loading animation
+    load = ['.', '..', '...']
+    for i in range(5):
+        load.extend(['... -', '... \\', '... |', '... /', '... -', '... \\', '... |', '... /', '... -'])
+    load.extend(['...', '..', '.', '', '', ''])
 
     # Open the file, and keep it open
     while True:
@@ -121,14 +125,26 @@ if __name__ == "__main__":
             f = open(file, 'r')
             break
         except:
-            for j in range(60):
-                print(" Waiting for file to be created{: <4}".format('.'*(j%4)), end='\r')
-                time.sleep(twait)
+            for j in range(twait*10):
+                print("\rWaiting for file to be created{: <6} ".format(load[j%len(load)]), end='')
+                time.sleep(0.1)
     print("Opened file OK!                   ")
 
     # Ideally the code would figure this out
     # nWalkers = input("How many walkers are you using: ")
-    nWalkers = int(nWalkers)
+    nWalkers = 0
+    while True:
+        line = f.readline()
+        line = line.split()
+        walker = int(line[0])
+        if nWalkers == walker:
+            nWalkers += 1
+        else:
+            break
+    print("The file has {} walkers...".format(nWalkers))
+
+    f.close()
+    f = open(file, 'r')
 
     # Interactivity on
     plt.ion()
@@ -188,7 +204,8 @@ if __name__ == "__main__":
             # Store a set of walkers' individual step
             temp = np.full((nWalkers, len(pars)+1), np.nan, dtype=np.float64)
 
-            print("Step {:5}      ".format(step), end='\r')
+            if step%10 == 0:
+                print("\rStep {:5}      ".format(step), end='')
 
             for j in range(nWalkers):
                 # Get the next line
@@ -205,7 +222,7 @@ if __name__ == "__main__":
                     curline += 1
 
                     # Have we hit the memory limit?
-                    if nlines == linelimit - 1:
+                    if nlines == linelimit:
                         print("Hit the line limit! Storing {} walkers".format(j+1))
                         flag = False
                         newline = False
