@@ -142,7 +142,7 @@ class Watcher():
             flag = False
         
         self.thinstep += 1
-        if thin:
+        if self.thin:
             if self.thinstep % self.thin != 0:
                 flag = None
 
