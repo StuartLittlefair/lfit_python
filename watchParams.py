@@ -101,7 +101,7 @@ class Watcher():
         # Remove the callback that keeps trying to open the file
         curdoc().remove_periodic_callback(self.check_file)
         # Create a new callback that periodically reads the file
-        curdoc().add_periodic_callback(self.update, 0.001)
+        curdoc().add_periodic_callback(self.update, 100)
 
         print("Opened the file {}!".format(file))
 
@@ -136,10 +136,8 @@ class Watcher():
                 if w != i:
                     print("Walker mismatch!")
                     print("Expected {}, but the file gave me {}".format(i, w))
-                    
-                    # We need to try again. The file was probably being written while we were trying to read it.
-                    i = 0
-                    self.f.seek(init)
+                    flag = False
+                    break
 
                 # Gather the desired numbers
                 values = line[self.pars]
