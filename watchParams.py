@@ -13,9 +13,77 @@ import sys
 import time
 
 
+
+# Filename
+file = 'chain_prod.txt'
+# How many data do we want to follow with?
+tail = 5000
+# How many data do we want to skip?
+thin = 10
+thinstep = 0
+# Initial values
+necl = 1
+s    = 0
+f = False
+nWalkers = 0
+parNames = ['wdFlux_0', 'dFlux_0', 'sFlux_0', 'rsFlux_0', 'q', 'dphi',\
+        'rdisc_0', 'ulimb_0', 'rwd', 'scale_0', 'az_0', 'fis_0', 'dexp_0', 'phi0_0']
+
+# Lists of what parameters we want to plot
+pars   = []
+labels = []
+
+# fun loading animation
+load = ['.', '..', '...']
+for i in range(5):
+    load.extend(['... -', '... \\', '... |', '... /', '... -', '... \\', '... |', '... /', '... -'])
+load.extend(['...', '..', '.'])
+load.extend(['', '', '', '', '']*4)
+twait = len(load)
+
+# Initialise data storage
+source = ColumnDataSource(dict(step=[]))
+for label in labels:
+    source.add(data=[], name=label+'Mean')
+    source.add(data=[], name=label+'StdUpper')
+    source.add(data=[], name=label+'StdLower')
+
+
+
+def open_file():
+    global f
+    # Open the file, and keep it open
+    try:
+        f = open(file, 'r')
+    except:
+        return
+
+    # Determine the number of walkers
+    global nWalkers
+    while True:
+        line = f.readline()
+        line = line.split()
+        walker = int(line[0])
+        if nWalkers == walker:
+            nWalkers += 1
+        else:
+            break
+
+    # Close and reopen the file to move the cursor back to the beginning.
+    f.close()
+    # We're at step 0 now
+    f = open(file, 'r')
+
+    curdoc().remove_periodic_callback(check_file)
+    curdoc().add_periodic_callback(update, 0.001)
+
+    print("Opened the file {}!".format(file))
+
 # function that reads in the next step
 def readStep():
     global f
+    global thinstep
+    global s
 
     stepData = np.zeros((nWalkers, len(pars)))
     flag = True # If true, return the data. If False, the end of the file was reached before the step was fully read in.
@@ -43,19 +111,27 @@ def readStep():
 
         # Gather the desired numbers
         values = line[pars]
-        
+
         stepData[w, :] = values
 
-    if flag:
+    thinstep += 1
+    if thinstep % thin != 0:
+        flag = None
+
+
+    if flag is True:
+        s += 1
         return stepData
-    else: 
+    elif flag is False:
         # The most recent step wasn't completely read in
         f.seek(init)
-        
         for j in range(twait):
             print("\rWatching for file to updates{: <6} ".format(load[j%len(load)]), end='')
             time.sleep(0.1)
         print('\r                                   ', end='\r')
+        return None
+    else:
+        s += 1
         return None
 
 def update():
@@ -65,9 +141,6 @@ def update():
         if step is None:
             pass
         else:
-            global s
-
-            s += 1
             means = np.mean(step, axis=0)
             stds  = np.std(step,  axis=0)
 
@@ -78,7 +151,7 @@ def update():
                 newdata[label+'Mean'] = [means[i]]
                 newdata[label+'StdUpper']  = [means[i]+stds[i]]
                 newdata[label+'StdLower']  = [means[i]-stds[i]]
-            
+
             source.stream(newdata, tail)
 
 def update_ecl(attr, old, new):
@@ -122,7 +195,7 @@ def update_complex(new):
         val = 1
     complex = complex_button.active
 
-    
+
     parNames = ['wdFlux_0', 'dFlux_0', 'sFlux_0', 'rsFlux_0', 'q', 'dphi',\
         'rdisc_0', 'ulimb_0', 'rwd', 'scale_0', 'az_0', 'fis_0', 'dexp_0', 'phi0_0']
     parNameTemplate = ['wdFlux_{0}', 'dFlux_{0}', 'sFlux_{0}', 'rsFlux_{0}',\
@@ -149,6 +222,9 @@ def add_plot(attr, old, new):
     global pars
     global source
 
+    if f is False:
+        return
+
     label = str(plotPars.value)
     if label == '':
         return
@@ -156,7 +232,7 @@ def add_plot(attr, old, new):
     labels.append(label)
     pars.append(par)
 
-    # Clear data from the source structure 
+    # Clear data from the source structure
     source.data = {'step': []}
     for label in labels:
         source.data[label+'Mean']     = []
@@ -171,10 +247,10 @@ def add_plot(attr, old, new):
     s = 0
 
     new_plot = bk.plotting.figure(title=label, plot_height=300, plot_width=1200,
-        toolbar_location='above', y_axis_location="right") 
+        toolbar_location='above', y_axis_location="right")
         # tools="ypan,ywheel_zoom,ybox_zoom,reset")
     new_plot.line(x='step', y=label+'Mean', alpha=1, line_width=3, color='red', source=source)
-    band = Band(base='step', lower=label+'StdLower', upper=label+'StdUpper', source=source, 
+    band = Band(base='step', lower=label+'StdLower', upper=label+'StdUpper', source=source,
                 level='underlay', fill_alpha=0.5, line_width=0, line_color='black', fill_color='green')
     new_plot.add_layout(band)
 
@@ -189,65 +265,6 @@ def add_plot(attr, old, new):
 
     curdoc().add_root(row(new_plot))
 
-
-# Filename
-file = 'chain_prod.txt'
-# How many data do we want to follow with?
-tail = 2500
-# Initial values
-necl = 1
-parNames = ['wdFlux_0', 'dFlux_0', 'sFlux_0', 'rsFlux_0', 'q', 'dphi',\
-        'rdisc_0', 'ulimb_0', 'rwd', 'scale_0', 'az_0', 'fis_0', 'dexp_0', 'phi0_0']
-
-# Lists of what parameters we want to plot
-pars   = []
-labels = []
-
-# fun loading animation
-load = ['.', '..', '...']
-for i in range(5):
-    load.extend(['... -', '... \\', '... |', '... /', '... -', '... \\', '... |', '... /', '... -'])
-load.extend(['...', '..', '.'])
-load.extend(['', '', '', '', '']*4)
-twait = len(load)
-
-# Open the file, and keep it open
-while True:
-    try:
-        f = open(file, 'r')
-        break
-    except:
-        for j in range(300):
-            print("\rWaiting for file to be created{: <6} ".format(load[j%len(load)]), end='')
-            time.sleep(0.1)
-print("Opened file OK!                      ")
-
-# Determine the number of walkers
-nWalkers = 0
-while True:
-    line = f.readline()
-    line = line.split()
-    walker = int(line[0])
-    if nWalkers == walker:
-        nWalkers += 1
-    else:
-        break
-print("The file has {} walkers.".format(nWalkers))
-
-# Close and reopen the file to move the cursor back to the beginning.
-f.close()
-# We're at step 0 now
-f = open(file, 'r')
-s = 0
-
-# Initialise data storage
-source = ColumnDataSource(dict(step=[]))
-for label in labels:
-    source.add(data=[], name=label+'Mean')
-    source.add(data=[], name=label+'StdUpper')
-    source.add(data=[], name=label+'StdLower')
-
-
 # Drop down box that should add extra parameters to the plot
 selectList = list(parNames)
 selectList.insert(0, '')
@@ -255,7 +272,7 @@ plotPars = inputs.Select(width=120, title='Optional Parameters', options=selectL
 plotPars.on_change('value', add_plot)
 
 # I want a toggle to enable or disable the extra params
-complex_button = Toggle(label='Complex BS?', width=120)
+complex_button = Toggle(label='Complex BS?', width=120, )
 complex_button.on_click(update_complex)
 
 # Ask the user how many eclipses are in the data
@@ -266,4 +283,4 @@ eclipses.on_change('value', update_ecl)
 layout = gridplot([eclipses, complex_button, plotPars], ncols=2)
 curdoc().add_root(layout)
 curdoc().title = 'MCMC Chain Supervisor'
-curdoc().add_periodic_callback(update, 1)
+check_file = curdoc().add_periodic_callback(open_file, 1000*15)
