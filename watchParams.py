@@ -68,9 +68,10 @@ class Watcher():
         self.eclipses.on_change('value', self.update_ecl)
 
         # Add stuff to the visible area
-        self.layout = gridplot([self.plotPars, self.eclipses, self.complex_button], ncols=1)
+        self.layout = gridplot([self.eclipses, self.complex_button, self.plotPars], ncols=1)
         curdoc().add_root(self.layout)
         curdoc().title = 'MCMC Chain Supervisor'
+        curdoc().theme = 'dark_minimal'
         self.check_file = curdoc().add_periodic_callback(self.open_file, 500)
 
     def open_file(self):
@@ -256,8 +257,6 @@ class Watcher():
 
     def add_plot(self, attr, old, new):
         '''Add a plot to the page'''
-        if self.f is False:
-            return
 
         label = str(self.plotPars.value)
         if label == '':
@@ -274,9 +273,10 @@ class Watcher():
             self.source.data[label+'StdLower'] = []
 
         # Move the file cursor back to the beginning of the file
-        self.f.close()
-        self.f = open(self.file, 'r')
-        self.s = 0
+        if not self.f is False:
+            self.f.close()
+            self.f = open(self.file, 'r')
+            self.s = 0
 
         new_plot = bk.plotting.figure(title=label, plot_height=300, plot_width=1200,
             toolbar_location='above', y_axis_location="right",
