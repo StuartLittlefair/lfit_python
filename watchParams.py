@@ -295,7 +295,7 @@ class Watcher():
 
         curdoc().add_root(row(new_plot))
 
-if __name__ in '__main__':
+# if __name__ in '__main__':
     # import argparse
 
     # parser = argparse.ArgumentParser(description='Monitor an MCMC chain as it runs')
@@ -313,8 +313,8 @@ if __name__ in '__main__':
     # tail  = args.tail[0]
     # thin  = args.thin[0]
 
-    fname = 'chain_prod.txt'
-    tail = 2000
-    thin = 10
+fname = 'chain_prod.txt'
+tail = 2000
+thin = 10
 
-    watcher = Watcher(file=fname, tail=tail, thin=thin)
+watcher = Watcher(file=fname, tail=tail, thin=thin)
