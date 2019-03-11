@@ -60,7 +60,7 @@ class Watcher():
         self.plotPars.on_change('value', self.add_plot)
 
         # I want a toggle to enable or disable the extra params
-        self.complex_button = Toggle(label='Complex BS?', width=120, button_type='success')
+        self.complex_button = Toggle(label='Complex BS?', width=120, button_type='danger')
         self.complex_button.on_click(self.update_complex)
 
         # Ask the user how many eclipses are in the data
@@ -111,8 +111,10 @@ class Watcher():
         If we're at the end of the file, do nothing.'''
         
         stepData = np.zeros((self.nWalkers, len(self.pars)))
-        stepData[:, :] = np.nan
-        flag = True # If true, return the data. If False, the end of the file was reached before the step was fully read in.
+        # If true, return the data. If False, the end of the file was reached before the step was fully read in.
+        flag = True 
+
+        # Remember where we started
         init = self.f.tell()
 
         try:
@@ -136,6 +138,8 @@ class Watcher():
                 if w != i:
                     print("Walker mismatch!")
                     print("Expected {}, but the file gave me {}".format(i, w))
+                    print(init.value)
+                    print(self.f.tell())
                     flag = False
                     break
 
