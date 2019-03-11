@@ -221,6 +221,7 @@ def add_plot(attr, old, new):
     global labels
     global pars
     global source
+    global f
 
     if f is False:
         return
@@ -240,7 +241,6 @@ def add_plot(attr, old, new):
         source.data[label+'StdLower'] = []
 
     # Move the file cursor back to the beginning of the file
-    global f
     global s
     f.close()
     f = open(file, 'r')
@@ -272,23 +272,15 @@ plotPars = inputs.Select(width=120, title='Optional Parameters', options=selectL
 plotPars.on_change('value', add_plot)
 
 # I want a toggle to enable or disable the extra params
-complex_button = Toggle(label='Complex BS?', width=120, )
+complex_button = Toggle(label='Complex BS?', width=120, button_type='success')
 complex_button.on_click(update_complex)
-complex_button.min_border_right  = 80
-complex_button.min_border_left   = 80
-complex_button.min_border_top    = 80
-complex_button.min_border_bottom = 80
 
 # Ask the user how many eclipses are in the data
 eclipses = Slider(title='How many eclipses?', width=200, start=1, end=10, step=1, value=1)
 eclipses.on_change('value', update_ecl)
-eclipses.min_border_right  = 80
-eclipses.min_border_left   = 80
-eclipses.min_border_top    = 80
-eclipses.min_border_bottom = 80
 
 # Add stuff to the visible area
-layout = gridplot([eclipses, complex_button, plotPars], ncols=2)
+layout = gridplot([plotPars, eclipses, complex_button], ncols=1)
 curdoc().add_root(layout)
 curdoc().title = 'MCMC Chain Supervisor'
 check_file = curdoc().add_periodic_callback(open_file, 1000*15)
