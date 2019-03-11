@@ -314,7 +314,7 @@ class Watcher():
     # thin  = args.thin[0]
 
 fname = 'chain_prod.txt'
-tail = 2000
+tail = 100000
 thin = 10
 
 watcher = Watcher(file=fname, tail=tail, thin=thin)
