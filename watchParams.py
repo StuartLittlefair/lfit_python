@@ -272,8 +272,9 @@ class Watcher():
         self.s = 0
 
         new_plot = bk.plotting.figure(title=label, plot_height=300, plot_width=1200,
-            toolbar_location='above', y_axis_location="right")
+            toolbar_location='above', y_axis_location="right",
             # tools="ypan,ywheel_zoom,ybox_zoom,reset")
+            tools=[]
         new_plot.line(x='step', y=label+'Mean', alpha=1, line_width=3, color='red', source=self.source)
         band = Band(base='step', lower=label+'StdLower', upper=label+'StdUpper', source=self.source,
                     level='underlay', fill_alpha=0.5, line_width=0, line_color='black', fill_color='green')
