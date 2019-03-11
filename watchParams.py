@@ -20,7 +20,7 @@ class Watcher():
         self.tail = tail
         # How many data do we want to skip?
         self.thin = thin
-        
+
         # Keep track of how many we've skipped so far
         self.thinstep = 0
 
@@ -106,13 +106,13 @@ class Watcher():
         print("Opened the file {}!".format(file))
 
     def readStep(self):
-        '''Appempt to read in the next step of the chain file. 
-        If we get an unexpected number of walkers, quit the script. 
+        '''Appempt to read in the next step of the chain file.
+        If we get an unexpected number of walkers, quit the script.
         If we're at the end of the file, do nothing.'''
-        
+
         stepData = np.zeros((self.nWalkers, len(self.pars)))
         # If true, return the data. If False, the end of the file was reached before the step was fully read in.
-        flag = True 
+        flag = True
 
         # Remember where we started
         init = self.f.tell()
@@ -136,11 +136,6 @@ class Watcher():
                 # Which walker are we?
                 w = int(line[0])
                 if w != i:
-                    print("Walker mismatch!")
-                    print("Expected {}, but the file gave me {}".format(i, w))
-                    print(init.value)
-                    print(self.f.tell())
-                    print('')
                     flag = False
                     break
 
@@ -151,18 +146,18 @@ class Watcher():
                 i += 1
         except:
             flag = False
-        
+
         self.thinstep += 1
         if self.thin:
             if self.thinstep % self.thin != 0:
                 flag = None
 
 
-        if flag is True:
+        if flag == True:
             # We successfully read in the chunk!
             self.s += 1
             return stepData
-        elif flag is False:
+        elif flag == False:
             # The most recent step wasn't completely read in
             self.f.seek(init)
             return None
@@ -252,7 +247,7 @@ class Watcher():
             for name in parNameTemplate:
                 parNames.append(name.format(i+1))
         parNames.append('Likelihood')
-        
+
         self.parNames = parNames
         self.selectList = list(parNames)
         self.selectList.insert(0, '')
@@ -317,7 +312,7 @@ class Watcher():
     # thin  = args.thin[0]
 
 fname = 'chain_prod.txt'
-tail = 100000
+tail = 100
 thin = 10
 
 watcher = Watcher(file=fname, tail=tail, thin=thin)
