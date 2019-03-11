@@ -287,5 +287,26 @@ class Watcher():
 
         curdoc().add_root(row(new_plot))
 
+if __name__ in '__main__':
+    # import argparse
 
-watcher = Watcher()
+    # parser = argparse.ArgumentParser(description='Monitor an MCMC chain as it runs')
+    # parser.add_argument('file', default='chain_prod.txt', type=str, nargs=1,
+    #                     help='The outputted chain file to monitor')
+    # parser.add_argument('thin', default=0, type=int, nargs=1,
+    #                     help='I only read in every [thin] steps. 0 will read every step.',
+    #                     )
+    # parser.add_argument('tail', default=1000, type=int, nargs=1,
+    #                     help='I will plot only the last [tail] steps',
+    #                     )
+
+    # args = parser.parse_args()
+    # fname = args.file[0]
+    # tail  = args.tail[0]
+    # thin  = args.thin[0]
+
+    fname = 'chain_prod.txt'
+    tail = 2000
+    thin = 10
+
+    watcher = Watcher(file=fname, tail=tail, thin=thin)
