@@ -24,14 +24,14 @@ thinstep = 0
 # Initial values
 necl = 1
 s    = 0
-f = False
+f    = False
 nWalkers = 0
-parNames = ['wdFlux_0', 'dFlux_0', 'sFlux_0', 'rsFlux_0', 'q', 'dphi',\
-        'rdisc_0', 'ulimb_0', 'rwd', 'scale_0', 'az_0', 'fis_0', 'dexp_0', 'phi0_0']
 
 # Lists of what parameters we want to plot
 pars   = []
 labels = []
+parNames = ['wdFlux_0', 'dFlux_0', 'sFlux_0', 'rsFlux_0', 'q', 'dphi',\
+        'rdisc_0', 'ulimb_0', 'rwd', 'scale_0', 'az_0', 'fis_0', 'dexp_0', 'phi0_0']
 
 # fun loading animation
 load = ['.', '..', '...']
