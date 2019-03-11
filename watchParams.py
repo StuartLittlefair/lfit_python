@@ -101,7 +101,7 @@ class Watcher():
         # Remove the callback that keeps trying to open the file
         curdoc().remove_periodic_callback(self.check_file)
         # Create a new callback that periodically reads the file
-        curdoc().add_periodic_callback(self.update, 100)
+        curdoc().add_periodic_callback(self.update, 1)
 
         print("Opened the file {}!".format(file))
 
