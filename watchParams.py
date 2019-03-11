@@ -140,6 +140,7 @@ class Watcher():
                     print("Expected {}, but the file gave me {}".format(i, w))
                     print(init.value)
                     print(self.f.tell())
+                    print('')
                     flag = False
                     break
 
