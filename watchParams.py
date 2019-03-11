@@ -5,6 +5,7 @@ from bokeh.plotting import curdoc, figure
 from bokeh.server.callbacks import NextTickCallback
 from bokeh.models.widgets import inputs
 from bokeh.models.widgets.buttons import Toggle
+from bokeh.models.widgets import Slider
 
 import numpy as np
 
@@ -191,10 +192,12 @@ def add_plot(attr, old, new):
 
 # Filename
 file = 'chain_prod.txt'
+# How many data do we want to follow with?
+tail = 2500
 # Initial values
 necl = 1
-parNames = []
-parNameTemplate = []
+parNames = ['wdFlux_0', 'dFlux_0', 'sFlux_0', 'rsFlux_0', 'q', 'dphi',\
+        'rdisc_0', 'ulimb_0', 'rwd', 'scale_0', 'az_0', 'fis_0', 'dexp_0', 'phi0_0']
 
 # Lists of what parameters we want to plot
 pars   = []
@@ -244,13 +247,11 @@ for label in labels:
     source.add(data=[], name=label+'StdUpper')
     source.add(data=[], name=label+'StdLower')
 
-# Initialise the likelihood plotting area
-tail = 2500
 
 # Drop down box that should add extra parameters to the plot
 selectList = list(parNames)
 selectList.insert(0, '')
-plotPars = inputs.Select(width=240, title='Optional Parameters', options=selectList, value='')
+plotPars = inputs.Select(width=120, title='Optional Parameters', options=selectList, value='')
 plotPars.on_change('value', add_plot)
 
 # I want a toggle to enable or disable the extra params
@@ -258,7 +259,7 @@ complex_button = Toggle(label='Complex BS?', width=120)
 complex_button.on_click(update_complex)
 
 # Ask the user how many eclipses are in the data
-eclipses = inputs.TextInput(title='How many eclipses?', width=150)
+eclipses = Slider(title='How many eclipses?', width=200, start=1, end=10, step=1, value=1)
 eclipses.on_change('value', update_ecl)
 
 # Add stuff to the visible area
