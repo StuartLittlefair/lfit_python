@@ -110,11 +110,13 @@ class Watcher():
         If we're at the end of the file, do nothing.'''
         
         stepData = np.zeros((self.nWalkers, len(self.pars)))
+        stepData[:, :] = np.nan
         flag = True # If true, return the data. If False, the end of the file was reached before the step was fully read in.
         init = self.f.tell()
 
         try:
-            for i in np.arange(self.nWalkers):
+            i = 0
+            while i < self.nWalkers:
                 # Get the next line
                 line = self.f.readline().strip()
                 # Are we at the end of the file?
@@ -132,12 +134,17 @@ class Watcher():
                 w = int(line[0])
                 if w != i:
                     print("Walker mismatch!")
-                    exit()
+                    print("Expected {}, but the file gave me {}".format(i, w))
+                    
+                    # We need to try again. The file was probably being written while we were trying to read it.
+                    i = 0
+                    self.f.seek(init)
 
                 # Gather the desired numbers
                 values = line[self.pars]
 
                 stepData[w, :] = values
+                i += 1
         except:
             flag = False
         
