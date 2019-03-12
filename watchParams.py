@@ -38,7 +38,7 @@ class Watcher():
 
         # fun loading animation
         load = ['.', '..', '...']
-        for i in range(5):
+        for _ in range(5):
             load.extend(['... -', '... \\', '... |', '... /', '... -', '... \\', '... |', '... /', '... -'])
         load.extend(['...', '..', '.'])
         load.extend(['', '', '', '', '']*4)
@@ -71,7 +71,10 @@ class Watcher():
         self.layout = gridplot([self.eclipses, self.complex_button, self.plotPars], ncols=1)
         curdoc().add_root(self.layout)
         curdoc().title = 'MCMC Chain Supervisor'
-        curdoc().theme = 'dark_minimal'
+        try:
+            curdoc().theme = 'dark_minimal'
+        except:
+            pass
         self.check_file = curdoc().add_periodic_callback(self.open_file, 500)
 
     def open_file(self):
@@ -110,42 +113,47 @@ class Watcher():
         If we get an unexpected number of walkers, quit the script.
         If we're at the end of the file, do nothing.'''
 
-        stepData = np.zeros((self.nWalkers, len(self.pars)))
+        stepData = np.zeros((self.nWalkers, len(self.pars)), dtype=float)
         # If true, return the data. If False, the end of the file was reached before the step was fully read in.
         flag = True
 
         # Remember where we started
         init = self.f.tell()
 
-        try:
-            i = 0
-            while i < self.nWalkers:
-                # Get the next line
-                line = self.f.readline().strip()
-                # Are we at the end of the file?
-                if line == '':
-                    # The file is over.
-                    flag = False
-                    break
+        ## This should be:
+        # stepData = numpy.loadtxt(self.f,           # File to read
+        #   dtype=np.float,                          # All floats
+        #   delimiter=' ',                           # Space separated
+        #   usecols=pars,                            # Desired columns
+        #   skiprows=(self.nWalkers*self.thin),      # Thin the data by self.thin steps
+        #   max_rows=self.nWalkers                   # Only read in one step
+        # )
+        # followed by some checking routine that makes sure the array is fully populated. if not, 
+        # rewind. 
+        for i in np.arange(self.nWalkers): ## very slow!
+            # Get the next line
+            line = self.f.readline().strip()
+            # Are we at the end of the file?
+            if line == '':
+                # The file is over.
+                flag = False
+                break
 
-                line = np.array(line.split(), dtype=np.float64)
+            line = np.array(line.split(), dtype=np.float64)
 
-                # Check for infinities, replace with nans
-                line[np.isinf(line)] = np.nan
+            # Check for infinities, replace with nans
+            line[np.isinf(line)] = np.nan
 
-                # Which walker are we?
-                w = int(line[0])
-                if w != i:
-                    flag = False
-                    break
+            # Which walker are we?
+            w = int(line[0])
+            if w != i:
+                flag = False
+                break
 
-                # Gather the desired numbers
-                values = line[self.pars]
+            # Gather the desired numbers
+            values = line[self.pars]
 
-                stepData[w, :] = values
-                i += 1
-        except:
-            flag = False
+            stepData[w, :] = values
 
         self.thinstep += 1
         if self.thin:
