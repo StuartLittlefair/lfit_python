@@ -141,7 +141,7 @@ class Watcher():
 
             line = np.array(line.split(), dtype=np.float64)
 
-            # Check for infinities, replace with nans
+            # Check for infinities, replace with nans. Handles bad walkers
             line[np.isinf(line)] = np.nan
 
             # Which walker are we?
