@@ -153,11 +153,11 @@ class Watcher():
                 flag = None
 
 
-        if flag == True:
+        if flag is True:
             # We successfully read in the chunk!
             self.s += 1
             return stepData
-        elif flag == False:
+        elif flag is False:
             # The most recent step wasn't completely read in
             self.f.seek(init)
             return None
@@ -312,7 +312,7 @@ class Watcher():
     # thin  = args.thin[0]
 
 fname = 'chain_prod.txt'
-tail = 100
+tail = 100000
 thin = 10
 
 watcher = Watcher(file=fname, tail=tail, thin=thin)
