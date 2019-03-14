@@ -1,22 +1,35 @@
 import bokeh as bk
 from bokeh.layouts import row, column, gridplot
-from bokeh.models import ColumnDataSource, Band
+from bokeh.models import ColumnDataSource, Band, Whisker
 from bokeh.plotting import curdoc, figure
 from bokeh.server.callbacks import NextTickCallback
 from bokeh.models.widgets import inputs
 from bokeh.models.widgets.buttons import Toggle
-from bokeh.models.widgets import Slider
+from bokeh.models.widgets import Slider, Panel, Tabs
 
 import numpy as np
+
+from pandas import read_csv
+
+try:
+    from lfit import CV
+    print("Successfully imported CV class from lfit!")
+    lc = True
+except:
+    print("Failed to import lfit! Plotting lightcurves not supported!")
+    lc = False
 
 import time
 
 
 class Watcher():
-    def __init__(self, file='chain_prod.txt', tail=5000, thin=0):
-        '''Initialise the data storage, parameters, and waiting for the file to be created.'''
-        # Filename
-        self.file = file
+    def __init__(self, chain='chain_prod.txt', mcmc_input=None, tail=5000, thin=0, lightcurve=True):
+        # Can we preview the fits?
+        self.isTabbed = lightcurve
+
+        # Filenames
+        self.chain_file = chain
+        self.mcmc_input_fname = mcmc_input
         # How many data do we want to follow with?
         self.tail = tail
         # How many data do we want to skip?
@@ -54,23 +67,123 @@ class Watcher():
             source.add(data=[], name=label+'StdLower')
         self.source = source
 
-
+        ## First tab - Parameter History:
         # Drop down box that should add extra parameters to the plot
         self.selectList = ['']
         self.plotPars = inputs.Select(width=120, title='Optional Parameters', options=self.selectList, value='')
         self.plotPars.on_change('value', self.add_plot)
-
         # I want a toggle to enable or disable the extra params
         self.complex_button = Toggle(label='Complex BS?', width=120, button_type='danger')
         self.complex_button.on_click(self.update_complex)
-
         # Ask the user how many eclipses are in the data
         self.eclipses = Slider(title='How many eclipses?', width=200, start=0, end=10, step=1, value=0)
         self.eclipses.on_change('value', self.update_ecl)
 
-        # Add stuff to the visible area
+        # Add stuff to a layout for the area
         self.layout = gridplot([self.eclipses, self.complex_button, self.plotPars], ncols=1)
-        curdoc().add_root(self.layout)
+
+
+        if self.isTabbed:
+            # Add that layout to a tab
+            self.tab1 = Panel(child=self.layout, title="Parameter History")
+
+
+            ## Second tab - Plot the latest lightcurve
+            # I need a myriad of sliders. The ranges on these should be adaptive, or maybe I could have a series of +/- buttons?
+            self.slider_wdFlux  = Slider(title='White Dwarf Flux',      width=200, start=0.001, end=0.15,   step=0.01,     value=0.025108  )
+            self.slider_dFlux   = Slider(title='Disc Flux',             width=200, start=0.001, end=0.15,   step=0.01,     value=0.059197  )
+            self.slider_sFlux   = Slider(title='BrightSpot Flux',       width=200, start=0.001, end=0.15,   step=0.01,     value=0.036787  )
+            self.slider_rsFlux  = Slider(title='Secondary Flux',        width=200, start=0.001, end=0.15,   step=0.01,     value=0.004832  )
+            self.slider_q       = Slider(title='Mass Ratio',            width=200, start=0.001, end=0.5,    step=0.01,     value=0.111144  )
+            self.slider_dphi    = Slider(title='dPhi',                  width=200, start=0.030, end=0.1,    step=0.01,     value=0.065319  )
+            self.slider_rdisc   = Slider(title='Disc Radius',           width=200, start=0.250, end=0.7,    step=0.01,     value=0.454316  )
+            self.slider_ulimb   = Slider(title='Limb darkening',        width=200, start=0.1,   end=0.4,    step=0.01,     value=0.284287  )
+            self.slider_rwd     = Slider(title='White Dwarf Radius',    width=200, start=0.001, end=0.1,    step=0.01,     value=0.026284  )
+            self.slider_scale   = Slider(title='Bright Spot Scale',     width=200, start=0.001, end=0.2,    step=0.01,     value=0.021121  )
+            self.slider_az      = Slider(title='Bright Spot Azimuth',   width=200, start=50,    end=180,    step=1,        value=95.11449  )
+            self.slider_fis     = Slider(title='Isotrpoic BS fraction', width=200, start=0.001, end=1.0,    step=0.01,     value=0.008963  )
+            self.slider_dexp    = Slider(title='Disc profile exponent', width=200, start=0.001, end=3,      step=0.01,     value=1.707775  )
+            self.slider_phi0    = Slider(title='Time offset',           width=200, start=-0.1,  end=0.1,    step=0.01,     value=0.0       )
+            ## TODO: add the 4 complex BS sliders
+
+
+            # Create a gridplot of the sliders, in a long column
+            self.par_sliders = [
+                self.slider_wdFlux,
+                self.slider_dFlux,
+                self.slider_sFlux,
+                self.slider_rsFlux,
+                self.slider_q,
+                self.slider_dphi,
+                self.slider_rdisc,
+                self.slider_ulimb,
+                self.slider_rwd,
+                self.slider_scale,
+                self.slider_az,
+                self.slider_fis,
+                self.slider_dexp,
+                self.slider_phi0,
+            ]
+            # These can be bulk-edited like this now:
+            for slider in self.par_sliders:
+                slider.on_change('value', self.update_lc_obs)
+
+
+            # Plot the actual lightcurve
+            self.data_fname = inputs.TextInput(title='Filename', value='MASTER-J0014_r_A.calib')
+
+            # Grab the data from the file
+            self.lc_obs = read_csv(self.data_fname.value,
+                    sep=' ', comment='#', header=None, names=['phase', 'flux', 'err'])
+            self.lc_obs['upper'] = self.lc_obs['flux'] + self.lc_obs['err']
+            self.lc_obs['lower'] = self.lc_obs['flux'] - self.lc_obs['err']
+
+
+            # Generate the model lightcurve
+            pars = [slider.value for slider in self.par_sliders]
+            self.cv = CV(pars)
+            self.lc_obs['calc'] = self.cv.calcFlux(pars, np.array(self.lc_obs['phase']))
+            # Whisker can only take the ColumnDataSource, not the pandas array
+            self.lc_obs = ColumnDataSource(self.lc_obs)
+            # I want a button that'll turn red when the parameters are invalid
+            self.lc_isvalid = Toggle(label='Valid parameters', width=200, button_type='success')
+
+            # Initialise the figure
+            self.lc_plot = bk.plotting.figure(title='Lightcurve', plot_height=500, plot_width=1200,
+                toolbar_location='above', y_axis_location="left")
+            # Plot the lightcurve data
+            self.lc_plot.scatter(x='phase', y='flux', source=self.lc_obs, size=5, color='black')
+            # Plot the error bars - Bokeh doesnt have a built in errorbar!?!
+            self.lc_plot.add_layout(
+                Whisker(base='phase', upper='upper', lower='lower', source=self.lc_obs,
+                upper_head=None, lower_head=None, line_color='black', )
+            )
+            # Plot the model
+            self.lc_plot.line(x='phase', y='calc', source=self.lc_obs, line_color='red')
+
+
+            # Add all this to a tab
+            self.layout2 = column([
+                    self.data_fname,
+                    gridplot(self.par_sliders+[self.lc_isvalid], ncols=4),
+                    self.lc_plot
+                ])
+            self.tab2 = Panel(child=self.layout2, title="Lightcurve Parameters")
+
+            # Create a layout of this, and add it to a tab
+            # self.layout3 = column([self.data_fname, self.lc_plot])
+            # self.tab3 = Panel(child=self.layout3, title="Lightcurve Parameters")
+
+
+
+            # Add the tabs to the figure
+            self.tabs = Tabs(tabs=[self.tab1, self.tab2])
+            curdoc().add_root(self.tabs)
+
+        else:
+            # We can only use the first tab, so dont bother with the others.
+            curdoc().add_root(self.layout)
+
         curdoc().title = 'MCMC Chain Supervisor'
         try:
             curdoc().theme = 'dark_minimal'
@@ -86,7 +199,7 @@ class Watcher():
     def open_file(self):
         '''Check if the chain file has been created yet. If not, do nothing. If it is, set it to self.f'''
         # Open the file, and keep it open
-        file = self.file
+        file = self.chain_file
         try:
             self.f = open(file, 'r')
         except:
@@ -276,6 +389,19 @@ class Watcher():
         self.selectList.insert(0, '')
         self.plotPars.options = self.selectList
 
+    def update_lc_obs(self, attr, old, new):
+        '''Redraw the model lightcurve in the second tab'''
+        # Generate the model lightcurve
+        pars = [slider.value for slider in self.par_sliders]
+        try:
+            self.cv = CV(pars)
+            self.lc_obs.data['calc'] = self.cv.calcFlux(pars, np.array(self.lc_obs.data['phase']))
+            self.lc_isvalid.button_type = 'success'
+            self.lc_isvalid.label = 'Valid Parameters'
+        except Exception:
+            self.lc_isvalid.button_type = 'danger'
+            self.lc_isvalid.label = 'Invalid Parameters'
+
     def add_plot(self, attr, old, new):
         '''Add a plot to the page'''
 
@@ -296,7 +422,7 @@ class Watcher():
         # Move the file cursor back to the beginning of the file
         if not self.f is False:
             self.f.close()
-            self.f = open(self.file, 'r')
+            self.f = open(self.chain_file, 'r')
             self.s = 0
 
         new_plot = bk.plotting.figure(title=label, plot_height=300, plot_width=1200,
@@ -338,4 +464,4 @@ fname = 'chain_prod.txt'
 tail = 30000
 thin = 20
 
-watcher = Watcher(file=fname, tail=tail, thin=thin)
+watcher = Watcher(chain=fname, tail=tail, thin=thin, lightcurve=lc)
