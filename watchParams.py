@@ -14,6 +14,7 @@ import time
 
 class Watcher():
     def __init__(self, file='chain_prod.txt', tail=5000, thin=0):
+        '''Initialise the data storage, parameters, and waiting for the file to be created.'''
         # Filename
         self.file = file
         # How many data do we want to follow with?
@@ -75,7 +76,12 @@ class Watcher():
             curdoc().theme = 'dark_minimal'
         except:
             pass
-        self.check_file = curdoc().add_periodic_callback(self.open_file, 500)
+
+        # Is the file open?
+        self.open_file()
+        # If it doesn't exist, self.f is false. Then, check every second for it again.
+        if self.f is False:
+            self.check_file = curdoc().add_periodic_callback(self.open_file, 1000)
 
     def open_file(self):
         '''Check if the chain file has been created yet. If not, do nothing. If it is, set it to self.f'''
@@ -84,6 +90,7 @@ class Watcher():
         try:
             self.f = open(file, 'r')
         except:
+            self.f = False
             return
 
         # Determine the number of walkers
@@ -102,7 +109,10 @@ class Watcher():
         self.f = open(file, 'r')
 
         # Remove the callback that keeps trying to open the file
-        curdoc().remove_periodic_callback(self.check_file)
+        try:
+            curdoc().remove_periodic_callback(self.check_file)
+        except:
+            pass
         # Create a new callback that periodically reads the file
         curdoc().add_periodic_callback(self.update, 1)
 
@@ -128,32 +138,37 @@ class Watcher():
         #   skiprows=(self.nWalkers*self.thin),      # Thin the data by self.thin steps
         #   max_rows=self.nWalkers                   # Only read in one step
         # )
-        # followed by some checking routine that makes sure the array is fully populated. if not, 
-        # rewind. 
-        for i in np.arange(self.nWalkers): ## very slow!
-            # Get the next line
-            line = self.f.readline().strip()
-            # Are we at the end of the file?
-            if line == '':
-                # The file is over.
-                flag = False
-                break
+        # followed by some checking routine that makes sure the array is fully populated. if not,
+        # rewind.
+        try:
+            for i in np.arange(self.nWalkers): ## very slow!
+                # Get the next line
+                line = self.f.readline().strip()
+                # Are we at the end of the file?
+                if line == '':
+                    # The file is over.
+                    flag = False
+                    break
 
-            line = np.array(line.split(), dtype=np.float64)
+                line = np.array(line.split(), dtype=np.float64)
 
-            # Check for infinities, replace with nans. Handles bad walkers
-            line[np.isinf(line)] = np.nan
+                # Check for infinities, replace with nans. Handles bad walkers
+                line[np.isinf(line)] = np.nan
 
-            # Which walker are we?
-            w = int(line[0])
-            if w != i:
-                flag = False
-                break
+                # Which walker are we?
+                w = int(line[0])
+                if w != i:
+                    flag = False
+                    break
 
-            # Gather the desired numbers
-            values = line[self.pars]
+                # Gather the desired numbers
+                values = line[self.pars]
 
-            stepData[w, :] = values
+                stepData[w, :] = values
+        except IndexError:
+            # Sometimes empty lines slip through. Catch the exceptions
+            print(line)
+            flag = False
 
         self.thinstep += 1
         if self.thin:
@@ -273,10 +288,10 @@ class Watcher():
 
         # Clear data from the source structure
         self.source.data = {'step': []}
-        for label in self.labels:
-            self.source.data[label+'Mean']     = []
-            self.source.data[label+'StdUpper'] = []
-            self.source.data[label+'StdLower'] = []
+        for l in self.labels:
+            self.source.data[l+'Mean']     = []
+            self.source.data[l+'StdUpper'] = []
+            self.source.data[l+'StdLower'] = []
 
         # Move the file cursor back to the beginning of the file
         if not self.f is False:
@@ -297,7 +312,7 @@ class Watcher():
         new_plot.x_range.follow_interval = self.tail
         new_plot.x_range.range_padding = 0
         new_plot.y_range.range_padding_units = 'percent'
-        new_plot.y_range.range_padding = 0.3
+        new_plot.y_range.range_padding = 1
 
         curdoc().add_root(row(new_plot))
 
@@ -320,7 +335,7 @@ class Watcher():
     # thin  = args.thin[0]
 
 fname = 'chain_prod.txt'
-tail = 100000
-thin = 10
+tail = 30000
+thin = 20
 
 watcher = Watcher(file=fname, tail=tail, thin=thin)
