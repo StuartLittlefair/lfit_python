@@ -1,5 +1,5 @@
 import bokeh as bk
-from bokeh.layouts import row, column, gridplot
+from bokeh.layouts import row, column, gridplot, layout
 from bokeh.models import ColumnDataSource, Band, Whisker
 from bokeh.models.annotations import Title
 from bokeh.plotting import curdoc, figure
@@ -115,13 +115,11 @@ class Watcher():
         self.complex_button = Toggle(label='Complex BS?', width=120, button_type=col, active=self.complex)
         self.complex_button.on_click(self.update_complex)
 
-        #TODO: TABS!
         # Add stuff to a layout for the area
-        # self.tab1_layout =
-        curdoc().add_root(column([self.complex_button, self.plotPars]))
+        self.tab1_layout = column([self.plotPars])
 
         # Add that layout to a tab
-        # self.tab1 = Panel(child=self.tab1_layout, title="Parameter History")
+        self.tab1 = Panel(child=self.tab1_layout, title="Parameter History")
 
 
 
@@ -222,25 +220,24 @@ class Watcher():
         self.lc_isvalid = Button(label='Valid parameters', width=200, button_type='success')
         self.lc_isvalid.on_click(self.reset_sliders)
 
-        #TODO: TABS!
-        # self.tab2_layout =
-        curdoc().add_root(column([
-                row([self.data_fname, self.complex_button, self.lc_isvalid]),
-                gridplot(self.par_sliders, ncols=4),
-                gridplot(self.par_sliders_complex, ncols=4),
-                row(self.lc_plot)
-            ])
-        )
-        # self.tab2 = Panel(child=self.tab2_layout, title="Lightcurve Inspector")
+        # Arrange the tab layout
+        self.tab2_layout = column([
+            row([self.data_fname, self.complex_button, self.lc_isvalid]),
+            gridplot(self.par_sliders, ncols=4),
+            gridplot(self.par_sliders_complex, ncols=4),
+            self.lc_plot
+        ])
+        
+        self.tab2 = Panel(child=self.tab2_layout, title="Lightcurve Inspector")
 
         ######################################################
         ############# Add the tabs to the figure #############
         ######################################################
 
-        # # Make a tabs object
-        # self.tabs = Tabs(tabs=[self.tab1, self.tab2])
-        # # Add it
-        # curdoc().add_root(self.tabs)
+        # Make a tabs object
+        self.tabs = Tabs(tabs=[self.tab1, self.tab2])
+        # Add it
+        curdoc().add_root(self.tabs)
         curdoc().title = 'MCMC Chain Supervisor'
         try:
             curdoc().theme = 'dark_minimal'
