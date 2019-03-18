@@ -270,13 +270,12 @@ class Watcher():
         self.mcmc_input_dict = parseInput(self.mcmc_fname)
 
         # Gather the parameters we can use
-        self.complex  = bool(self.mcmc_input_dict['complex'])
+        self.complex  = bool(int(self.mcmc_input_dict['complex']))
         self.nWalkers = int(self.mcmc_input_dict['nwalkers'])
         self.necl     = int(self.mcmc_input_dict['neclipses'])
 
         if self.complex:
             print("Using the complex model!")
-            print(self.mcmc_input_dict['complex'])
 
         parNames = ['wdFlux_0', 'dFlux_0', 'sFlux_0', 'rsFlux_0', 'q', 'dphi',\
                 'rdisc_0', 'ulimb_0', 'rwd', 'scale_0', 'az_0', 'fis_0', 'dexp_0', 'phi0_0']
