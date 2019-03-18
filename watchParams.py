@@ -581,18 +581,13 @@ class Watcher():
         '''Add a plot to the page'''
 
         print("Attempting to add a plot to the page")
-        print(self.selectList)
-
+        
         label = str(self.plotPars.value)
         # if label == '':
         #     return
         par = self.selectList.index(label)
         self.labels.append(label)
         self.pars.append(par)
-
-        print(self.labels)
-        print(self.pars)
-        
 
         # Clear data from the source structure
         self.paramFollowSource.data = {'step': []}
@@ -630,7 +625,6 @@ class Watcher():
         curdoc().add_root(row(new_plot))
 
         print("Added a new plot!")
-        exit()
 
     def junk(self, attr, old, new):
         '''Sometimes, you just don't want to do anything :\ '''
