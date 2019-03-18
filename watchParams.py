@@ -447,6 +447,8 @@ class Watcher():
                     newdata[label+'Mean'] = [means[i]]
                     newdata[label+'StdUpper']  = [means[i]+stds[i]]
                     newdata[label+'StdLower']  = [means[i]-stds[i]]
+                
+                pprint(newdata)
 
                 # Add to the plot.
                 self.paramFollowSource.stream(newdata, self.tail)
@@ -581,8 +583,8 @@ class Watcher():
         print("Attempting to add a plot to the page")
 
         label = str(self.plotPars.value)
-        if label == '':
-            return
+        # if label == '':
+        #     return
         par = self.selectList.index(label) + 1
         self.labels.append(label)
         self.pars.append(par)
