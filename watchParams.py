@@ -420,6 +420,7 @@ class Watcher():
         print("Resetting the sliders!")
         for par, slider in zip(self.parNames[:15], self.par_sliders):
             param = self.parDict[par][0]
+            print("Setting the slider for {} to {}".format(par, param))
             slider.value = param
         if self.complex:
             for par, slider in zip(self.parNames[15:], self.par_sliders_complex):
