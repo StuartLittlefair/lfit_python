@@ -626,8 +626,14 @@ class Watcher():
         '''Sometimes, you just don't want to do anything :\ '''
         pass
 
-fname = 'chain_prod.txt'
-tail = 30000
-thin = 20
+if __name__ in '__main__':
+    print("This script must be run within a bokeh server:")
+    print("  bokeh serve watchParams.py")
+    print("Stopping!")
+else:
+    fname = 'chain_prod.txt'
+    mc_fname = 'mcmc_input.dat'
+    tail = 30000
+    thin = 0
 
-watcher = Watcher(chain=fname, mcmc_input='mcmc_input.dat', tail=tail, thin=thin)
+    watcher = Watcher(chain=fname, mcmc_input=mc_fname, tail=tail, thin=thin)
