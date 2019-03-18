@@ -582,14 +582,17 @@ class Watcher():
 
         print("Attempting to add a plot to the page")
         print(self.selectList)
-        exit()
 
         label = str(self.plotPars.value)
         # if label == '':
         #     return
-        par = self.selectList.index(label) + 1
+        par = self.selectList.index(label)
         self.labels.append(label)
         self.pars.append(par)
+
+        print(self.pars, self.labels)
+
+        exit()
 
         print("I now want to plot the following columns: ")
         for col, lab in zip(self.pars, self.labels):
