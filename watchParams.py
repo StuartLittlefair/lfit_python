@@ -590,10 +590,8 @@ class Watcher():
         self.labels.append(label)
         self.pars.append(par)
 
-        print("I now want to plot the following columns: ")
-        for col, lab in zip(self.pars, self.labels):
-            print("Column {3d}: {}".format(col, lab))
-
+        print(self.labels)
+        print(self.pars)
         exit()
 
         # Clear data from the source structure
@@ -632,6 +630,7 @@ class Watcher():
         curdoc().add_root(row(new_plot))
 
         print("Added a new plot!")
+        exit()
 
     def junk(self, attr, old, new):
         '''Sometimes, you just don't want to do anything :\ '''
