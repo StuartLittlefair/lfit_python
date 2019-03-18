@@ -581,6 +581,8 @@ class Watcher():
         '''Add a plot to the page'''
 
         print("Attempting to add a plot to the page")
+        print(self.selectList)
+        exit()
 
         label = str(self.plotPars.value)
         # if label == '':
