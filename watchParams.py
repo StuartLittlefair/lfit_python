@@ -583,7 +583,7 @@ class Watcher():
         label = str(self.plotPars.value)
         if label == '':
             return
-        par = self.parNames.index(label) + 1
+        par = self.selectList.index(label) + 1
         self.labels.append(label)
         self.pars.append(par)
 
