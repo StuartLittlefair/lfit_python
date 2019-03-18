@@ -601,10 +601,10 @@ class Watcher():
             self.paramFollowSource.data[l+'StdUpper'] = []
             self.paramFollowSource.data[l+'StdLower'] = []
 
-        exit()
-
         print("Reset the data storage to empty")
 
+        exit()
+        
         # Move the file cursor back to the beginning of the file
         if not self.f is False:
             self.f.close()
