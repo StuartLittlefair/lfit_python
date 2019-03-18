@@ -592,7 +592,7 @@ class Watcher():
 
         print(self.labels)
         print(self.pars)
-        exit()
+        
 
         # Clear data from the source structure
         self.paramFollowSource.data = {'step': []}
@@ -600,6 +600,8 @@ class Watcher():
             self.paramFollowSource.data[l+'Mean']     = []
             self.paramFollowSource.data[l+'StdUpper'] = []
             self.paramFollowSource.data[l+'StdLower'] = []
+
+        exit()
 
         print("Reset the data storage to empty")
 
