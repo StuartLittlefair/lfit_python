@@ -146,9 +146,19 @@ class Watcher():
             self.par_sliders.append(slider)
         
         # Stored in a separate list, so that I can haev them on their own row.
+        # Default values:
+        defaults = {
+            'exp1_0': [ 4.71, 0.001,  5.0],
+            'exp2_0': [ 1.19, 0.001,  5.0],
+            'tilt_0': [40.60, 0.001,  180],
+            'yaw_0': [35.35, -90.0, 90.0],
+        }
         self.par_sliders_complex = []
         for par, title in zip(self.parNames[14:], self.parDesc[14:]):
-            param = self.parDict[par]
+            try:
+                param = self.parDict[par]
+            except:
+                param = defaults[par]
             slider = Slider(
                 title = title,
                 start = param[1],
@@ -273,10 +283,8 @@ class Watcher():
         self.complex  = bool(int(self.mcmc_input_dict['complex']))
         self.nWalkers = int(self.mcmc_input_dict['nwalkers'])
         self.necl     = int(self.mcmc_input_dict['neclipses'])
-
-        if self.complex:
-            print("Using the complex model!")
-
+        
+        # Parameter keys
         parNames = ['wdFlux_0', 'dFlux_0', 'sFlux_0', 'rsFlux_0', 'q', 'dphi',\
                 'rdisc_0', 'ulimb_0', 'rwd', 'scale_0', 'az_0', 'fis_0', 'dexp_0', 'phi0_0']
         parNameTemplate = ['wdFlux_{0}', 'dFlux_{0}', 'sFlux_{0}', 'rsFlux_{0}',\
@@ -285,6 +293,9 @@ class Watcher():
         if self.complex:
             parNames.extend(['exp1_0', 'exp2_0', 'tilt_0', 'yaw_0'])
             parNameTemplate.extend(['exp1_{0}', 'exp2_{0}', 'tilt_{0}', 'yaw_{0}'])
+            print("Using the complex BS model!")
+        else:
+            print("Using the simple BS model!")
 
         for i in range(self.necl):
             parNames.extend([template.format(i) for template in parNameTemplate])
