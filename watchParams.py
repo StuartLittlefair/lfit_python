@@ -447,8 +447,6 @@ class Watcher():
                     newdata[label+'Mean'] = [means[i]]
                     newdata[label+'StdUpper']  = [means[i]+stds[i]]
                     newdata[label+'StdLower']  = [means[i]-stds[i]]
-                
-                pprint(newdata)
 
                 # Add to the plot.
                 self.paramFollowSource.stream(newdata, self.tail)
