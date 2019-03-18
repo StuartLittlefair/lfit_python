@@ -73,18 +73,18 @@ class Watcher():
         # The observational data filenames will be safe enough in a button.
 
 
-        # This is a list of the model-generation-relevant parameter names. i.e., 18 parameters. 
+        # This is a list of the model-generation-relevant parameter names. i.e., 18 parameters.
         # The model generation function itself will filter out the unwanted ones, rather than changing this.
-        self.parNames = ['wdFlux_0', 'dFlux_0', 'sFlux_0', 'rsFlux_0', 'q', 'dphi', 'rdisc_0', 'ulimb_0', 
-            'rwd', 'scale_0', 'az_0', 'fis_0', 'dexp_0', 'phi0_0', 
+        self.parNames = ['wdFlux_0', 'dFlux_0', 'sFlux_0', 'rsFlux_0', 'q', 'dphi', 'rdisc_0', 'ulimb_0',
+            'rwd', 'scale_0', 'az_0', 'fis_0', 'dexp_0', 'phi0_0',
             'exp1_0', 'exp2_0', 'tilt_0', 'yaw_0']
-        self.parDesc = ['White Dwarf Flux', 'Disc Flux', 'Bright Spot Flux', 'Secondary Flux', 'Mass Ratio', 
-            'Eclipse Duration', 'Disc Radius', 'Limb Darkening', 'White Dwarf Radius', 'Bright Spot Scale', 
-            'Bright Spot Azimuth', 'Isotropic Emission Fract.', 'Disc Profile', 'Phase Offset', 
+        self.parDesc = ['White Dwarf Flux', 'Disc Flux', 'Bright Spot Flux', 'Secondary Flux', 'Mass Ratio',
+            'Eclipse Duration', 'Disc Radius', 'Limb Darkening', 'White Dwarf Radius', 'Bright Spot Scale',
+            'Bright Spot Azimuth', 'Isotropic Emission Fract.', 'Disc Profile', 'Phase Offset',
             'BS Exponent 1', 'BS Exponent 2', 'BS Emission Tilt', 'BS Emission Yaw']
 
 
-        
+
         # fun loading animation
         load = ['.', '..', '...']
         for _ in range(5):
@@ -99,10 +99,10 @@ class Watcher():
         #####################################################
         ########### First tab - Parameter History ###########
         #####################################################
-        
+
         # Drop down box to add parameters to track
-        self.selectList = ['']
-        self.plotPars = inputs.Select(width=120, title='Track Parameter', options=self.selectList, value='')
+        self.selectList = [('', '')]
+        self.plotPars = Dropdown(width=120, label='Track Parameter', button_type='primary', menu=self.selectList)
         self.plotPars.on_change('value', self.add_tracking_plot)
         # Call the update_necl function
         self.update_necl()
@@ -117,7 +117,7 @@ class Watcher():
 
         #TODO: TABS!
         # Add stuff to a layout for the area
-        # self.tab1_layout = 
+        # self.tab1_layout =
         curdoc().add_root(column([self.complex_button, self.plotPars]))
 
         # Add that layout to a tab
@@ -144,7 +144,7 @@ class Watcher():
             slider.on_change('value', self.update_lc_model)
 
             self.par_sliders.append(slider)
-        
+
         # Stored in a separate list, so that I can haev them on their own row.
         # Default values:
         defaults = {
@@ -170,7 +170,7 @@ class Watcher():
             # If we aren't using a complex model, changing these shouldn't bother updating the model.
             if self.complex:
                 slider.on_change('value', self.update_lc_model)
-            
+
             self.par_sliders_complex.append(slider)
 
         # Data file picker
@@ -187,8 +187,8 @@ class Watcher():
 
         # Grab the data from the file, to start with just use the first in the list
         self.lc_obs = read_csv(menu[0][1],
-                sep=' ', comment='#', 
-                header=None, 
+                sep=' ', comment='#',
+                header=None,
                 names=['phase', 'flux', 'err'],
                 skipinitialspace=True)
         self.lc_obs['calc'] = self.cv.calcFlux(pars, np.array(self.lc_obs['phase']))
@@ -220,7 +220,7 @@ class Watcher():
         self.lc_isvalid.on_click(self.reset_sliders)
 
         #TODO: TABS!
-        # self.tab2_layout = 
+        # self.tab2_layout =
         curdoc().add_root(column([
                 row([self.data_fname, self.complex_button, self.lc_isvalid]),
                 gridplot(self.par_sliders, ncols=4),
@@ -283,13 +283,13 @@ class Watcher():
         self.complex  = bool(int(self.mcmc_input_dict['complex']))
         self.nWalkers = int(self.mcmc_input_dict['nwalkers'])
         self.necl     = int(self.mcmc_input_dict['neclipses'])
-        
+
         # Parameter keys
         parNames = ['wdFlux_0', 'dFlux_0', 'sFlux_0', 'rsFlux_0', 'q', 'dphi',\
                 'rdisc_0', 'ulimb_0', 'rwd', 'scale_0', 'az_0', 'fis_0', 'dexp_0', 'phi0_0']
         parNameTemplate = ['wdFlux_{0}', 'dFlux_{0}', 'sFlux_{0}', 'rsFlux_{0}',\
                 'rdisc_{0}', 'ulimb_{0}', 'scale_{0}', 'az_{0}', 'fis_{0}', 'dexp_{0}', 'phi0_{0}']
-        
+
         if self.complex:
             parNames.extend(['exp1_0', 'exp2_0', 'tilt_0', 'yaw_0'])
             parNameTemplate.extend(['exp1_{0}', 'exp2_{0}', 'tilt_{0}', 'yaw_{0}'])
@@ -306,7 +306,7 @@ class Watcher():
             line = self.mcmc_input_dict[param].strip().split(' ')
             line = [x for x in line if x != '']
             line = [line[0], line[2], line[3]]
-            
+
             parameter = [float(x) for x in line]
             self.parDict[param] = list(parameter)
 
@@ -340,14 +340,14 @@ class Watcher():
             self.f.close()
             self.f = False
 
-        # Remove the callback that keeps trying to open the file. 
-        # This is down here, in case the above fails. This way, 
+        # Remove the callback that keeps trying to open the file.
+        # This is down here, in case the above fails. This way,
         # if it does we should check again in a bit until it works
         try:
             curdoc().remove_periodic_callback(self.check_file)
         except:
             pass
-        
+
         # Create a new callback that periodically reads the file
         curdoc().add_periodic_callback(self.update_chain, 1)
 
@@ -472,13 +472,13 @@ class Watcher():
                 parNames.append(name.format(i+1))
         parNames.append('Likelihood')
 
-        self.selectList = list(parNames)
-        self.selectList.insert(0, '')
-        self.plotPars.options = self.selectList
+        self.selectList = [(par, par) for par in parNames]
+        self.selectList.insert(0, ('', ''))
+        self.plotPars.menu = self.selectList
 
     def update_complex(self, new):
         '''Handler for toggling the complex button. This should just enable/disable the complex sliders '''
-        
+
         self.complex = self.complex_button.active
 
         if self.complex:
@@ -486,7 +486,7 @@ class Watcher():
             # Complex sliders update the model
             for slider in self.par_sliders_complex:
                 slider.on_change('value', self.update_lc_model)
-            
+
             # Initialise a new CV object with the new BS model
             pars = [slider.value for slider in self.par_sliders]
             pars.extend([slider.value for slider in self.par_sliders_complex])
@@ -526,7 +526,7 @@ class Watcher():
         print('This is file {}'.format(i))
 
         # Set the sliders to the initial guesses for that file
-        parNames = ['wdFlux_0', 'dFlux_0', 'sFlux_0', 'rsFlux_0', 'q', 'dphi', 'rdisc_0', 'ulimb_0', 
+        parNames = ['wdFlux_0', 'dFlux_0', 'sFlux_0', 'rsFlux_0', 'q', 'dphi', 'rdisc_0', 'ulimb_0',
             'rwd', 'scale_0', 'az_0', 'fis_0', 'dexp_0', 'phi0_0']
         for par, slider in zip(parNames, self.par_sliders):
             value = self.parDict[par][0]
@@ -566,7 +566,7 @@ class Watcher():
             pars = [slider.value for slider in self.par_sliders]
             if self.complex:
                 pars.extend([slider.value for slider in self.par_sliders_complex])
-            
+
             self.lc_obs.data['calc'] = self.cv.calcFlux(pars, np.array(self.lc_obs.data['phase']))
             self.lc_isvalid.button_type = 'success'
             self.lc_isvalid.label = 'Valid Parameters'
@@ -579,11 +579,10 @@ class Watcher():
         '''Add a plot to the page'''
 
         print("Attempting to add a plot to the page")
-        
+
         label = str(self.plotPars.value)
-        # if label == '':
-        #     return
-        par = self.selectList.index(label)
+        params = [par[0] for par in self.selectList]
+        par = params.index(label)
         self.labels.append(label)
         self.pars.append(par)
 
