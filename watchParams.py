@@ -578,12 +578,18 @@ class Watcher():
     def add_tracking_plot(self, attr, old, new):
         '''Add a plot to the page'''
 
+        print("Attempting to add a plot to the page")
+
         label = str(self.plotPars.value)
         if label == '':
             return
         par = self.parNames.index(label) + 1
         self.labels.append(label)
         self.pars.append(par)
+
+        print("I now want to plot the following columns: ")
+        for col, lab in zip(self.pars, self.labels):
+            print("Column {3d}: {}".format(col, lab))
 
         # Clear data from the source structure
         self.paramFollowSource.data = {'step': []}
@@ -592,11 +598,15 @@ class Watcher():
             self.paramFollowSource.data[l+'StdUpper'] = []
             self.paramFollowSource.data[l+'StdLower'] = []
 
+        print("Reset the data storage to empty")
+
         # Move the file cursor back to the beginning of the file
         if not self.f is False:
             self.f.close()
             self.f = open(self.chain_fname, 'r')
             self.s = 0
+
+        print("Closed and re-opened the file!")
 
         new_plot = bk.plotting.figure(title=label, plot_height=300, plot_width=1200,
             toolbar_location='above', y_axis_location="right",
@@ -615,6 +625,8 @@ class Watcher():
 
         #TODO: Make this add to the right tab
         curdoc().add_root(row(new_plot))
+
+        print("Added a new plot!")
 
     def junk(self, attr, old, new):
         '''Sometimes, you just don't want to do anything :\ '''
