@@ -201,7 +201,8 @@ class Watcher():
         self.lc_obs = ColumnDataSource(self.lc_obs)
 
         # Initialise the figure
-        self.lc_plot = bk.plotting.figure(title='Lightcurve', plot_height=500, plot_width=1200,
+        title = menu[0][0]
+        self.lc_plot = bk.plotting.figure(title=title, plot_height=500, plot_width=1200,
             toolbar_location='above', y_axis_location="left")
         # Plot the lightcurve data
         self.lc_plot.scatter(x='phase', y='flux', source=self.lc_obs, size=5, color='black')
@@ -217,24 +218,20 @@ class Watcher():
         # Plot the model
         self.lc_plot.line(x='phase', y='calc', source=self.lc_obs, line_color='red')
 
-        # I want a button that'll turn red when the parameters are invalid. 
+        # I want a button that'll turn red when the parameters are invalid.
         self.lc_isvalid = Button(label='Valid parameters', width=200, button_type='success')
         self.lc_isvalid.on_click(self.reset_sliders)
 
         #TODO: TABS!
-<<<<<<< HEAD
         # self.tab2_layout =
         curdoc().add_root(column([
-=======
-        self.tab2_layout = column([
->>>>>>> 1199d3a8ccb03de7e7641eba94746a44c37b1e32
                 row([self.data_fname, self.complex_button, self.lc_isvalid]),
                 gridplot(self.par_sliders, ncols=4),
                 gridplot(self.par_sliders_complex, ncols=4),
                 row(self.lc_plot)
             ])
-        
-        self.tab2 = Panel(child=self.tab2_layout, title="Lightcurve Inspector")
+        )
+        # self.tab2 = Panel(child=self.tab2_layout, title="Lightcurve Inspector")
 
         ######################################################
         ############# Add the tabs to the figure #############
@@ -559,11 +556,9 @@ class Watcher():
 
         # Set the plotting area title
         fname = fname.split('/')[-1]
-        title = Title()
-        title.text = fname
         print("Trying to change the title of the plot")
         print("Old title: {}".format(self.lc_plot.title.text))
-        self.lc_plot.title = title
+        self.lc_plot.title.text = fname
         print("The title should now be {}".format(self.lc_plot.title.text))
 
     def update_lc_model(self, attr, old, new):
