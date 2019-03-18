@@ -142,6 +142,7 @@ class Watcher():
                 width = 200,
             )
             slider.on_change('value', self.update_lc_model)
+            slider.callback_throttle = 100 #ms?
 
             self.par_sliders.append(slider)
 
@@ -167,6 +168,7 @@ class Watcher():
                 step  = (param[2] - param[1]) / 100,
                 width = 200,
             )
+            slider.callback_throttle = 100 #ms?
             # If we aren't using a complex model, changing these shouldn't bother updating the model.
             if self.complex:
                 slider.on_change('value', self.update_lc_model)
@@ -215,20 +217,24 @@ class Watcher():
         # Plot the model
         self.lc_plot.line(x='phase', y='calc', source=self.lc_obs, line_color='red')
 
-        # I want a button that'll turn red when the parameters are invalid. TODO: It should reset the parameters on click
+        # I want a button that'll turn red when the parameters are invalid. 
         self.lc_isvalid = Button(label='Valid parameters', width=200, button_type='success')
         self.lc_isvalid.on_click(self.reset_sliders)
 
         #TODO: TABS!
+<<<<<<< HEAD
         # self.tab2_layout =
         curdoc().add_root(column([
+=======
+        self.tab2_layout = column([
+>>>>>>> 1199d3a8ccb03de7e7641eba94746a44c37b1e32
                 row([self.data_fname, self.complex_button, self.lc_isvalid]),
                 gridplot(self.par_sliders, ncols=4),
                 gridplot(self.par_sliders_complex, ncols=4),
                 row(self.lc_plot)
             ])
-        )
-        # self.tab2 = Panel(child=self.tab2_layout, title="Lightcurve Inspector")
+        
+        self.tab2 = Panel(child=self.tab2_layout, title="Lightcurve Inspector")
 
         ######################################################
         ############# Add the tabs to the figure #############
@@ -419,6 +425,7 @@ class Watcher():
         print("Resetting the sliders!")
         for par, slider in zip(self.parNames[:15], self.par_sliders):
             param = self.parDict[par][0]
+            print("Setting the slider for {} to {}".format(par, param))
             slider.value = param
         if self.complex:
             for par, slider in zip(self.parNames[15:], self.par_sliders_complex):
