@@ -590,13 +590,11 @@ class Watcher():
         self.labels.append(label)
         self.pars.append(par)
 
-        print(self.pars, self.labels)
-
-        exit()
-
         print("I now want to plot the following columns: ")
         for col, lab in zip(self.pars, self.labels):
             print("Column {3d}: {}".format(col, lab))
+
+        exit()
 
         # Clear data from the source structure
         self.paramFollowSource.data = {'step': []}
