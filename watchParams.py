@@ -4,7 +4,7 @@ from bokeh.models import ColumnDataSource, Band, Whisker
 from bokeh.models.annotations import Title
 from bokeh.plotting import curdoc, figure
 from bokeh.server.callbacks import NextTickCallback
-from bokeh.models.widgets import inputs
+from bokeh.models.widgets import inputs, markups
 from bokeh.models.widgets.buttons import Toggle, Button
 from bokeh.models.widgets import Slider, Panel, Tabs, Dropdown
 
@@ -83,7 +83,8 @@ class Watcher():
             'Bright Spot Azimuth', 'Isotropic Emission Fract.', 'Disc Profile', 'Phase Offset',
             'BS Exponent 1', 'BS Exponent 2', 'BS Emission Tilt', 'BS Emission Yaw']
 
-
+        if self.GP:
+            self.parNames.extend(['ampin_gp', 'ampout_gp', 'tau_gp'])
 
         # fun loading animation
         load = ['.', '..', '...']
@@ -115,8 +116,21 @@ class Watcher():
         self.complex_button = Toggle(label='Complex BS?', width=120, button_type=col, active=self.complex)
         self.complex_button.on_click(self.update_complex)
 
+        # Lets report some characteristics of the chain
+        self.reportChain_label = markups.Markup(width=400)
+        self.reportChain_label.text =  'This chain has <b>{:,d}</b> burn steps, and <b>{:,d}</b> product steps.'.format(
+            self.nBurn, self.nProd)
+        self.reportChain_label.text += "\nWe're using <b>{:,d}</b> walkers,".format(
+            self.nWalkers)
+
+        if bool(int(self.mcmc_input_dict['usePT'])):
+            self.reportChain_label.text += ' with parallel tempering sampling <b>{:,d}</b> temperatures,'.format(
+                self.mcmc_input_dict['ntemps'])
+
+        self.reportChain_label.text += ' and running on <b>{:,d}</b> cores.'.format(self.mcmc_input_dict['nthread'])
+
         # Add stuff to a layout for the area
-        self.tab1_layout = column([self.plotPars])
+        self.tab1_layout = column([self.reportChain_label, self.plotPars])
 
         # Add that layout to a tab
         self.tab1 = Panel(child=self.tab1_layout, title="Parameter History")
@@ -227,7 +241,7 @@ class Watcher():
             gridplot(self.par_sliders_complex, ncols=4),
             self.lc_plot
         ])
-        
+
         self.tab2 = Panel(child=self.tab2_layout, title="Lightcurve Inspector")
 
         ######################################################
@@ -283,6 +297,9 @@ class Watcher():
         self.complex  = bool(int(self.mcmc_input_dict['complex']))
         self.nWalkers = int(self.mcmc_input_dict['nwalkers'])
         self.necl     = int(self.mcmc_input_dict['neclipses'])
+        self.GP       = bool(int(self.mcmc_input_dict['useGP']))
+        self.nBurn    = int(self.mcmc_input_dict['nburn'])
+        self.nProd    = int(self.mcmc_input_dict['nprod'])
 
         # Parameter keys
         parNames = ['wdFlux_0', 'dFlux_0', 'sFlux_0', 'rsFlux_0', 'q', 'dphi',\
@@ -417,12 +434,21 @@ class Watcher():
     def reset_sliders(self):
         '''Set the parameters to the initial guesses.'''
         print("Resetting the sliders!")
+        # Figure out which eclipse we're looking at
+        template = 'file_{}'
+        for i in range(self.necl):
+            if self.mcmc_input_dict[template.format(i)] == fname:
+                break
+        print('This is file {}'.format(i))
+
         for par, slider in zip(self.parNames[:15], self.par_sliders):
-            param = self.parDict[par][0]
+            get = par.replace('_0', '_{}'.format(i))
+            param = self.parDict[get][0]
             print("Setting the slider for {} to {}".format(par, param))
             slider.value = param
         if self.complex:
             for par, slider in zip(self.parNames[15:], self.par_sliders_complex):
+                get = par.replace('_0', '_{}'.format(i))
                 param = self.parDict[par][0]
                 slider.value = param
 
@@ -466,6 +492,9 @@ class Watcher():
         if self.complex:
             parNames.extend(['exp1_0', 'exp2_0', 'tilt_0', 'yaw_0'])
             parNameTemplate.extend(['exp1_{0}', 'exp2_{0}', 'tilt_{0}', 'yaw_{0}'])
+
+        if self.GP:
+            parNames.extend(['ampin_gp', 'ampout_gp', 'tau_gp'])
 
         # Format labels
         for i in range(self.necl-1):
@@ -604,8 +633,8 @@ class Watcher():
 
         new_plot = bk.plotting.figure(title=label, plot_height=300, plot_width=1200,
             toolbar_location='above', y_axis_location="right",
-            # tools="ypan,ywheel_zoom,ybox_zoom,reset")
-            tools=[])
+            tools="ypan,ywheel_zoom,ybox_zoom,reset")
+            # tools=[])
         new_plot.line(x='step', y=label+'Mean', alpha=1, line_width=3, color='red', source=self.paramFollowSource)
         band = Band(base='step', lower=label+'StdLower', upper=label+'StdUpper', source=self.paramFollowSource,
                     level='underlay', fill_alpha=0.5, line_width=0, line_color='black', fill_color='green')
@@ -617,8 +646,8 @@ class Watcher():
         new_plot.y_range.range_padding_units = 'percent'
         new_plot.y_range.range_padding = 1
 
-        #TODO: Make this add to the right tab
-        curdoc().add_root(row(new_plot))
+        # Make this add to the right tab
+        self.tab1_layout.children.append(row(new_plot))
 
         print("Added a new plot!")
 
