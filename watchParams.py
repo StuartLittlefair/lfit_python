@@ -120,7 +120,7 @@ class Watcher():
         self.reportChain_label = markups.Markup(width=400)
         self.reportChain_label.text =  'This chain has <b>{:,d}</b> burn steps, and <b>{:,d}</b> product steps.'.format(
             self.nBurn, self.nProd)
-        self.reportChain_label.text += "\nWe're using <b>{:,d}</b> walkers,".format(
+        self.reportChain_label.text += " We're using <b>{:,d}</b> walkers,".format(
             self.nWalkers)
 
         if bool(int(self.mcmc_input_dict['usePT'])):
@@ -444,12 +444,13 @@ class Watcher():
         for par, slider in zip(self.parNames[:15], self.par_sliders):
             get = par.replace('_0', '_{}'.format(i))
             param = self.parDict[get][0]
-            print("Setting the slider for {} to {}".format(par, param))
+            print("Setting the slider for {} to {}".format(get, param))
             slider.value = param
         if self.complex:
             for par, slider in zip(self.parNames[15:], self.par_sliders_complex):
                 get = par.replace('_0', '_{}'.format(i))
                 param = self.parDict[par][0]
+                print("Setting the slider for {} to {}".format(get, param))
                 slider.value = param
 
     def update_chain(self):
