@@ -51,19 +51,22 @@ class Watcher():
         ############### Information Gathering ###############
         #####################################################
 
+        print("Gathering information about my initial conditions...")
         # Save the tail and thin optional parameters to the self object
         self.tail = tail
         self.thin = thin
+        print("I'll follow {:,d} data points, and thin the chain file by {:,d}".format(self.tail, self.thin))
 
         # Save these, just in case I need to use them again later.
         self.mcmc_fname  = mcmc_input
         self.chain_fname = chain
+        print("Looking for the mcmc input '{}', and the chain file {}".format(self.mcmc_fname, self.chain_fname))
 
         # Parse the mcmc_input file
         self.parse_mcmc_input()
 
         # Get the observation data file from the input
-        print("Grabbing data files from the input dict:")
+        print("Grabbing data files from the input dict...")
         menu = []
         for i in range(self.necl):
             # Grab the filename
@@ -101,20 +104,14 @@ class Watcher():
         ########### First tab - Parameter History ###########
         #####################################################
 
+        print("Creating the Parameter History tab...")
         # Drop down box to add parameters to track
         self.selectList = [('', '')]
         self.plotPars = Dropdown(width=120, label='Track Parameter', button_type='primary', menu=self.selectList)
         self.plotPars.on_change('value', self.add_tracking_plot)
-        # Call the update_necl function
-        self.update_necl()
-
-        # Button to switch from the complex to simple BS model, and vice versa
-        if self.complex:
-            col = 'success'
-        else:
-            col = 'danger'
-        self.complex_button = Toggle(label='Complex BS?', width=120, button_type=col, active=self.complex)
-        self.complex_button.on_click(self.update_complex)
+        # Call the update_selectList function
+        self.update_selectList()
+        print("Made the parameter picker...")
 
         # Lets report some characteristics of the chain
         self.reportChain_label = markups.Markup(width=400)
@@ -128,19 +125,21 @@ class Watcher():
                 self.mcmc_input_dict['ntemps'])
 
         self.reportChain_label.text += ' and running on <b>{:,d}</b> cores.'.format(self.mcmc_input_dict['nthread'])
+        print("Made the little header")
 
         # Add stuff to a layout for the area
         self.tab1_layout = column([self.reportChain_label, self.plotPars])
 
         # Add that layout to a tab
         self.tab1 = Panel(child=self.tab1_layout, title="Parameter History")
-
+        print("First tab done!")
 
 
         ######################################################
         ############ Second tab - Model inspector ############
         ######################################################
 
+        print("Creating the second tab...")
         # I need a myriad of parameter sliders. The ranges on these should be set by the priors.
         self.par_sliders = []
         for par, title in zip(self.parNames[:14], self.parDesc[:14]):
@@ -186,19 +185,32 @@ class Watcher():
                 slider.on_change('value', self.update_lc_model)
 
             self.par_sliders_complex.append(slider)
+        print("Made the sliders...")
 
         # Data file picker
         self.data_fname = Dropdown(label="Filename", button_type="danger", menu=menu, width=200)
         self.data_fname.on_change('value', self.update_lc_obs)
+        print("Made the data picker...")
 
+        # Button to switch from the complex to simple BS model, and vice versa
+        if self.complex:
+            col = 'success'
+        else:
+            col = 'danger'
+        self.complex_button = Toggle(label='Complex BS?', width=120, button_type=col, active=self.complex)
+        self.complex_button.on_click(self.update_complex)
+        print("Made the complex button...")
 
         # The CV model object needs to be seeded with initial values. Extract these from the sliders
+        print("Initialising the CV model...", end='')
         pars = [slider.value for slider in self.par_sliders]
         if self.complex:
             pars.extend([slider.value for slider in self.par_sliders_complex])
         # Initialise the model
         self.cv = CV(pars)
+        print(" Done.")
 
+        print("Grabbing teh observations...")
         # Grab the data from the file, to start with just use the first in the list
         self.lc_obs = read_csv(menu[0][1],
                 sep=' ', comment='#',
@@ -212,6 +224,7 @@ class Watcher():
         # Whisker can only take the ColumnDataSource, not the pandas array
         self.lc_obs = ColumnDataSource(self.lc_obs)
 
+        print("Creating the LC plot...", end='')
         # Initialise the figure
         title = menu[0][0]
         self.lc_plot = bk.plotting.figure(title=title, plot_height=500, plot_width=1200,
@@ -229,10 +242,12 @@ class Watcher():
 
         # Plot the model
         self.lc_plot.line(x='phase', y='calc', source=self.lc_obs, line_color='red')
+        print(" Done")
 
         # I want a button that'll turn red when the parameters are invalid.
         self.lc_isvalid = Button(label='Valid parameters', width=200, button_type='success')
         self.lc_isvalid.on_click(self.reset_sliders)
+        print("Made the valid parameters button")
 
         # Arrange the tab layout
         self.tab2_layout = column([
@@ -243,6 +258,7 @@ class Watcher():
         ])
 
         self.tab2 = Panel(child=self.tab2_layout, title="Lightcurve Inspector")
+        print("Constructed the Lightcurve Inspector tab!")
 
         ######################################################
         ############# Add the tabs to the figure #############
@@ -252,6 +268,7 @@ class Watcher():
         self.tabs = Tabs(tabs=[self.tab1, self.tab2])
         # Add it
         curdoc().add_root(self.tabs)
+        print("Added the tabs to the document!")
         curdoc().title = 'MCMC Chain Supervisor'
         try:
             curdoc().theme = 'dark_minimal'
@@ -262,6 +279,7 @@ class Watcher():
         ## Setup for, and begin watching for the chain file ##
         ######################################################
 
+        print("Setting up the chain file watcher...")
         # Keep track of how many steps we've skipped so far
         self.thinstep = 0
 
@@ -280,17 +298,26 @@ class Watcher():
         # Is the file open? Check once a second until it is, then once we find it remove this callback.
         self.check_file = curdoc().add_periodic_callback(self.open_file, 1000)
 
+        print("Finished initialising the dashboard!")
+
     def parse_mcmc_input(self):
         '''Parse the mcmc input dict, and store the following:
             - self.complex: bool
-                Is the model using the simple or complex BS?
+                Is the model using the simple or complex BS
+            - self.GP: bool
+                Is the model using the gaussian process?
             - self.nWalkers: int
                 How many walkers are expected to be in the chain?
             - self.necl: int
                 How many eclipses are we using?
             - self.parDict: dict
                 Storage for the variables, including priors and initial guesses.
+            - self.nBurn: int
+                The number of burn-in steps.
+            - self.nProd: int
+                The number of product steps.
         '''
+        print("Parsing the mcmc_input file, '{}'...".format(self.mcmc_fname))
         self.mcmc_input_dict = parseInput(self.mcmc_fname)
 
         # Gather the parameters we can use
@@ -314,6 +341,10 @@ class Watcher():
         else:
             print("Using the simple BS model!")
 
+        if self.GP:
+            print("Using the GP!")
+            parNames.extend(['ampin_gp', 'ampout_gp', 'tau_gp'])
+
         for i in range(self.necl):
             parNames.extend([template.format(i) for template in parNameTemplate])
 
@@ -333,6 +364,7 @@ class Watcher():
         file = self.chain_fname
         try:
             self.f = open(file, 'r')
+            print("Found the file, '{}'!".format(file))
         except:
             self.f = False
             return
@@ -352,23 +384,25 @@ class Watcher():
         self.f.close()
         # We're at step 0 now
         self.f = open(file, 'r')
+
         print("Expected {} walkers, got {} walkers in the file!".format(self.nWalkers, nWalkers))
-        if nWalkers != self.nWalkers:
-            self.f.close()
-            self.f = False
+        if nWalkers != self.nWalkers:\
+            print("Got a walker mismatch. Using the walkers I found by looking in the file...")
+            self.nWalkers = nWalkers
 
         # Remove the callback that keeps trying to open the file.
         # This is down here, in case the above fails. This way,
         # if it does we should check again in a bit until it works
         try:
             curdoc().remove_periodic_callback(self.check_file)
+            print("No longer re-checking for the file.")
         except:
             pass
 
         # Create a new callback that periodically reads the file
         curdoc().add_periodic_callback(self.update_chain, 1)
 
-        print("Opened the file {}!".format(file))
+        print("Succesfully opened the chain '{}'!".format(file))
 
     def readStep(self):
         '''Attempt to read in the next step of the chain file.
@@ -382,41 +416,45 @@ class Watcher():
         # Remember where we started
         init = self.f.tell()
 
+        self.thinstep += 1
+
+        if self.thin:
+            if self.thinstep % self.thin != 0:
+                # This only processes the line once every <thin> lines
+                flag = None
+
         try:
             for i in np.arange(self.nWalkers): ## very slow!
                 # Get the next line
                 line = self.f.readline().strip()
-                # Are we at the end of the file?
-                if line == '':
-                    # The file is over.
-                    flag = False
-                    break
 
-                line = np.array(line.split(), dtype=np.float64)
+                # Do we actually want to process this data?
+                if flag is True:
+                    # Are we at the end of the file?
+                    if line == '':
+                        # The file is over.
+                        flag = False
+                        break
 
-                # Check for infinities, replace with nans. Handles bad walkers
-                line[np.isinf(line)] = np.nan
+                    line = np.array(line.split(), dtype=np.float64)
 
-                # Which walker are we?
-                w = int(line[0])
-                if w != i:
-                    flag = False
-                    break
+                    # Check for infinities, replace with nans. Handles bad walkers
+                    line[np.isinf(line)] = np.nan
 
-                # Gather the desired numbers
-                values = line[self.pars]
+                    # Which walker are we?
+                    w = int(line[0])
+                    if w != i:
+                        flag = False
+                        break
 
-                stepData[w, :] = values
+                    # Gather the desired numbers
+                    values = line[self.pars]
+
+                    stepData[w, :] = values
         except IndexError:
             # Sometimes empty lines slip through. Catch the exceptions
             print(line)
             flag = False
-
-        self.thinstep += 1
-        if self.thin:
-            if self.thinstep % self.thin != 0:
-                flag = None
-
 
         if flag is True:
             # We successfully read in the chunk!
@@ -479,7 +517,7 @@ class Watcher():
                 # Add to the plot.
                 self.paramFollowSource.stream(newdata, self.tail)
 
-    def update_necl(self):
+    def update_selectList(self):
         '''Change the options on self.plotPars to reflect how many eclipses are in the MCMC chain'''
 
         print("Updating the number of eclipses in the plotPars list.")
@@ -491,10 +529,12 @@ class Watcher():
 
         # complex has extra parameters
         if self.complex:
+            print("Adding complex params")
             parNames.extend(['exp1_0', 'exp2_0', 'tilt_0', 'yaw_0'])
             parNameTemplate.extend(['exp1_{0}', 'exp2_{0}', 'tilt_{0}', 'yaw_{0}'])
 
         if self.GP:
+            print("Adding GP params")
             parNames.extend(['ampin_gp', 'ampout_gp', 'tau_gp'])
 
         # Format labels
@@ -510,18 +550,22 @@ class Watcher():
     def update_complex(self, new):
         '''Handler for toggling the complex button. This should just enable/disable the complex sliders '''
 
+        print("Toggling the complex model...")
         self.complex = self.complex_button.active
+        print("The complex variable is now {}".format('on' if self.complex else 'off'))
 
         if self.complex:
             print("Changing to the complex BS model")
             # Complex sliders update the model
             for slider in self.par_sliders_complex:
                 slider.on_change('value', self.update_lc_model)
+            print("Enabled the comlpex sliders")
 
             # Initialise a new CV object with the new BS model
             pars = [slider.value for slider in self.par_sliders]
             pars.extend([slider.value for slider in self.par_sliders_complex])
             self.cv = CV(pars)
+            print("Re-initialised the CV model")
 
             self.complex_button.button_type = 'success'
 
@@ -530,14 +574,17 @@ class Watcher():
             # Change the complex sliders to do nothing
             for slider in self.par_sliders_complex:
                 slider.on_change('value', self.junk)
+            print("Disabled the comlpex sliders")
 
             # Initialise a new CV object with the new BS model
             pars = [slider.value for slider in self.par_sliders]
+            print("Re-initialised the CV model")
 
             self.complex_button.button_type = 'danger'
 
     def update_lc_obs(self, attr, old, new):
         '''redraw the observations for the lightcurve'''
+
         print("Redrawing the observations")
         # Re-read the observations
         fname = self.data_fname.value
@@ -579,7 +626,8 @@ class Watcher():
         # Push that into the data frame
         rollover = len(new_obs['phase'])
         self.lc_obs.stream(new_obs, rollover)
-        # TODO: This does not 'un-draw' old errorbars, but leaves them as an artifact on the figure. How can I even fix this?
+        # TODO: This does not 'un-draw' old errorbars, but leaves them as an artifact on the figure.
+        #  How can I even fix this?
 
         # Set the plotting area title
         fname = fname.split('/')[-1]
@@ -590,6 +638,7 @@ class Watcher():
 
     def update_lc_model(self, attr, old, new):
         '''Redraw the model lightcurve in the second tab'''
+        print("Redrawing the model...")
         try:
             # Regenerate the model lightcurve
             pars = [slider.value for slider in self.par_sliders]
@@ -601,6 +650,7 @@ class Watcher():
             self.lc_isvalid.label = 'Valid Parameters'
 
         except Exception:
+            print("Invalid parameters!")
             self.lc_isvalid.button_type = 'danger'
             self.lc_isvalid.label = 'Invalid Parameters'
 
