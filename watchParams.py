@@ -386,7 +386,7 @@ class Watcher():
         self.f = open(file, 'r')
 
         print("Expected {} walkers, got {} walkers in the file!".format(self.nWalkers, nWalkers))
-        if nWalkers != self.nWalkers:\
+        if nWalkers != self.nWalkers:
             print("Got a walker mismatch. Using the walkers I found by looking in the file...")
             self.nWalkers = nWalkers
 
