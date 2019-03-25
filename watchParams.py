@@ -122,9 +122,9 @@ class Watcher():
 
         if bool(int(self.mcmc_input_dict['usePT'])):
             self.reportChain_label.text += ' with parallel tempering sampling <b>{:,d}</b> temperatures,'.format(
-                self.mcmc_input_dict['ntemps'])
+                int(self.mcmc_input_dict['ntemps']))
 
-        self.reportChain_label.text += ' and running on <b>{:,d}</b> cores.'.format(self.mcmc_input_dict['nthread'])
+        self.reportChain_label.text += ' and running on <b>{:,d}</b> cores.'.format(int(self.mcmc_input_dict['nthread']))
         print("Made the little header")
 
         # Add stuff to a layout for the area
@@ -153,7 +153,7 @@ class Watcher():
                 width = 200,
             )
             slider.on_change('value', self.update_lc_model)
-            slider.callback_throttle = 100 #ms?
+            # slider.callback_throttle = 100 #ms?
 
             self.par_sliders.append(slider)
 
@@ -179,7 +179,7 @@ class Watcher():
                 step  = (param[2] - param[1]) / 100,
                 width = 200,
             )
-            slider.callback_throttle = 100 #ms?
+            # slider.callback_throttle = 100 #ms?
             # If we aren't using a complex model, changing these shouldn't bother updating the model.
             if self.complex:
                 slider.on_change('value', self.update_lc_model)
@@ -210,7 +210,7 @@ class Watcher():
         self.cv = CV(pars)
         print(" Done.")
 
-        print("Grabbing teh observations...")
+        print("Grabbing the observations...")
         # Grab the data from the file, to start with just use the first in the list
         self.lc_obs = read_csv(menu[0][1],
                 sep=' ', comment='#',
@@ -272,8 +272,9 @@ class Watcher():
         curdoc().title = 'MCMC Chain Supervisor'
         try:
             curdoc().theme = 'dark_minimal'
+            print("Using the dark theme")
         except:
-            pass
+            print("Using the defualt theme")
 
         ######################################################
         ## Setup for, and begin watching for the chain file ##
@@ -400,7 +401,7 @@ class Watcher():
             pass
 
         # Create a new callback that periodically reads the file
-        curdoc().add_periodic_callback(self.update_chain, 1)
+        curdoc().add_periodic_callback(self.update_chain, 10)
 
         print("Succesfully opened the chain '{}'!".format(file))
 
@@ -493,6 +494,7 @@ class Watcher():
 
     def update_chain(self):
         '''Call the readStep() function, and stream the live chain data to the plotter.'''
+
         # Do we have anything to plot?
         if self.labels != []:
             step = self.readStep()
@@ -703,12 +705,12 @@ class Watcher():
         print("Added a new plot!")
 
     def junk(self, attr, old, new):
-        '''Sometimes, you just don't want to do anything :\ '''
+        '''Sometimes, you just don't want to do anything :/ '''
         pass
 
 if __name__ in '__main__':
     print("This script must be run within a bokeh server:")
-    print("  bokeh serve watchParams.py")
+    print("  bokeh serve --show watchParams.py")
     print("Stopping!")
 else:
     fname = 'chain_prod.txt'
