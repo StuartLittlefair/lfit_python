@@ -114,7 +114,7 @@ class Watcher():
         print("Made the parameter picker...")
 
         # Lets report some characteristics of the chain
-        self.reportChain_label = markups.Markup(width=400)
+        self.reportChain_label = markups.Div(width=400)
         self.reportChain_label.text =  'This chain has <b>{:,d}</b> burn steps, and <b>{:,d}</b> product steps.'.format(
             self.nBurn, self.nProd)
         self.reportChain_label.text += " We're using <b>{:,d}</b> walkers,".format(
@@ -125,10 +125,24 @@ class Watcher():
                 int(self.mcmc_input_dict['ntemps']))
 
         self.reportChain_label.text += ' and running on <b>{:,d}</b> cores.'.format(int(self.mcmc_input_dict['nthread']))
+        if self.thin:
+            p = str(self.thin)
+            if p[-1] == '1':
+                suffix = 'st'
+            elif p[-1] == '2':
+                suffix = 'nd'
+            elif p[-1] == '3':
+                suffix = 'rd'
+            else:
+                suffix = 'th'
+            
+            self.reportChain_label.text += " When plotting parameter evolutions, I'm skipping every <b>{}{}</b> step".format(self.thin, suffix)
+        else:
+            self.reportChain_label.text += " When plotting parameter evolutions, I'll plot every step."
         print("Made the little header")
 
         # Add stuff to a layout for the area
-        self.tab1_layout = column([self.reportChain_label, self.plotPars])
+        self.tab1_layout = column([self.reportChain_label, self.plotPars]) 
 
         # Add that layout to a tab
         self.tab1 = Panel(child=self.tab1_layout, title="Parameter History")
@@ -425,7 +439,7 @@ class Watcher():
                 flag = None
 
         try:
-            for i in np.arange(self.nWalkers): ## very slow!
+            for i in np.arange(self.nWalkers): ## slow!
                 # Get the next line
                 line = self.f.readline().strip()
 
@@ -705,7 +719,7 @@ class Watcher():
         print("Added a new plot!")
 
     def junk(self, attr, old, new):
-        '''Sometimes, you just don't want to do anything :/ '''
+        '''Sometimes, you just don't want to do anything'''
         pass
 
 if __name__ in '__main__':
@@ -716,6 +730,6 @@ else:
     fname = 'chain_prod.txt'
     mc_fname = 'mcmc_input.dat'
     tail = 30000
-    thin = 0
+    thin = 50
 
     watcher = Watcher(chain=fname, mcmc_input=mc_fname, tail=tail, thin=thin)
