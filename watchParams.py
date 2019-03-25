@@ -429,7 +429,7 @@ class Watcher():
         flag = True
 
         # Remember where we started
-        init = self.f.tell()
+        self.init = self.f.tell()
 
         self.thinstep += 1
 
@@ -477,7 +477,7 @@ class Watcher():
             return stepData
         elif flag is False:
             # The most recent step wasn't completely read in
-            self.f.seek(init)
+            self.f.seek(self.init)
             return None
         else:
             # We read in a step but we don't want it.
@@ -487,6 +487,16 @@ class Watcher():
     def reset_sliders(self):
         '''Set the parameters to the initial guesses.'''
         print("Resetting the sliders!")
+
+        #TODO: Make this grab the current parameters in the model
+        # Stop the periodic callback to read the file
+        # Save the cursor location
+        # Rewind the file to self.init
+        # Read that step in
+        # Set the file cursor back to where it was
+        # Use those parameters to set the slider values
+        # Restart the periodic file read callback
+
         # Figure out which eclipse we're looking at
         template = 'file_{}'
         for i in range(self.necl):
