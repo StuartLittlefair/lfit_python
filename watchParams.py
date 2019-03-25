@@ -135,14 +135,14 @@ class Watcher():
                 suffix = 'rd'
             else:
                 suffix = 'th'
-            
+
             self.reportChain_label.text += " When plotting parameter evolutions, I'm skipping every <b>{}{}</b> step".format(self.thin, suffix)
         else:
             self.reportChain_label.text += " When plotting parameter evolutions, I'll plot every step."
         print("Made the little header")
 
         # Add stuff to a layout for the area
-        self.tab1_layout = column([self.reportChain_label, self.plotPars]) 
+        self.tab1_layout = column([self.reportChain_label, self.plotPars])
 
         # Add that layout to a tab
         self.tab1 = Panel(child=self.tab1_layout, title="Parameter History")
@@ -415,7 +415,7 @@ class Watcher():
             pass
 
         # Create a new callback that periodically reads the file
-        curdoc().add_periodic_callback(self.update_chain, 10)
+        curdoc().add_periodic_callback(self.update_chain, 1)
 
         print("Succesfully opened the chain '{}'!".format(file))
 
