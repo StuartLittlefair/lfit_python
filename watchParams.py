@@ -114,8 +114,8 @@ class Watcher():
         print("Made the parameter picker...")
 
         # Lets report some characteristics of the chain
-        self.reportChain_label = markups.Div(width=400)
-        self.reportChain_label.text =  'This chain has <b>{:,d}</b> burn steps, and <b>{:,d}</b> product steps.'.format(
+        self.reportChain_label = markups.Div(width=500)
+        self.reportChain_label.text =  'This chain has <b>{:,d}</b> burn steps, and <b>{:,d}</b> product steps.</br>'.format(
             self.nBurn, self.nProd)
         self.reportChain_label.text += " We're using <b>{:,d}</b> walkers,".format(
             self.nWalkers)
@@ -124,7 +124,7 @@ class Watcher():
             self.reportChain_label.text += ' with parallel tempering sampling <b>{:,d}</b> temperatures,'.format(
                 int(self.mcmc_input_dict['ntemps']))
 
-        self.reportChain_label.text += ' and running on <b>{:,d}</b> cores.'.format(int(self.mcmc_input_dict['nthread']))
+        self.reportChain_label.text += ' and running on <b>{:,d}</b> cores.</br>'.format(int(self.mcmc_input_dict['nthread']))
         if self.thin:
             p = str(self.thin)
             if p[-1] == '1':
@@ -415,7 +415,7 @@ class Watcher():
             pass
 
         # Create a new callback that periodically reads the file
-        curdoc().add_periodic_callback(self.update_chain, 10)
+        curdoc().add_periodic_callback(self.update_chain, 1)
 
         print("Succesfully opened the chain '{}'!".format(file))
 
