@@ -114,8 +114,8 @@ class Watcher():
         print("Made the parameter picker...")
 
         # Lets report some characteristics of the chain
-        self.reportChain_label = markups.Div(width=400)
-        self.reportChain_label.text =  'This chain has <b>{:,d}</b> burn steps, and <b>{:,d}</b> product steps.'.format(
+        self.reportChain_label = markups.Div(width=500)
+        self.reportChain_label.text =  'This chain has <b>{:,d}</b> burn steps, and <b>{:,d}</b> product steps.</br>'.format(
             self.nBurn, self.nProd)
         self.reportChain_label.text += " We're using <b>{:,d}</b> walkers,".format(
             self.nWalkers)
@@ -124,7 +124,7 @@ class Watcher():
             self.reportChain_label.text += ' with parallel tempering sampling <b>{:,d}</b> temperatures,'.format(
                 int(self.mcmc_input_dict['ntemps']))
 
-        self.reportChain_label.text += ' and running on <b>{:,d}</b> cores.'.format(int(self.mcmc_input_dict['nthread']))
+        self.reportChain_label.text += ' and running on <b>{:,d}</b> cores.</br>'.format(int(self.mcmc_input_dict['nthread']))
         if self.thin:
             p = str(self.thin)
             if p[-1] == '1':
@@ -429,7 +429,7 @@ class Watcher():
         flag = True
 
         # Remember where we started
-        init = self.f.tell()
+        self.init = self.f.tell()
 
         self.thinstep += 1
 
@@ -477,7 +477,7 @@ class Watcher():
             return stepData
         elif flag is False:
             # The most recent step wasn't completely read in
-            self.f.seek(init)
+            self.f.seek(self.init)
             return None
         else:
             # We read in a step but we don't want it.
@@ -487,6 +487,16 @@ class Watcher():
     def reset_sliders(self):
         '''Set the parameters to the initial guesses.'''
         print("Resetting the sliders!")
+
+        #TODO: Make this grab the current parameters in the model
+        # Stop the periodic callback to read the file
+        # Save the cursor location
+        # Rewind the file to self.init
+        # Read that step in
+        # Set the file cursor back to where it was
+        # Use those parameters to set the slider values
+        # Restart the periodic file read callback
+
         # Figure out which eclipse we're looking at
         template = 'file_{}'
         for i in range(self.necl):
