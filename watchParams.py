@@ -259,7 +259,7 @@ class Watcher():
         print(" Done")
 
         # I want a button that'll turn red when the parameters are invalid.
-        self.lc_isvalid = Button(label='Valid parameters', width=200, button_type='success')
+        self.lc_isvalid = Button(label='Initial Parameters', width=200, button_type='success')
         self.lc_isvalid.on_click(self.reset_sliders)
         print("Made the valid parameters button")
 
