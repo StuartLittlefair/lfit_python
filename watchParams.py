@@ -740,6 +740,6 @@ else:
     fname = 'chain_prod.txt'
     mc_fname = 'mcmc_input.dat'
     tail = 30000
-    thin = 50
+    thin = 10
 
     watcher = Watcher(chain=fname, mcmc_input=mc_fname, tail=tail, thin=thin)
