@@ -284,11 +284,6 @@ class Watcher():
         curdoc().add_root(self.tabs)
         print("Added the tabs to the document!")
         curdoc().title = 'MCMC Chain Supervisor'
-        try:
-            curdoc().theme = 'dark_minimal'
-            print("Using the dark theme")
-        except:
-            print("Using the defualt theme")
 
         ######################################################
         ## Setup for, and begin watching for the chain file ##
