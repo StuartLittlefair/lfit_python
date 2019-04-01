@@ -266,8 +266,8 @@ class Watcher():
         # Arrange the tab layout
         self.tab2_layout = column([
             row([self.data_fname, self.complex_button, self.lc_isvalid]),
-            gridplot(self.par_sliders, ncols=4),
-            gridplot(self.par_sliders_complex, ncols=4),
+            row([gridplot(self.par_sliders, ncols=4),
+                 column(self.par_sliders_complex)]),
             self.lc_plot
         ])
 
@@ -602,6 +602,8 @@ class Watcher():
             print("Re-initialised the CV model")
 
             self.complex_button.button_type = 'danger'
+        
+        self.update_lc_model('value', None, None)
 
     def update_lc_obs(self, attr, old, new):
         '''redraw the observations for the lightcurve'''
