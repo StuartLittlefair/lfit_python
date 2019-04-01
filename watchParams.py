@@ -739,7 +739,7 @@ if __name__ in '__main__':
 else:
     fname = 'chain_prod.txt'
     mc_fname = 'mcmc_input.dat'
-    tail = 30000
-    thin = 10
+    tail = 10000
+    thin = 20
 
     watcher = Watcher(chain=fname, mcmc_input=mc_fname, tail=tail, thin=thin)
