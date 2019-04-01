@@ -47,6 +47,10 @@ class Watcher():
             - Start watching for the creation of the chain file
         '''
 
+        # TODO: 
+        # - Add a 'plot all parameters' button to the parameter tracker, per eclipse
+        # - Make 'valid parameters' button grab the values from the last step in the chain
+
         #####################################################
         ############### Information Gathering ###############
         #####################################################
@@ -165,6 +169,7 @@ class Watcher():
                 value = param[0],
                 step  = (param[2] - param[1]) / 100,
                 width = 200,
+                
             )
             slider.on_change('value', self.update_lc_model)
             # slider.callback_throttle = 100 #ms?
