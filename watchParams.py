@@ -798,12 +798,13 @@ class Watcher():
         N = self.burn_input.value
         try:
             N = int(N)
-            print("{} burn in steps")
+            print("{} burn in steps".format(N))
         except:
             N = 0
         
         print(chain.shape)
         chain = chain[:, N:, :]
+        print(chain.shape)
         flat = u.flatchain(chain, chain.shape[2])
 
         # Label all the columns in the chain file
@@ -844,7 +845,7 @@ class Watcher():
 
             fig = u.thumbPlot(night, labels)
             fig.savefig('eclipse{}.pdf'.format(j))
-            plt.close()
+            fig.close()
             del fig
             del night
 
