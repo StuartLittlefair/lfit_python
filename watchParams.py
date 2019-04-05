@@ -165,6 +165,7 @@ class Watcher():
                 value = param[0],
                 step  = (param[2] - param[1]) / 100,
                 width = 200,
+                # format='{:.5}'
             )
             slider.on_change('value', self.update_lc_model)
             # slider.callback_throttle = 100 #ms?
@@ -192,6 +193,7 @@ class Watcher():
                 value = param[0],
                 step  = (param[2] - param[1]) / 100,
                 width = 200,
+                # format='{:.5}'
             )
             # slider.callback_throttle = 100 #ms?
             # If we aren't using a complex model, changing these shouldn't bother updating the model.
@@ -202,8 +204,9 @@ class Watcher():
         print("Made the sliders...")
 
         # Data file picker
-        self.data_fname = Dropdown(label="Filename", button_type="danger", menu=menu, width=200)
-        self.data_fname.on_change('value', self.update_lc_obs)
+        self.lc_change_fname_button = Dropdown(label="Filename", button_type="danger", menu=menu, width=200)
+        self.lc_obs_fname = menu[0][0]
+        self.lc_change_fname_button.on_change('value', self.update_lc_obs)
         print("Made the data picker...")
 
         # Button to switch from the complex to simple BS model, and vice versa
@@ -265,14 +268,53 @@ class Watcher():
 
         # Arrange the tab layout
         self.tab2_layout = column([
-            row([self.data_fname, self.complex_button, self.lc_isvalid]),
-            gridplot(self.par_sliders, ncols=4),
-            gridplot(self.par_sliders_complex, ncols=4),
+            row([self.lc_change_fname_button, self.complex_button, self.lc_isvalid]),
+            row([gridplot(self.par_sliders, ncols=4),
+                 gridplot(self.par_sliders_complex, ncols=1)]),
             self.lc_plot
         ])
 
         self.tab2 = Panel(child=self.tab2_layout, title="Lightcurve Inspector")
         print("Constructed the Lightcurve Inspector tab!")
+
+
+        ######################################################
+        ########## Third tab: generate corner plots ##########
+        ######################################################
+        # TODO: impliment this
+
+        # chain = u.readchain('chain_prod.txt')
+        # chain.shape
+        # flat = u.flatchain(chain, chain.shape[2])
+        # parNames = ['wdFlux_0', 'dFlux_0', 'sFlux_0', 'rsFlux_0', 'q', 'dphi',\
+        #         'rdisc_0', 'ulimb_0', 'rwd', 'scale_0', 'az_0', 'fis_0', 'dexp_0', 'phi0_0']
+        # parNameTemplate = ['wdFlux_{0}', 'dFlux_{0}', 'sFlux_{0}', 'rsFlux_{0}',\
+        #         'rdisc_{0}', 'ulimb_{0}', 'scale_{0}', 'az_{0}', 'fis_{0}', 'dexp_{0}', 'phi0_{0}']
+        # necl = 9
+        # for i in range(necl-1):
+        #     for name in parNameTemplate:
+        #         parNames.append(name.format(i+1))
+
+        # a = 0; b = 14; j = 0
+        # while b <= chain.shape[2]:
+        #     night = flat[:, a:b]
+        #     labels = parNames[a:b]
+        #     if len(labels) < 14:
+        #         for i in perm:
+        #             labels.append(parNames[i])
+        #             night = np.concatenate((night, flat[:, perm]), axis=1)
+
+        #     print(labels)
+        #     fig = u.thumbPlot(night, labels)
+        #     fig.savefig('eclipse{}.pdf'.format(j))
+        #     plt.close()
+        #     del fig
+        #     del night
+
+        #     a = b
+        #     b += 11
+        #     j += 1
+
 
         ######################################################
         ############# Add the tabs to the figure #############
@@ -281,9 +323,10 @@ class Watcher():
         # Make a tabs object
         self.tabs = Tabs(tabs=[self.tab1, self.tab2])
         # Add it
-        curdoc().add_root(self.tabs)
+        self.doc = curdoc()
+        self.doc.add_root(self.tabs)
         print("Added the tabs to the document!")
-        curdoc().title = 'MCMC Chain Supervisor'
+        self.doc.title = 'MCMC Chain Supervisor'
 
         ######################################################
         ## Setup for, and begin watching for the chain file ##
@@ -306,7 +349,7 @@ class Watcher():
         self.labels = []     # The labels, in the same order as pars
 
         # Is the file open? Check once a second until it is, then once we find it remove this callback.
-        self.check_file = curdoc().add_periodic_callback(self.open_file, 1000)
+        self.check_file = self.doc.add_periodic_callback(self.open_file, 1000)
 
         print("Finished initialising the dashboard!")
 
@@ -404,13 +447,14 @@ class Watcher():
         # This is down here, in case the above fails. This way,
         # if it does we should check again in a bit until it works
         try:
-            curdoc().remove_periodic_callback(self.check_file)
+            self.doc.remove_periodic_callback(self.check_file)
             print("No longer re-checking for the file.")
         except:
             pass
 
         # Create a new callback that periodically reads the file
-        curdoc().add_periodic_callback(self.update_chain, 1)
+        print('Adding next tick callback')
+        self.doc.add_next_tick_callback(self.update_chain)
 
         print("Succesfully opened the chain '{}'!".format(file))
 
@@ -423,8 +467,6 @@ class Watcher():
         # If true, return the data. If False, the end of the file was reached before the step was fully read in.
         flag = True
 
-        # Remember where we started
-        self.init = self.f.tell()
 
         self.thinstep += 1
 
@@ -434,6 +476,9 @@ class Watcher():
                 flag = None
 
         try:
+            # Remember where we started
+            start = self.f.tell()
+            lastStep = np.zeros(len(self.selectList)-1, dtype=np.float64)
             for i in np.arange(self.nWalkers): ## slow!
                 # Get the next line
                 line = self.f.readline().strip()
@@ -458,9 +503,11 @@ class Watcher():
                         break
 
                     # Gather the desired numbers
+                    lastStep += line[1:]
                     values = line[self.pars]
 
                     stepData[w, :] = values
+            lastStep /= float(self.nWalkers)
         except IndexError:
             # Sometimes empty lines slip through. Catch the exceptions
             print(line)
@@ -469,47 +516,86 @@ class Watcher():
         if flag is True:
             # We successfully read in the chunk!
             self.s += 1
+            # print("Successful step, Adding next tick callback")
+            self.next_read = self.doc.add_next_tick_callback(self.update_chain)
+            self.init = start
+            self.lastStep = np.array(lastStep)
             return stepData
         elif flag is False:
             # The most recent step wasn't completely read in
-            self.f.seek(self.init)
+            self.f.seek(start)
+            # print("Adding timeout callback")
+            print('  End of file! waiting for new step to be written...', end='\r')
+            self.next_read = self.doc.add_timeout_callback(self.update_chain, 10000)
             return None
         else:
             # We read in a step but we don't want it.
             self.s += 1
+            # print("Step we want to skip, adding next tick callback")
+            self.next_read = self.doc.add_next_tick_callback(self.update_chain)
+            self.init = start
+            if np.sum(lastStep) > 0:
+                self.lastStep = lastStep
             return None
 
     def reset_sliders(self):
         '''Set the parameters to the initial guesses.'''
         print("Resetting the sliders!")
 
-        #TODO: Make this grab the current parameters in the model
-        # Stop the periodic callback to read the file
-        # Save the cursor location
-        # Rewind the file to self.init
-        # Read that step in
-        # Set the file cursor back to where it was
-        # Use those parameters to set the slider values
-        # Restart the periodic file read callback
-
         # Figure out which eclipse we're looking at
+        fname = self.lc_obs_fname
         template = 'file_{}'
         for i in range(self.necl):
-            if self.mcmc_input_dict[template.format(i)] == fname:
+            this = self.mcmc_input_dict[template.format(i)]
+            if fname in this:
                 break
-        print('This is file {}'.format(i))
+            else: i = None
+        if i is None:
+            print("Couldn't find the index of that file!")
+            return
+        fileNumber = int(i)
+        print('This is file {}'.format(fileNumber))
 
-        for par, slider in zip(self.parNames[:15], self.par_sliders):
-            get = par.replace('_0', '_{}'.format(i))
-            param = self.parDict[get][0]
+        # Label all the columns in the chain file
+        necl    = self.necl
+        complex = self.complex
+        useGP   = self.GP
+
+        parNames = ['wdFlux_0', 'dFlux_0', 'sFlux_0', 'rsFlux_0', 'q', 'dphi',\
+                'rdisc_0', 'ulimb_0', 'rwd', 'scale_0', 'az_0', 'fis_0', 'dexp_0', 'phi0_0']
+        parNameTemplate = ['wdFlux_{0}', 'dFlux_{0}', 'sFlux_{0}', 'rsFlux_{0}',\
+                'rdisc_{0}', 'ulimb_{0}', 'scale_{0}', 'az_{0}', 'fis_{0}', 'dexp_{0}', 'phi0_{0}']
+
+        if complex:
+            parNames.extend(['exp1_0', 'exp2_0', 'tilt_0', 'yaw_0'])
+            parNameTemplate.extend(['exp1_0', 'exp2_0', 'tilt_0', 'yaw_0'])
+        if useGP:
+            parNames.extend(['ampin_gp', 'ampout_gp', 'tau_gp'])
+
+        for i in range(necl-1):
+            for name in parNameTemplate:
+                parNames.append(name.format(i+1))
+
+        stepData = self.lastStep
+
+        for par, slider in zip(parNames[:15], self.par_sliders):
+            get = par.replace('_0', '_{}'.format(fileNumber))
+            index = parNames.index(get)
+
+            param = stepData[index]
+
             print("Setting the slider for {} to {}".format(get, param))
             slider.value = param
         if self.complex:
-            for par, slider in zip(self.parNames[15:], self.par_sliders_complex):
-                get = par.replace('_0', '_{}'.format(i))
-                param = self.parDict[par][0]
+            for par, slider in zip(parNames[15:], self.par_sliders_complex):
+                get = par.replace('_0', '_{}'.format(fileNumber))
+                index = parNames.index(get)
+
+                param = stepData[index]
+
                 print("Setting the slider for {} to {}".format(get, param))
                 slider.value = param
+
 
     def update_chain(self):
         '''Call the readStep() function, and stream the live chain data to the plotter.'''
@@ -608,8 +694,9 @@ class Watcher():
 
         print("Redrawing the observations")
         # Re-read the observations
-        fname = self.data_fname.value
+        fname = self.lc_change_fname_button.value
         fname = str(fname)
+        self.lc_obs_fname = fname
 
         print("Plotting data from file {}".format(fname))
         new_obs = read_csv(fname,
@@ -659,7 +746,7 @@ class Watcher():
 
     def update_lc_model(self, attr, old, new):
         '''Redraw the model lightcurve in the second tab'''
-        print("Redrawing the model...")
+
         try:
             # Regenerate the model lightcurve
             pars = [slider.value for slider in self.par_sliders]
@@ -668,7 +755,7 @@ class Watcher():
 
             self.lc_obs.data['calc'] = self.cv.calcFlux(pars, np.array(self.lc_obs.data['phase']))
             self.lc_isvalid.button_type = 'success'
-            self.lc_isvalid.label = 'Valid Parameters'
+            self.lc_isvalid.label = 'Last Step Values'
 
         except Exception:
             print("Invalid parameters!")
@@ -722,6 +809,8 @@ class Watcher():
         self.tab1_layout.children.append(row(new_plot))
 
         print("Added a new plot!")
+
+        self.doc.add_next_tick_callback(self.update_chain)
 
     def junk(self, attr, old, new):
         '''Sometimes, you just don't want to do anything'''
