@@ -145,6 +145,9 @@ class Watcher():
             self.reportChain_label.text += " When plotting parameter evolutions, I'll plot every step."
         print("Made the little header")
 
+        self.corner_plot_button = Button(label='Make corner plots')
+        self.corner_plot_button.on_click(self.make_corner_plots)
+
         # Add stuff to a layout for the area
         self.tab1_layout = column([self.reportChain_label, self.plotPars])
 
@@ -600,7 +603,6 @@ class Watcher():
                 print("Setting the slider for {} to {}".format(get, param))
                 slider.value = param
 
-
     def update_chain(self):
         '''Call the readStep() function, and stream the live chain data to the plotter.'''
 
@@ -817,6 +819,58 @@ class Watcher():
         print("Added a new plot!")
 
         self.doc.add_next_tick_callback(self.update_chain)
+
+    def make_corner_plots(self):
+        print("Reading chain file (this can take a while)...")
+        chain = u.readchain('chain_prod.txt')
+        chain.shape
+        flat = u.flatchain(chain, chain.shape[2])
+
+        # Label all the columns in the chain file
+        necl    = self.necl
+        complex = self.complex
+        useGP   = self.GP
+
+        # Get labels
+        parNames = ['wdFlux_0', 'dFlux_0', 'sFlux_0', 'rsFlux_0', 'q', 'dphi',\
+                'rdisc_0', 'ulimb_0', 'rwd', 'scale_0', 'az_0', 'fis_0', 'dexp_0', 'phi0_0']
+        parNameTemplate = ['wdFlux_{0}', 'dFlux_{0}', 'sFlux_{0}', 'rsFlux_{0}',\
+                'rdisc_{0}', 'ulimb_{0}', 'scale_{0}', 'az_{0}', 'fis_{0}', 'dexp_{0}', 'phi0_{0}']
+
+        perm = [4,5,8]
+
+        c = 11
+        if complex:
+            parNames.extend(['exp1_0', 'exp2_0', 'tilt_0', 'yaw_0'])
+            parNameTemplate.extend(['exp1_0', 'exp2_0', 'tilt_0', 'yaw_0'])
+            c = 15
+        if useGP:
+            parNames.extend(['ampin_gp', 'ampout_gp', 'tau_gp'])
+            perm.extend([parNames.index(i) for i in  ['ampin_gp', 'ampout_gp', 'tau_gp']])
+
+        for i in range(necl-1):
+            for name in parNameTemplate:
+                parNames.append(name.format(i+1))
+
+        # Make the corner plots. This is pretty CPU intensive!
+        a = 0; b = 14; j = 0
+        while b <= chain.shape[2]:
+            night = flat[:, a:b]
+            labels = parNames[a:b]
+            if len(labels) < 14:
+                for i in perm:
+                    labels.append(parNames[i])
+                    night = np.concatenate((night, flat[:, perm]), axis=1)
+
+            fig = u.thumbPlot(night, labels)
+            fig.savefig('eclipse{}.pdf'.format(j))
+            plt.close()
+            del fig
+            del night
+
+            a = b
+            b += c
+            j += 1
 
     def junk(self, attr, old, new):
         '''Sometimes, you just don't want to do anything'''
