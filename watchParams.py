@@ -8,6 +8,10 @@ from bokeh.models.widgets import inputs, markups
 from bokeh.models.widgets.buttons import Toggle, Button
 from bokeh.models.widgets import Slider, Panel, Tabs, Dropdown, TextInput
 
+# For corner plots
+import matplotlib
+matplotlib.use("Agg")
+
 import numpy as np
 from pandas import read_csv, DataFrame
 import configobj
