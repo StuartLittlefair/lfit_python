@@ -803,7 +803,7 @@ class Watcher():
             N = 0
         
         print(chain.shape)
-        chain = chain[N:, :, :]
+        chain = chain[:, N:, :]
         flat = u.flatchain(chain, chain.shape[2])
 
         # Label all the columns in the chain file
