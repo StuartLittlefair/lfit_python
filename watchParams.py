@@ -806,10 +806,10 @@ class Watcher():
         except:
             N = 0
         
-        print(chain.shape)
         chain = chain[:, N:, :]
-        print(chain.shape)
+        print("Using {} steps".format(chain.shape[1]))
         flat = u.flatchain(chain, chain.shape[2])
+        print("This is {} samples.".format(flat.shape[0]))
 
         # Label all the columns in the chain file
         necl    = self.necl
@@ -839,10 +839,10 @@ class Watcher():
 
         # Make the corner plots. This is pretty CPU intensive!
         a = 0; b = 14; j = 0
-        while b <= chain.shape[2]:
+        while b <= len(parNames):
             night = flat[:, a:b]
             labels = parNames[a:b]
-            if len(labels) < 14:
+            if a:
                 for i in perm:
                     labels.append(parNames[i])
                     night = np.concatenate((night, flat[:, perm]), axis=1)
