@@ -849,7 +849,7 @@ class Watcher():
 
             fig = u.thumbPlot(night, labels)
             fig.savefig('eclipse{}.pdf'.format(j))
-            fig.close()
+            print("Done figure eclipse{}.pdf".format(j))
             del fig
             del night
 
