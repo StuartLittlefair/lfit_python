@@ -157,7 +157,7 @@ class Watcher():
         self.corner_plot_button.on_click(self.make_corner_plots)
 
         # Add stuff to a layout for the area
-        self.tab1_layout = column([self.corner_plot_button, self.reportChain_label, self.plotPars])
+        self.tab1_layout = column([row([self.burn_input, self.corner_plot_button]), self.reportChain_label, self.plotPars])
 
         # Add that layout to a tab
         self.tab1 = Panel(child=self.tab1_layout, title="Parameter History")
