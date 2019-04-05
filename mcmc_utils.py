@@ -274,11 +274,13 @@ def run_ptmcmc_save(sampler, startPos, nSteps, file, progress=True, **kwargs):
     return sampler
 
 
-def flatchain(chain, npars, nskip=0, thin=1):
+def flatchain(chain, npars=None, nskip=0, thin=1):
     '''flattens a chain (i.e collects results from all walkers),
     with options to skip the first nskip parameters, and thin the chain
     by only retrieving a point every thin steps - thinning can be useful when
     the steps of the chain are highly correlated'''
+    if npars is None:
+        npars = chain.shape[2]
     return chain[:, nskip::thin, :].reshape((-1, npars))
 
 def reverse_readline(filename, buf_size=8192):
