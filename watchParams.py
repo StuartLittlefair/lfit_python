@@ -6,7 +6,7 @@ from bokeh.plotting import curdoc, figure
 from bokeh.server.callbacks import NextTickCallback
 from bokeh.models.widgets import inputs, markups
 from bokeh.models.widgets.buttons import Toggle, Button
-from bokeh.models.widgets import Slider, Panel, Tabs, Dropdown
+from bokeh.models.widgets import Slider, Panel, Tabs, Dropdown, TextInput
 
 import numpy as np
 from pandas import read_csv, DataFrame
@@ -20,6 +20,12 @@ try:
     print("Successfully imported CV class from lfit!")
 except:
     print("Failed to import lfit!!")
+    exit()
+
+try:
+    import mcmc_utils as u
+    print("Successfully imported mcmc_utils")
+except:
     exit()
 
 def parseInput(file):
@@ -145,6 +151,8 @@ class Watcher():
             self.reportChain_label.text += " When plotting parameter evolutions, I'll plot every step."
         print("Made the little header")
 
+        # Make corner plots. I need to know how long the burn in is though!
+        self.burn_input = TextInput(label='No. steps to discard', value='0')
         self.corner_plot_button = Button(label='Make corner plots')
         self.corner_plot_button.on_click(self.make_corner_plots)
 
@@ -785,7 +793,17 @@ class Watcher():
     def make_corner_plots(self):
         print("Reading chain file (this can take a while)...")
         chain = u.readchain('chain_prod.txt')
-        chain.shape
+        print("Done!")
+
+        N = self.burn_input.value
+        try:
+            N = int(N)
+            print("{} burn in steps")
+        except:
+            N = 0
+        
+        print(chain.shape)
+        chain = chain[N:, :, :]
         flat = u.flatchain(chain, chain.shape[2])
 
         # Label all the columns in the chain file
