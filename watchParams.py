@@ -152,7 +152,7 @@ class Watcher():
         print("Made the little header")
 
         # Make corner plots. I need to know how long the burn in is though!
-        self.burn_input = TextInput(label='No. steps to discard', value='0')
+        self.burn_input = TextInput(value='No. steps to discard')
         self.corner_plot_button = Button(label='Make corner plots')
         self.corner_plot_button.on_click(self.make_corner_plots)
 
