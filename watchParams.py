@@ -47,6 +47,10 @@ class Watcher():
             - Start watching for the creation of the chain file
         '''
 
+        # TODO:
+        # - Add a 'plot all parameters' button to the parameter tracker, per eclipse
+        # - Make 'valid parameters' button grab the values from the last step in the chain
+
         #####################################################
         ############### Information Gathering ###############
         #####################################################
@@ -688,6 +692,8 @@ class Watcher():
             print("Re-initialised the CV model")
 
             self.complex_button.button_type = 'danger'
+
+        self.update_lc_model('value', None, None)
 
     def update_lc_obs(self, attr, old, new):
         '''redraw the observations for the lightcurve'''
