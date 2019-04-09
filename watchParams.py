@@ -129,39 +129,19 @@ class Watcher():
 
         # Lets report some characteristics of the chain
         self.reportChain_label = markups.Div(width=500)
-        self.reportChain_label.text =  'This chain has <b>{:,d}</b> burn steps, and <b>{:,d}</b> product steps.</br>'.format(
-            self.nBurn, self.nProd)
-        self.reportChain_label.text += " We're using <b>{:,d}</b> walkers,".format(
-            self.nWalkers)
-
-        if bool(int(self.mcmc_input_dict['usePT'])):
-            self.reportChain_label.text += ' with parallel tempering sampling <b>{:,d}</b> temperatures,'.format(
-                int(self.mcmc_input_dict['ntemps']))
-
-        self.reportChain_label.text += ' and running on <b>{:,d}</b> cores.</br>'.format(int(self.mcmc_input_dict['nthread']))
-        if self.thin:
-            p = str(self.thin)
-            if p[-1] == '1':
-                suffix = 'st'
-            elif p[-1] == '2':
-                suffix = 'nd'
-            elif p[-1] == '3':
-                suffix = 'rd'
-            else:
-                suffix = 'th'
-
-            self.reportChain_label.text += " When plotting parameter evolutions, I'm skipping every <b>{}{}</b> step".format(self.thin, suffix)
-        else:
-            self.reportChain_label.text += " When plotting parameter evolutions, I'll plot every step."
+        self.make_header()
         print("Made the little header")
 
-        # Make corner plots. I need to know how long the burn in is though!
-        self.burn_input = TextInput(value='No. steps to discard')
-        self.corner_plot_button = Button(label='Make corner plots')
-        self.corner_plot_button.on_click(self.make_corner_plots)
+        # Thinning input
+        self.thin_input = TextInput(placeholder='Number of steps to skip over', width=200)
+        self.thin_input.on_change('value', self.update_thinning)
 
+        # # Tail length - no way to update existing plot tail lengths...
+        # self.tail_input = TextInput(placeholder='Number of steps to plot', width=200)
+        # self.tail_input.on_change('value', self.update_tail)
+        
         # Add stuff to a layout for the area
-        self.tab1_layout = column([row([self.burn_input, self.corner_plot_button]), self.reportChain_label, self.plotPars])
+        self.tab1_layout = column([self.reportChain_label, self.thin_input, self.plotPars])
 
         # Add that layout to a tab
         self.tab1 = Panel(child=self.tab1_layout, title="Parameter History")
@@ -281,13 +261,18 @@ class Watcher():
         print(" Done")
 
         # I want a button that'll turn red when the parameters are invalid.
-        self.lc_isvalid = Button(label='Initial Parameters', width=200, button_type='success')
+        self.lc_isvalid = Button(label='Initial Parameters', width=200)
         self.lc_isvalid.on_click(self.reset_sliders)
         print("Made the valid parameters button")
 
+        # Write the current slider values to mcmc_input.dat
+        self.write2input_button = Button(label='Write current values', width=200)
+        self.write2input_button.on_click(self.write2input)
+        print("Made the write2input button") 
+
         # Arrange the tab layout
         self.tab2_layout = column([
-            row([self.lc_change_fname_button, self.complex_button, self.lc_isvalid]),
+            row([self.lc_change_fname_button, self.complex_button, self.lc_isvalid, self.write2input_button]),
             row([gridplot(self.par_sliders, ncols=4),
                  gridplot(self.par_sliders_complex, ncols=1)]),
             self.lc_plot
@@ -296,13 +281,33 @@ class Watcher():
         self.tab2 = Panel(child=self.tab2_layout, title="Lightcurve Inspector")
         print("Constructed the Lightcurve Inspector tab!")
 
+        ######################################################
+        ################# Tab 3: Corner plot #################
+        ######################################################
+
+        # Make corner plots. I need to know how long the burn in is though!
+        self.burn_input = TextInput(placeholder='No. steps to discard', )
+        self.corner_plot_button = Button(label='Make corner plots')
+        self.corner_plot_button.on_click(self.make_corner_plots)
+        print("Defualt button type is {}".format(self.corner_plot_button.button_type))
+
+        self.cornerReporter = markups.Div(width=700)
+        self.cornerReporter.text = "The chain file will have <b>{:,d}</b> steps when completed</br>".format(self.nProd)
+        self.cornerReporter.text += "We're using <b>{:,d}</b> walkers, making for <b>{:,d}</b> total lines to read in.</br>".format(
+            self.nWalkers, self.nProd*self.nWalkers)
+
+        #TODO: Show the corner plots in the page? Or, add a link to download them?
+
+        self.tab3_layout = column([self.burn_input, self.corner_plot_button, self.cornerReporter])
+        self.tab3 = Panel(child=self.tab3_layout, title="Corner Plotting")
+
 
         ######################################################
         ############# Add the tabs to the figure #############
         ######################################################
 
         # Make a tabs object
-        self.tabs = Tabs(tabs=[self.tab1, self.tab2])
+        self.tabs = Tabs(tabs=[self.tab1, self.tab2, self.tab3])
         # Add it
         self.doc = curdoc()
         self.doc.add_root(self.tabs)
@@ -459,8 +464,8 @@ class Watcher():
         try:
             # Remember where we started
             start = self.f.tell()
-            lastStep = np.zeros(len(self.selectList)-1, dtype=np.float64)
-            for i in np.arange(self.nWalkers): ## slow!
+            lastStep = np.zeros(len(self.selectList)-2, dtype=np.float64)
+            for i in np.arange(self.nWalkers):
                 # Get the next line
                 line = self.f.readline().strip()
 
@@ -484,7 +489,7 @@ class Watcher():
                         break
 
                     # Gather the desired numbers
-                    lastStep += line[1:]
+                    lastStep += line[1:-1]
                     values = line[self.pars]
 
                     stepData[w, :] = values
@@ -538,33 +543,23 @@ class Watcher():
         print('This is file {}'.format(fileNumber))
 
         # Label all the columns in the chain file
-        necl    = self.necl
-        complex = self.complex
-        useGP   = self.GP
 
         parNames = ['wdFlux_0', 'dFlux_0', 'sFlux_0', 'rsFlux_0', 'q', 'dphi',\
                 'rdisc_0', 'ulimb_0', 'rwd', 'scale_0', 'az_0', 'fis_0', 'dexp_0', 'phi0_0']
-        parNameTemplate = ['wdFlux_{0}', 'dFlux_{0}', 'sFlux_{0}', 'rsFlux_{0}',\
-                'rdisc_{0}', 'ulimb_{0}', 'scale_{0}', 'az_{0}', 'fis_{0}', 'dexp_{0}', 'phi0_{0}']
 
-        if complex:
+        if self.complex:
             parNames.extend(['exp1_0', 'exp2_0', 'tilt_0', 'yaw_0'])
-            parNameTemplate.extend(['exp1_0', 'exp2_0', 'tilt_0', 'yaw_0'])
-        if useGP:
-            parNames.extend(['ampin_gp', 'ampout_gp', 'tau_gp'])
 
-        for i in range(necl-1):
-            for name in parNameTemplate:
-                parNames.append(name.format(i+1))
-
-        stepData = self.lastStep
+        if self.s > 0:
+            stepData = self.lastStep
+        else:
+            print('Getting values from the parameter dict.')
+            stepData = [self.parDict[key][0] for key in parNames]
 
         for par, slider in zip(parNames[:15], self.par_sliders):
             get = par.replace('_0', '_{}'.format(fileNumber))
             index = parNames.index(get)
-
             param = stepData[index]
-
             print("Setting the slider for {} to {}".format(get, param))
             slider.value = param
         if self.complex:
@@ -671,6 +666,87 @@ class Watcher():
 
         self.update_lc_model('value', None, None)
 
+    def update_thinning(self, attr, old, new):
+        thin = self.thin_input.value
+        try:
+            thin = int(thin)
+        except:
+            self.thin_input.value = ''
+        
+        self.thin = thin
+        self.make_header()
+
+        # Clear data from the source structure
+        self.paramFollowSource.data = {'step': []}
+        for l in self.labels:
+            self.paramFollowSource.data[l+'Mean']     = []
+            self.paramFollowSource.data[l+'StdUpper'] = []
+            self.paramFollowSource.data[l+'StdLower'] = []
+
+        print("Reset the data storage to empty")
+
+        # Move the file cursor back to the beginning of the file
+        if not self.f is False:
+            self.f.close()
+            self.f = open(self.chain_fname, 'r')
+            self.s = 0
+
+        print("Closed and re-opened the file!")
+
+
+    # def update_tail(self, attr, old, new):
+    #     tail = self.tail_input.value
+    #     try:
+    #         tail = int(tail)
+    #     except:
+    #         self.tail_input.value = ''
+
+    #     self.tail = tail
+    #     self.make_header()
+
+    #     # close and re-open the file
+    #     self.paramFollowSource.data = {'step': []}
+    #     for l in self.labels:
+    #         self.paramFollowSource.data[l+'Mean']     = []
+    #         self.paramFollowSource.data[l+'StdUpper'] = []
+    #         self.paramFollowSource.data[l+'StdLower'] = []
+
+    #     print("Reset the data storage to empty")
+
+    #     # Move the file cursor back to the beginning of the file
+    #     if not self.f is False:
+    #         self.f.close()
+    #         self.f = open(self.chain_fname, 'r')
+    #         self.s = 0
+
+    #     print("Closed and re-opened the file!")
+
+    def make_header(self):
+        self.reportChain_label.text =  'This chain has <b>{:,d}</b> burn steps, and <b>{:,d}</b> product steps.</br>'.format(
+            self.nBurn, self.nProd)
+        self.reportChain_label.text += " We're using <b>{:,d}</b> walkers,".format(self.nWalkers)
+
+        if bool(int(self.mcmc_input_dict['usePT'])):
+            self.reportChain_label.text += ' with parallel tempering sampling <b>{:,d}</b> temperatures,'.format(
+                int(self.mcmc_input_dict['ntemps']))
+
+        self.reportChain_label.text += ' and running on <b>{:,d}</b> cores.</br>'.format(int(self.mcmc_input_dict['nthread']))
+        if self.thin:
+            p = str(self.thin)
+            if p[-1] == '1':
+                suffix = 'st'
+            elif p[-1] == '2':
+                suffix = 'nd'
+            elif p[-1] == '3':
+                suffix = 'rd'
+            else:
+                suffix = 'th'
+
+            self.reportChain_label.text += " When plotting parameter evolutions, I'm skipping every "
+            self.reportChain_label.text += "<b>{}{}</b> step and only keeping the last <b>{:,d}</b> data".format(self.thin, suffix, self.tail)
+        else:
+            self.reportChain_label.text += " When plotting parameter evolutions, I'll plot every step."
+
     def update_lc_obs(self, attr, old, new):
         '''redraw the observations for the lightcurve'''
 
@@ -736,13 +812,80 @@ class Watcher():
                 pars.extend([slider.value for slider in self.par_sliders_complex])
 
             self.lc_obs.data['calc'] = self.cv.calcFlux(pars, np.array(self.lc_obs.data['phase']))
-            self.lc_isvalid.button_type = 'success'
-            self.lc_isvalid.label = 'Last Step Values'
 
         except Exception:
             print("Invalid parameters!")
             self.lc_isvalid.button_type = 'danger'
             self.lc_isvalid.label = 'Invalid Parameters'
+
+    def write2input(self):
+        '''Get the slider values, and modify mcmc_input.dat to match them.'''
+        
+        # Figure out which eclipse we're looking at
+        fname = self.lc_obs_fname
+        template = 'file_{}'
+        for i in range(self.necl):
+            this = self.mcmc_input_dict[template.format(i)]
+            if fname in this:
+                break
+            else: i = None
+        if i is None:
+            print("Couldn't find the index of that file!")
+            return
+        fileNumber = int(i)
+        print('This is file {}'.format(fileNumber))
+
+        # Get a list of the parameters we're going to change
+        values = [slider.value for slider in self.par_sliders]
+
+        labels = ['wdFlux_0', 'dFlux_0', 'sFlux_0', 'rsFlux_0', 'q', 'dphi',\
+                'rdisc_0', 'ulimb_0', 'rwd', 'scale_0', 'az_0', 'fis_0', 'dexp_0', 'phi0_0']
+        if self.complex:
+            labels.extend(['exp1_0', 'exp2_0', 'tilt_0', 'yaw_0'])
+            values.extend([slider.value for slider in self.par_sliders_complex])
+
+        labels = [l.replace('_0', '_{}'.format(fileNumber)) for l in labels]
+
+        newvalues = {}
+        for par, value in zip(labels, values):
+            newvalues[par] = value
+
+        # Make a copy of the mcmc_input file and edit that.
+        mcmc_file = []
+        with open(self.mcmc_fname, 'r') as f:
+            for line in f:
+                mcmc_file.append(line)
+                line = line.strip()
+
+                line_components = line.split()
+                if len(line_components) > 0:
+                    par = line_components[0]
+                    if par in labels:
+                        value = newvalues[par]
+                        
+                        newline = line_components.copy()
+                        newline[2] = value
+                        newline = "{:>10s} = {:>12.4f} {:>12} {:>12.4f} {:>12.4f} {:>12}\n".format(
+                            str(newline[0]),
+                            float(newline[2]), 
+                            str(newline[3]),
+                            float(newline[4]), 
+                            float(newline[5]), 
+                            int(newline[6])
+                            )
+                        
+                        
+                        mcmc_file[-1] = newline
+
+        # Overwrite the old mcmc_input file.
+        print('Writing new file, {}'.format(self.mcmc_fname))
+        with open(self.mcmc_fname, 'w') as f:
+            for line in mcmc_file:
+                f.write(line)
+
+        self.write2input_button.button_type = 'success'
+        time.sleep(1)
+        self.write2input_button.button_type = 'default'
 
     def add_tracking_plot(self, attr, old, new):
         '''Add a plot to the page'''
@@ -794,22 +937,25 @@ class Watcher():
 
         self.doc.add_next_tick_callback(self.update_chain)
 
+        self.lc_isvalid.label = 'Get current step'
+
     def make_corner_plots(self):
-        print("Reading chain file (this can take a while)...")
-        chain = u.readchain('chain_prod.txt')
-        print("Done!")
+        self.cornerReporter.text += "</br>Reading chain file (this can take a while)...  "
+        chainFile = open('chain_prod.txt')
+        chain = u.readchain(chainFile)
+        self.cornerReporter.text += "Done!"
 
         N = self.burn_input.value
         try:
             N = int(N)
-            print("{} burn in steps".format(N))
+            self.cornerReporter.text += "</br>Throwing away {:,d} steps of the product phase...".format(N)
         except:
             N = 0
         
         chain = chain[:, N:, :]
-        print("Using {} steps".format(chain.shape[1]))
+        self.cornerReporter.text += "</br>Using {:,d} steps".format(chain.shape[1])
         flat = u.flatchain(chain, chain.shape[2])
-        print("This is {} samples.".format(flat.shape[0]))
+        self.cornerReporter.text += ", which is {:,d} lines of the file...".format(flat.shape[0])
 
         # Label all the columns in the chain file
         necl    = self.necl
@@ -826,10 +972,12 @@ class Watcher():
 
         c = 11
         if complex:
+            self.cornerReporter.text += "</br>Using the complex model"
             parNames.extend(['exp1_0', 'exp2_0', 'tilt_0', 'yaw_0'])
             parNameTemplate.extend(['exp1_0', 'exp2_0', 'tilt_0', 'yaw_0'])
             c = 15
         if useGP:
+            self.cornerReporter.text += "</br>Using the Gaussian process"
             parNames.extend(['ampin_gp', 'ampout_gp', 'tau_gp'])
             perm.extend([parNames.index(i) for i in  ['ampin_gp', 'ampout_gp', 'tau_gp']])
 
@@ -847,9 +995,12 @@ class Watcher():
                     labels.append(parNames[i])
                     night = np.concatenate((night, flat[:, perm]), axis=1)
 
+            self.cornerReporter.text += "</br>Making the figure for eclipse {}...".format(j)
             fig = u.thumbPlot(night, labels)
-            fig.savefig('eclipse{}.pdf'.format(j))
-            print("Done figure eclipse{}.pdf".format(j))
+            oname = 'eclipse{}.png'.format(j)
+            self.cornerReporter.text += "</br>Done! Saving to memory..."
+            fig.savefig(oname)
+            self.cornerReporter.text += "</br>Done figure '{}'".format(oname)
             del fig
             del night
 
