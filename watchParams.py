@@ -298,7 +298,7 @@ class Watcher():
             self.nWalkers, self.nProd*self.nWalkers)
         self.cornerReporter.text += "I've not yet added support for embedded images here, and bokeh isn't a great tool for corner plots this big. You'll probably have to scp the files manually."
         curdir = path.dirname(path.realpath(__file__))
-        self.cornerReporter.text += "This one-liner should do it: scp callisto:{}/*.png .".format(curdir)
+        self.cornerReporter.text += "This one-liner should do it:</br><b>scp callisto:{}/*.png .</b>".format(curdir)
 
         #TODO: Show the corner plots in the page? Or, add a link to download them?
 
@@ -944,15 +944,19 @@ class Watcher():
         self.lc_isvalid.label = 'Get current step'
 
     def make_corner_plots(self):
+        # TODO: Make this a threaded process.
+        print("Making corner plots...")
         self.cornerReporter.text += "</br>Reading chain file (this can take a while)...  "
+        print("Reading chain file...")
         chainFile = open('chain_prod.txt')
         chain = u.readchain(chainFile)
         self.cornerReporter.text += "Done!"
+        print("Done!")
 
         N = self.burn_input.value
         try:
             N = int(N)
-            self.cornerReporter.text += "</br>Throwing away {:,d} steps of the product phase...".format(N)
+            self.cornerReporter.text += "</br>Throwing away the first {:,d} steps of the product phase...".format(N)
         except:
             N = 0
         
@@ -1000,8 +1004,10 @@ class Watcher():
                     night = np.concatenate((night, flat[:, perm]), axis=1)
 
             self.cornerReporter.text += "</br>Making the figure for eclipse {}...".format(j)
+            print("Making the figure for eclipse {}".format(j))
             fig = u.thumbPlot(night, labels)
             oname = 'eclipse{}.png'.format(j)
+            print("Done!")
             self.cornerReporter.text += "</br>Done! Saving to memory..."
             fig.savefig(oname)
             self.cornerReporter.text += "</br>Done figure '{}'".format(oname)
