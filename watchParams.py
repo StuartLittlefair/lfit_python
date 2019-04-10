@@ -16,6 +16,7 @@ import numpy as np
 from pandas import read_csv, DataFrame
 import configobj
 import time
+from os.path import curdir
 
 from pprint import pprint
 
@@ -203,7 +204,7 @@ class Watcher():
         print("Made the sliders...")
 
         # Data file picker
-        self.lc_change_fname_button = Dropdown(label="Filename", button_type="danger", menu=menu, width=200)
+        self.lc_change_fname_button = Dropdown(label="Choose Data", button_type="success", menu=menu, width=250)
         self.lc_obs_fname = menu[0][0]
         self.lc_change_fname_button.on_change('value', self.update_lc_obs)
         print("Made the data picker...")
@@ -273,9 +274,9 @@ class Watcher():
         # Arrange the tab layout
         self.tab2_layout = column([
             row([self.lc_change_fname_button, self.complex_button, self.lc_isvalid, self.write2input_button]),
+            self.lc_plot,
             row([gridplot(self.par_sliders, ncols=4),
                  gridplot(self.par_sliders_complex, ncols=1)]),
-            self.lc_plot
         ])
 
         self.tab2 = Panel(child=self.tab2_layout, title="Lightcurve Inspector")
@@ -295,6 +296,8 @@ class Watcher():
         self.cornerReporter.text = "The chain file will have <b>{:,d}</b> steps when completed</br>".format(self.nProd)
         self.cornerReporter.text += "We're using <b>{:,d}</b> walkers, making for <b>{:,d}</b> total lines to read in.</br>".format(
             self.nWalkers, self.nProd*self.nWalkers)
+        self.cornerReporter.text += "I've not yet added support for embedded images here, and bokeh isn't a great tool for corner plots this big. You'll probably have to scp the files manually."
+        self.cornerReporter.text += "This one-liner should do it: scp callisto:{}/*.png .".format(cwd())
 
         #TODO: Show the corner plots in the page? Or, add a link to download them?
 
