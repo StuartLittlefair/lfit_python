@@ -16,7 +16,7 @@ import numpy as np
 from pandas import read_csv, DataFrame
 import configobj
 import time
-from os.path import curdir
+from os import path
 
 from pprint import pprint
 
@@ -297,6 +297,7 @@ class Watcher():
         self.cornerReporter.text += "We're using <b>{:,d}</b> walkers, making for <b>{:,d}</b> total lines to read in.</br>".format(
             self.nWalkers, self.nProd*self.nWalkers)
         self.cornerReporter.text += "I've not yet added support for embedded images here, and bokeh isn't a great tool for corner plots this big. You'll probably have to scp the files manually."
+        curdir = path.dirname(path.realpath(__file__))
         self.cornerReporter.text += "This one-liner should do it: scp callisto:{}/*.png .".format(curdir)
 
         #TODO: Show the corner plots in the page? Or, add a link to download them?
