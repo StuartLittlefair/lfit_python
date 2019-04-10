@@ -298,7 +298,7 @@ class Watcher():
             self.nWalkers, self.nProd*self.nWalkers)
         self.cornerReporter.text += "I've not yet added support for embedded images here, and bokeh isn't a great tool for corner plots this big. You'll probably have to scp the files manually."
         curdir = path.dirname(path.realpath(__file__))
-        self.cornerReporter.text += "This one-liner should do it:</br><b>scp callisto:{}/*.png .</b>".format(curdir)
+        self.cornerReporter.text += "This one-liner should do it:</br><b>scp callisto:{}/eclipse*.png .</b>".format(curdir)
 
         #TODO: Show the corner plots in the page? Or, add a link to download them?
 
@@ -948,7 +948,7 @@ class Watcher():
         print("Making corner plots...")
         self.cornerReporter.text += "</br>Reading chain file (this can take a while)...  "
         print("Reading chain file...")
-        chainFile = open('chain_prod.txt')
+        chainFile = open('chain_prod.txt', 'r')
         chain = u.readchain(chainFile)
         self.cornerReporter.text += "Done!"
         print("Done!")
@@ -1001,7 +1001,8 @@ class Watcher():
             if a:
                 for i in perm:
                     labels.append(parNames[i])
-                    night = np.concatenate((night, flat[:, perm]), axis=1)
+                
+                night = np.concatenate((night, flat[:, perm]), axis=1)
 
             self.cornerReporter.text += "</br>Making the figure for eclipse {}...".format(j)
             print("Making the figure for eclipse {}".format(j))
