@@ -339,7 +339,7 @@ class Watcher():
         self.labels = []     # The labels, in the same order as pars
 
         # shutdown handler
-        self.doc.on_session_destroyed(self.quit)
+        # self.doc.on_session_destroyed(self.quit)
 
         # Is the file open? Check once a second until it is, then once we find it remove this callback.
         self.check_file = self.doc.add_periodic_callback(self.open_file, 1000)
