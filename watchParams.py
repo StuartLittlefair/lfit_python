@@ -1031,7 +1031,7 @@ class Watcher():
 # let Server handle that. If you need to explicitly handle IOLoops then you
 # will need to use the lower level BaseServer class.
 from bokeh.server.server import Server
-server = Server({'/': Watcher}, num_procs=4)
+server = Server({'/': Watcher}, num_procs=1)
 server.start()
 
 if __name__ == '__main__':
