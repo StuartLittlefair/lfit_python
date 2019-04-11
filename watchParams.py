@@ -340,9 +340,11 @@ class Watcher():
 
         # Is the file open? Check once a second until it is, then once we find it remove this callback.
         self.check_file = self.doc.add_periodic_callback(self.open_file, 1000)
-
-        session = bk.client.push_session(self.doc)
+        
+        from bokeh.client import push_session
         from bokeh.embed import autoload_server
+
+        session = push_session(self.doc)
         script = autoload_server(self.doc, session_id=session.id)
 
         print("Finished initialising the dashboard!")
