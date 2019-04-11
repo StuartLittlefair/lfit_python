@@ -338,12 +338,23 @@ class Watcher():
         self.pars   = []     # List of params
         self.labels = []     # The labels, in the same order as pars
 
+        # shutdown handler
+        self.doc.on_session_destroyed(self.quit)
+
         # Is the file open? Check once a second until it is, then once we find it remove this callback.
         self.check_file = self.doc.add_periodic_callback(self.open_file, 1000)
 
         print("Finished initialising the dashboard!")
-        print("Use this tag:\n{}".format(bk.embed.server_document()))
+        print("Use this tag:\n{}".format(bk.embed.server_session(session_id=bk.util.session_id.generate_session_id('foobar', False))))
 
+    def quit(self):
+        '''Clean up after yourself!'''
+        try:
+            self.f.close()
+        except: pass
+        try:
+            del self.data
+        except: pass
 
     def parse_mcmc_input(self):
         '''Parse the mcmc input dict, and store the following:
