@@ -43,7 +43,7 @@ class Watcher():
         - Ability to plot a live chain file's evolution over time
         - Interactive lightcurve model, with input sliders or the ability to grab the last step's mean
     '''
-    def __init__(self, doc):
+    def __init__(self, chain, mcmc_input, tail=5000, thin=0):
         '''
         In the following order:
             - Save the tail and thin parameters to the self.XX
@@ -65,11 +65,6 @@ class Watcher():
         #####################################################
         ############### Information Gathering ###############
         #####################################################
-
-        chain='chain_prod.txt'
-        mcmc_input='mcmc_input.dat'
-        tail=5000
-        thin=20
 
         print("Gathering information about my initial conditions...")
         # Save the tail and thin optional parameters to the self object
@@ -345,7 +340,9 @@ class Watcher():
 
         # Is the file open? Check once a second until it is, then once we find it remove this callback.
         self.check_file = self.doc.add_periodic_callback(self.open_file, 1000)
-        
+
+        print("Finished initialising the dashboard!")
+
     def parse_mcmc_input(self):
         '''Parse the mcmc input dict, and store the following:
             - self.complex: bool
@@ -1026,29 +1023,14 @@ class Watcher():
         '''Sometimes, you just don't want to do anything'''
         pass
 
+if __name__ in '__main__':
+    print("This script must be run within a bokeh server:")
+    print("  bokeh serve --show watchParams.py")
+    print("Stopping!")
+else:
+    fname = 'chain_prod.txt'
+    mc_fname = 'mcmc_input.dat'
+    tail = 10000
+    thin = 20
 
-# Setting num_procs here means we can't touch the IOLoop before now, we must
-# let Server handle that. If you need to explicitly handle IOLoops then you
-# will need to use the lower level BaseServer class.
-from bokeh.server.server import Server
-server = Server({'/': Watcher}, num_procs=1)
-server.start()
-
-if __name__ == '__main__':
-    print('Opening Bokeh application on http://localhost:5006/')
-
-    server.io_loop.add_callback(server.show, "/")
-    server.io_loop.start()
-
-# if __name__ in '__main__':
-#     print("This script must be run within a bokeh server:")
-#     print("  bokeh serve --show watchParams.py")
-#     print("Stopping!")
-# else:
-#     fname = 'chain_prod.txt'
-#     mc_fname = 'mcmc_input.dat'
-#     tail = 10000
-#     thin = 20
-
-#     watcher = Watcher(chain=fname, mcmc_input=mc_fname, tail=tail, thin=thin)
-
+    watcher = Watcher(chain=fname, mcmc_input=mc_fname, tail=tail, thin=thin)
