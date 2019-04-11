@@ -341,8 +341,12 @@ class Watcher():
         # Is the file open? Check once a second until it is, then once we find it remove this callback.
         self.check_file = self.doc.add_periodic_callback(self.open_file, 1000)
 
+        session = bk.client.push_session(self.doc)
+        from bokeh.embed import autoload_server
+        script = autoload_server(self.doc, session_id=session.id)
+
         print("Finished initialising the dashboard!")
-        print("Use this tag:{}".format(bk.embed.server_session(session_id=bk.util.session_id.generate_session_id('SECRET', True))))
+        print("Use this tag:{}".format(script))
 
     def parse_mcmc_input(self):
         '''Parse the mcmc input dict, and store the following:
