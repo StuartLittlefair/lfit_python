@@ -1025,6 +1025,7 @@ class Watcher():
 # Setting num_procs here means we can't touch the IOLoop before now, we must
 # let Server handle that. If you need to explicitly handle IOLoops then you
 # will need to use the lower level BaseServer class.
+from bokeh.server.server import Server
 server = Server({'/': Watcher}, num_procs=4)
 server.start()
 
