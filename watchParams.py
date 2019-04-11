@@ -342,6 +342,8 @@ class Watcher():
         self.check_file = self.doc.add_periodic_callback(self.open_file, 1000)
 
         print("Finished initialising the dashboard!")
+        print("This is the HTML tag to embed this plot:")
+        print("{}".format(bk.embed.server_session()))
 
     def parse_mcmc_input(self):
         '''Parse the mcmc input dict, and store the following:
