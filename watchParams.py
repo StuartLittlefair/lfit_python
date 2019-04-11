@@ -43,7 +43,7 @@ class Watcher():
         - Ability to plot a live chain file's evolution over time
         - Interactive lightcurve model, with input sliders or the ability to grab the last step's mean
     '''
-    def __init__(self, chain='chain_prod.txt', mcmc_input='mcmc_input.dat', tail=5000, thin=20):
+    def __init__(self, doc):
         '''
         In the following order:
             - Save the tail and thin parameters to the self.XX
@@ -65,6 +65,11 @@ class Watcher():
         #####################################################
         ############### Information Gathering ###############
         #####################################################
+
+        chain='chain_prod.txt'
+        mcmc_input='mcmc_input.dat'
+        tail=5000
+        thin=20
 
         print("Gathering information about my initial conditions...")
         # Save the tail and thin optional parameters to the self object
