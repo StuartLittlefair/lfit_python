@@ -575,8 +575,8 @@ class Watcher():
         else:
             print('Getting values from the parameter dict.')
             stepData = [self.parDict[key][0] for key in parNames]
-            for i, j in zip(parNames, stepData):
-                print("{:>15s}: {}".format(i, j))
+            # for i, j in zip(parNames, stepData):
+            #     print("{:>15s}: {}".format(i, j))
 
         # Set the values of the sliders to the right values
         for par, slider in zip(parNames[:15], self.par_sliders):
