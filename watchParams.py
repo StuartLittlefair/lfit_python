@@ -880,6 +880,7 @@ class Watcher():
         newvalues = {}
         for par, value in zip(labels, values):
             newvalues[par] = value
+            print("{:>15}: {}".format(par, value))
 
         # Make a copy of the mcmc_input file and edit that.
         mcmc_file = []
@@ -892,6 +893,7 @@ class Watcher():
                 if len(line_components) > 0:
                     par = line_components[0]
                     if par in labels:
+                        print("This line changed!\n{}".format(line))
                         value = newvalues[par]
                         
                         newline = line_components.copy()
@@ -905,8 +907,9 @@ class Watcher():
                             int(newline[6])
                             )
                         
-                        
+                        print("Changed to:\n{}\n\n".format(newline))
                         mcmc_file[-1] = newline
+                        time.sleep(1)
 
         # Overwrite the old mcmc_input file.
         print('Writing new file, {}'.format(self.mcmc_fname))
