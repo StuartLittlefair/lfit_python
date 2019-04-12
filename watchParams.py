@@ -801,14 +801,16 @@ class Watcher():
         print('This is file {}'.format(i))
 
         # Set the sliders to the initial guesses for that file
-        parNames = ['wdFlux_0', 'dFlux_0', 'sFlux_0', 'rsFlux_0', 'q', 'dphi', 'rdisc_0', 'ulimb_0',
-            'rwd', 'scale_0', 'az_0', 'fis_0', 'dexp_0', 'phi0_0']
+        parNames = ['wdFlux_{}', 'dFlux_{}', 'sFlux_{}', 'rsFlux_{}', 'q', 'dphi', 'rdisc_{}', 'ulimb_{}',
+            'rwd', 'scale_{}', 'az_{}', 'fis_{}', 'dexp_{}', 'phi0_{}']
+        parNames = [x.format(i) for x in parNames]
         for par, slider in zip(parNames, self.par_sliders):
             value = self.parDict[par][0]
             slider.value = value
         # Are we complex? If yes, set those too
         if self.complex:
-            parNamesComplex = ['exp1_0', 'exp2_0', 'tilt_0', 'yaw_0']
+            parNamesComplex = ['exp1_{}', 'exp2_{}', 'tilt_{}', 'yaw_{}']
+            parNamesComplex = [x.format(i) for x in parNamesComplex]
             for par, slider in zip(parNamesComplex, self.par_sliders_complex):
                 value = self.parDict[par][0]
                 slider.value = value
