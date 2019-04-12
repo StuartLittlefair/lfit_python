@@ -916,10 +916,7 @@ class Watcher():
         with open(self.mcmc_fname, 'w') as f:
             for line in mcmc_file:
                 f.write(line)
-
-        self.write2input_button.button_type = 'success'
-        time.sleep(1)
-        self.write2input_button.button_type = 'default'
+        self.parse_mcmc_input()
 
     def add_tracking_plot(self, attr, old, new):
         '''Add a plot to the page'''
