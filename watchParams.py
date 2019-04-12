@@ -388,7 +388,7 @@ class Watcher():
             print("Using the GP!")
             parNames.extend(['ampin_gp', 'ampout_gp', 'tau_gp'])
 
-        for i in range(self.necl):
+        for i in range(1, self.necl):
             parNames.extend([template.format(i) for template in parNameTemplate])
 
         ##### Here, read the parameters all into a dict of {key: [value, lowerlim, upperlim]} #####
@@ -546,35 +546,60 @@ class Watcher():
         fileNumber = int(i)
         print('This is file {}'.format(fileNumber))
 
-        # Label all the columns in the chain file
-
+        # Parameter keys
         parNames = ['wdFlux_0', 'dFlux_0', 'sFlux_0', 'rsFlux_0', 'q', 'dphi',\
                 'rdisc_0', 'ulimb_0', 'rwd', 'scale_0', 'az_0', 'fis_0', 'dexp_0', 'phi0_0']
+        parNameTemplate = ['wdFlux_{0}', 'dFlux_{0}', 'sFlux_{0}', 'rsFlux_{0}',\
+                'rdisc_{0}', 'ulimb_{0}', 'scale_{0}', 'az_{0}', 'fis_{0}', 'dexp_{0}', 'phi0_{0}']
 
+        # Extra parameters for the comlpex model
         if self.complex:
             parNames.extend(['exp1_0', 'exp2_0', 'tilt_0', 'yaw_0'])
+            parNameTemplate.extend(['exp1_{0}', 'exp2_{0}', 'tilt_{0}', 'yaw_{0}'])
+            print("Using the complex BS model!")
+        else:
+            print("Using the simple BS model!")
 
+        # Extra parameters for the GP
+        if self.GP:
+            print("Using the GP!")
+            parNames.extend(['ampin_gp', 'ampout_gp', 'tau_gp'])
+
+        # Extend the parameter names for each eclipse
+        for i in range(1, self.necl):
+            parNames.extend([template.format(i) for template in parNameTemplate])
+
+        # If we have s > 0, that means we've read in some chain. Get the last step.
         if self.s > 0:
             stepData = self.lastStep
         else:
             print('Getting values from the parameter dict.')
             stepData = [self.parDict[key][0] for key in parNames]
+            for i, j in zip(parNames, stepData):
+                print("{:>15f}: {}".format(i, j))
 
+        # Set the values of the sliders to the right values
         for par, slider in zip(parNames[:15], self.par_sliders):
             get = par.replace('_0', '_{}'.format(fileNumber))
             index = parNames.index(get)
             param = stepData[index]
+            
             print("Setting the slider for {} to {}".format(get, param))
+            slider.on_change('value', self.junk)
             slider.value = param
+            slider.on_change('value', self.update_lc_model)
+
+        # Set the complex values, if needs be
         if self.complex:
             for par, slider in zip(parNames[15:], self.par_sliders_complex):
                 get = par.replace('_0', '_{}'.format(fileNumber))
                 index = parNames.index(get)
-
                 param = stepData[index]
 
                 print("Setting the slider for {} to {}".format(get, param))
+                slider.on_change('value', self.junk)
                 slider.value = param
+                slider.on_change('value', self.update_lc_model)
 
     def update_chain(self):
         '''Call the readStep() function, and stream the live chain data to the plotter.'''
