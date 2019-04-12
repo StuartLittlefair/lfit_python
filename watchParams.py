@@ -806,14 +806,18 @@ class Watcher():
         parNames = [x.format(i) for x in parNames]
         for par, slider in zip(parNames, self.par_sliders):
             value = self.parDict[par][0]
+            slider.on_change('value', self.junk)
             slider.value = value
+            slider.on_change('value', self.update_lc_model)
         # Are we complex? If yes, set those too
         if self.complex:
             parNamesComplex = ['exp1_{}', 'exp2_{}', 'tilt_{}', 'yaw_{}']
             parNamesComplex = [x.format(i) for x in parNamesComplex]
             for par, slider in zip(parNamesComplex, self.par_sliders_complex):
                 value = self.parDict[par][0]
-                slider.value = value
+            slider.on_change('value', self.junk)
+            slider.value = value
+            slider.on_change('value', self.update_lc_model)
 
         # Regenerate the model lightcurve
         pars = [slider.value for slider in self.par_sliders]
