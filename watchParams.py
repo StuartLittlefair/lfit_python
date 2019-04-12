@@ -266,11 +266,11 @@ class Watcher():
         # )
 
         # Plot the model
-        self.lc_plot.line(x='phase', y='calc',  source=self.lc_obs, line_color='red')
-        self.lc_plot.line(x='phase', y='sec',   source=self.lc_obs, line_color='brown')
-        self.lc_plot.line(x='phase', y='wd',    source=self.lc_obs, line_color='blue')
-        self.lc_plot.line(x='phase', y='bspot', source=self.lc_obs, line_color='green')
-        self.lc_plot.line(x='phase', y='disc',  source=self.lc_obs, line_color='magenta')
+        self.lc_plot.line(x='phase', y='calc',  source=self.lc_obs, alpha=0.5, line_color='red')
+        self.lc_plot.line(x='phase', y='sec',   source=self.lc_obs, alpha=0.5, line_color='brown')
+        self.lc_plot.line(x='phase', y='wd',    source=self.lc_obs, alpha=0.5, line_color='blue')
+        self.lc_plot.line(x='phase', y='bspot', source=self.lc_obs, alpha=0.5, line_color='green')
+        self.lc_plot.line(x='phase', y='disc',  source=self.lc_obs, alpha=0.5, line_color='magenta')
         print(" Done")
 
         # I want a button that'll turn red when the parameters are invalid.
