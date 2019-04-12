@@ -10,7 +10,7 @@ import configobj
 import lfit
 import emcee
 import warnings
-import GaussianProcess as GP
+import george as g
 from mcmc_utils import *
 import seaborn
 from collections import MutableSequence
@@ -360,38 +360,23 @@ class GPLCModel(LCModel):
         ampout = np.exp(ln_ampout.currVal)
         tau = np.exp(ln_tau.currVal)
 
-        # Calculate kernels for both out of and in eclipse WD eclipse
-        # Kernel inside of WD has smaller amplitude than that of outside eclipse,
-        #k_in  = ampin*GP.ExpSquaredKernel(tau)
-        #k_out  = ampout*GP.ExpSquaredKernel(tau)
-        k_in  = ampin*GP.Matern32Kernel(tau)
-        k_out = ampout*GP.Matern32Kernel(tau)
-        #k_in  = ampin*GP.ExpKernel(tau)
-        #k_out = ampout*GP.ExpKernel(tau)
-
+        # print("Using george to power our gaussian process...")
         changepoints = self.calcChangepoints(phi)
 
-        # Depending on number of changepoints, create kernel structure
-        kernel_struc = [k_out]
-        for k in range (int( phi.min() ), int( phi.max() )+1, 1):
-            kernel_struc.append(k_in)
-            kernel_struc.append(k_out)
+        # The kernels cover this range:
+        # *****1*****-----2-----*****3*****
+        kernel1 = ampout * g.kernels.Matern32Kernel(tau, block=(-1, changepoints[0]) )
+        kernel2 = ampin  * g.kernels.Matern32Kernel(tau, block=changepoints          )
+        kernel3 = ampout * g.kernels.Matern32Kernel(tau, block=(changepoints[1],  1) )
 
-        # Create kernel with changepoints
-        kernel = GP.DrasticChangepointKernel(kernel_struc,changepoints)
+        # Add them together
+        kernel = kernel1 + kernel2 + kernel3
 
-        '''k1 = GP.Matern32Kernel(tau)
+        # Use that kernel to make a GP object
+        georgeGP = g.GP(kernel)
 
-        gp_pars = np.array([ampout,ampin,ampout])
-        changepoints = self.calcChangepoints(phi)
-
-        k2 = GP.OutputScaleChangePointKernel(gp_pars,changepoints)
-
-        kernel = k1*k2'''
-
-        # Create GPs using this kernel
-        gp = GP.GaussianProcess(kernel)
-        return gp
+        return georgeGP
+        # return gp
 
     def ln_like(self,phi,y,e,width=None):
         """Calculates the natural log of the likelihood.
