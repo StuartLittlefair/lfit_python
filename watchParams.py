@@ -239,10 +239,10 @@ class Watcher():
         # Total mode lightcurve
         self.lc_obs['calc'] = self.cv.calcFlux(pars, np.array(self.lc_obs['phase']))
         # Components 
-        self.lc_obs['sec']   = self.cv.yrs, label='Sec')
-        self.lc_obs['bspot'] = self.cv.ys, label='Spt')
-        self.lc_obs['wd']    = self.cv.ywd, label='WD')
-        self.lc_obs['disc']  = self.cv.yd, label='Disc')
+        self.lc_obs['sec']   = self.cv.yrs)
+        self.lc_obs['bspot'] = self.cv.ys)
+        self.lc_obs['wd']    = self.cv.ywd)
+        self.lc_obs['disc']  = self.cv.yd)
 
         print("Read in the observation, with the shape {}".format(self.lc_obs.shape))
 
