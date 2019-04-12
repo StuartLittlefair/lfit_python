@@ -845,10 +845,10 @@ class Watcher():
         # Total mode lightcurve
         new_obs['calc'] = self.cv.calcFlux(pars, np.array(new_obs['phase']))
         # Components 
-        new_obs['sec']   = self.cv.yrs, label='Sec')
-        new_obs['bspot'] = self.cv.ys, label='Spt')
-        new_obs['wd']    = self.cv.ywd, label='WD')
-        new_obs['disc']  = self.cv.yd, label='Disc')
+        new_obs['sec']   = self.cv.yrs
+        new_obs['bspot'] = self.cv.ys
+        new_obs['wd']    = self.cv.ywd
+        new_obs['disc']  = self.cv.yd
 
         # Push that into the data frame
         rollover = len(new_obs['phase'])
@@ -874,10 +874,10 @@ class Watcher():
             # Total mode lightcurve
             self.lc_obs.data['calc'] = self.cv.calcFlux(pars, np.array(self.lc_obs.data['phase']))
             # Components 
-            self.lc_obs.data['sec']   = self.cv.yrs, label='Sec')
-            self.lc_obs.data['bspot'] = self.cv.ys, label='Spt')
-            self.lc_obs.data['wd']    = self.cv.ywd, label='WD')
-            self.lc_obs.data['disc']  = self.cv.yd, label='Disc')
+            self.lc_obs.data['sec']   = self.cv.yrs
+            self.lc_obs.data['bspot'] = self.cv.ys
+            self.lc_obs.data['wd']    = self.cv.ywd
+            self.lc_obs.data['disc']  = self.cv.yd
 
 
         except Exception:
