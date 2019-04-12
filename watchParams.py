@@ -880,7 +880,6 @@ class Watcher():
         newvalues = {}
         for par, value in zip(labels, values):
             newvalues[par] = value
-            print("{:>15}: {}".format(par, value))
 
         # Make a copy of the mcmc_input file and edit that.
         mcmc_file = []
