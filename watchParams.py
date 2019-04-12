@@ -886,9 +886,7 @@ class Watcher():
         mcmc_file = []
         with open(self.mcmc_fname, 'r') as f:
             for line in f:
-                line = line.strip()
-
-                line_components = line.split()
+                line_components = line.strip().split()
                 if len(line_components) > 0:
                     par = line_components[0]
                     if par in labels:
