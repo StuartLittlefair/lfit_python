@@ -616,6 +616,8 @@ class Watcher():
                 slider.on_change('value', self.junk)
                 slider.value = param
                 slider.on_change('value', self.update_lc_model)
+        
+        self.lc_isvalid.button_type = 'default'
 
     def update_chain(self):
         '''Call the readStep() function, and stream the live chain data to the plotter.'''
@@ -995,6 +997,7 @@ class Watcher():
         self.doc.add_next_tick_callback(self.update_chain)
 
         self.lc_isvalid.label = 'Get current step'
+        self.lc_isvalid.button_type = 'default'
 
     def make_corner_plots(self):
         print("Making corner plots...")
