@@ -256,10 +256,6 @@ class Watcher():
             toolbar_location='above', y_axis_location="left")
         # Plot the lightcurve data
         self.lc_plot.scatter(x='phase', y='flux', source=self.lc_obs, size=5, color='black')
-        self.lc_plot.scatter(x='phase', y='sec', source=self.lc_obs, size=5, color='red')
-        self.lc_plot.scatter(x='phase', y='wd', source=self.lc_obs, size=5, color='blue')
-        self.lc_plot.scatter(x='phase', y='bspot', source=self.lc_obs, size=5, color='green')
-        self.lc_plot.scatter(x='phase', y='disc', source=self.lc_obs, size=5, color='magenta')
 
         # # Plot the error bars - Bokeh doesnt have a built in errorbar!?!
         # # The following function does NOT remove old errorbars when new ones are supplied!
