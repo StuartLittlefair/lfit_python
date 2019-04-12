@@ -910,6 +910,7 @@ class Watcher():
                         print("Changed to:\n{}\n\n".format(newline))
                         mcmc_file[-1] = newline
                         time.sleep(1)
+                print(line)
 
         # Overwrite the old mcmc_input file.
         print('Writing new file, {}'.format(self.mcmc_fname))
