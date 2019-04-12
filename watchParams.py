@@ -886,7 +886,6 @@ class Watcher():
         mcmc_file = []
         with open(self.mcmc_fname, 'r') as f:
             for line in f:
-                mcmc_file.append(line)
                 line = line.strip()
 
                 line_components = line.split()
@@ -908,8 +907,9 @@ class Watcher():
                             )
                         
                         print("Changed to:\n{}\n\n".format(newline))
-                        mcmc_file[-1] = newline
+                        line = newline
                         time.sleep(1)
+                mcmc_file.append(line)                    
                 print(line)
 
         # Overwrite the old mcmc_input file.
