@@ -60,7 +60,8 @@ class Watcher():
 
         # TODO:
         # - Add a 'plot all parameters' button to the parameter tracker, per eclipse
-        # - Make 'valid parameters' button grab the values from the last step in the chain
+        # - Make the corner plot function threaded?
+        # - Time how frequent steps are, and predict how long the chain will take to complete.
 
         #####################################################
         ############### Information Gathering ###############
@@ -234,7 +235,14 @@ class Watcher():
                 header=None,
                 names=['phase', 'flux', 'err'],
                 skipinitialspace=True)
+            
+        # Total mode lightcurve
         self.lc_obs['calc'] = self.cv.calcFlux(pars, np.array(self.lc_obs['phase']))
+        # Components 
+        self.lc_obs['sec']   = self.cv.yrs, label='Sec')
+        self.lc_obs['bspot'] = self.cv.ys, label='Spt')
+        self.lc_obs['wd']    = self.cv.ywd, label='WD')
+        self.lc_obs['disc']  = self.cv.yd, label='Disc')
 
         print("Read in the observation, with the shape {}".format(self.lc_obs.shape))
 
@@ -248,6 +256,10 @@ class Watcher():
             toolbar_location='above', y_axis_location="left")
         # Plot the lightcurve data
         self.lc_plot.scatter(x='phase', y='flux', source=self.lc_obs, size=5, color='black')
+        self.lc_plot.scatter(x='phase', y='sec', source=self.lc_obs, size=5, color='red')
+        self.lc_plot.scatter(x='phase', y='wd', source=self.lc_obs, size=5, color='blue')
+        self.lc_plot.scatter(x='phase', y='bspot', source=self.lc_obs, size=5, color='green')
+        self.lc_plot.scatter(x='phase', y='disc', source=self.lc_obs, size=5, color='magenta')
 
         # # Plot the error bars - Bokeh doesnt have a built in errorbar!?!
         # # The following function does NOT remove old errorbars when new ones are supplied!
@@ -258,7 +270,11 @@ class Watcher():
         # )
 
         # Plot the model
-        self.lc_plot.line(x='phase', y='calc', source=self.lc_obs, line_color='red')
+        self.lc_plot.line(x='phase', y='calc',  source=self.lc_obs, line_color='red')
+        self.lc_plot.line(x='phase', y='sec',   source=self.lc_obs, line_color='brown')
+        self.lc_plot.line(x='phase', y='wd',    source=self.lc_obs, line_color='blue')
+        self.lc_plot.line(x='phase', y='bspot', source=self.lc_obs, line_color='green')
+        self.lc_plot.line(x='phase', y='disc',  source=self.lc_obs, line_color='magenta')
         print(" Done")
 
         # I want a button that'll turn red when the parameters are invalid.
@@ -300,7 +316,9 @@ class Watcher():
         curdir = path.dirname(path.realpath(__file__))
         self.cornerReporter.text += "This one-liner should do it:</br><b>scp callisto:{}/eclipse*.png .</b>".format(curdir)
 
-        #TODO: Show the corner plots in the page? Or, add a link to download them?
+        #TODO: 
+        # - Show the corner plots in the page? Or, add a link to download them?
+        # - Corner plots can make the server run out of memory for large files! can we fix this?
 
         self.tab3_layout = column([self.burn_input, self.corner_plot_button, self.cornerReporter])
         self.tab3 = Panel(child=self.tab3_layout, title="Corner Plotting")
@@ -824,13 +842,17 @@ class Watcher():
         if self.complex:
             pars.extend([slider.value for slider in self.par_sliders_complex])
 
+        # Total mode lightcurve
         new_obs['calc'] = self.cv.calcFlux(pars, np.array(new_obs['phase']))
+        # Components 
+        new_obs['sec']   = self.cv.yrs, label='Sec')
+        new_obs['bspot'] = self.cv.ys, label='Spt')
+        new_obs['wd']    = self.cv.ywd, label='WD')
+        new_obs['disc']  = self.cv.yd, label='Disc')
 
         # Push that into the data frame
         rollover = len(new_obs['phase'])
         self.lc_obs.stream(new_obs, rollover)
-        # TODO: This does not 'un-draw' old errorbars, but leaves them as an artifact on the figure.
-        #  How can I even fix this?
 
         # Set the plotting area title
         fname = fname.split('/')[-1]
@@ -849,6 +871,14 @@ class Watcher():
                 pars.extend([slider.value for slider in self.par_sliders_complex])
 
             self.lc_obs.data['calc'] = self.cv.calcFlux(pars, np.array(self.lc_obs.data['phase']))
+            # Total mode lightcurve
+            self.lc_obs.data['calc'] = self.cv.calcFlux(pars, np.array(self.lc_obs.data['phase']))
+            # Components 
+            self.lc_obs.data['sec']   = self.cv.yrs, label='Sec')
+            self.lc_obs.data['bspot'] = self.cv.ys, label='Spt')
+            self.lc_obs.data['wd']    = self.cv.ywd, label='WD')
+            self.lc_obs.data['disc']  = self.cv.yd, label='Disc')
+
 
         except Exception:
             print("Invalid parameters!")
@@ -971,7 +1001,6 @@ class Watcher():
         self.lc_isvalid.label = 'Get current step'
 
     def make_corner_plots(self):
-        # TODO: Make this a threaded process.
         print("Making corner plots...")
         self.cornerReporter.text += "</br>Reading chain file (this can take a while)...  "
         print("Reading chain file...")
@@ -1048,6 +1077,7 @@ class Watcher():
 
     def junk(self, attr, old, new):
         '''Sometimes, you just don't want to do anything'''
+        print("Calling the junk pile")
         pass
 
 if __name__ in '__main__':
