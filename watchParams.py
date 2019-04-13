@@ -344,7 +344,11 @@ class Watcher():
         ################# Tab 4: Param Table #################
         ######################################################
 
-        self.parameter_table = DataTable(source=self.lastStep_CDS, columns=self.plotPars)
+        self.lastStep_CDS = ColumnDataSource(self.parDict)
+        self.parameter_table = DataTable(source=self.lastStep_CDS, columns=self.parDict.keys())
+
+        self.tab4_layout = column([self.parameter_table])
+        self.tab4 = Panel(child=self.tab4_layout, title="Parameter table")
 
 
         ######################################################
@@ -558,6 +562,8 @@ class Watcher():
             # print("Adding timeout callback")
             print('  End of file! waiting for new step to be written...', end='\r')
             self.next_read = self.doc.add_timeout_callback(self.update_chain, 10000)
+            for i, n in enumerate(self.parNames):
+                self.lastStep_CDS.data[n] = lastStep[i]
             return None
         else:
             # We read in a step but we don't want it.
