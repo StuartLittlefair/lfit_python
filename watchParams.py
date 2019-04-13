@@ -936,7 +936,7 @@ class Watcher():
                 write = p+'th'
 
             header += " When plotting parameter evolutions, I'm skipping every "
-            header += "<b>{}</b> step and only keeping the last <b>{:,d}</b> data".format(write, sp+elf.tail)
+            header += "<b>{}</b> step and only keeping the last <b>{:,d}</b> data".format(write, self.tail)
         else:
             header += " When plotting parameter evolutions, I'll plot every step."
         
