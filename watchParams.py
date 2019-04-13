@@ -587,10 +587,13 @@ class Watcher():
                 for i in range(self.necl):
                     # work out the name of the parameter
                     g = get.format(i)
+                    print("getting par {}".format(g))
                     # get the index of that parameter in parNames
                     index = self.parNames.index(g)
+                    print("This is at index {}".format(index))
                     # grab the value from lastStep
                     val = lastStep[index]
+                    print("and has a value {}".format(val))
                     # store
                     l.append(val)
                 
