@@ -344,7 +344,7 @@ class Watcher():
         ################# Tab 4: Param Table #################
         ######################################################
 
-        self.tableColumns = ['wdFlux', 'dFlux', 'sFlux', 'rsFlux', 'rdisc', 
+        self.tableColumns = ['file', 'wdFlux', 'dFlux', 'sFlux', 'rsFlux', 'rdisc', 
             'ulimb', 'scale', 'az', 'fis', 'dexp', 'phi0']
         
         # Extra parameters for the complex model
@@ -354,13 +354,14 @@ class Watcher():
         tableDict = {}
         for p in self.tableColumns:
             get = p + "_{}"
-            tableDict[p] = [self.parDict[get.format(i)] for i in range(self.necl)]
+            tableDict[p] = [self.parDict[get.format(i)][0] for i in range(self.necl)]
 
         self.lastStep_CDS = ColumnDataSource(tableDict)
         columns = [
             TableColumn(field=par, title=par) for par in self.tableColumns
         ]
-        self.parameter_table = DataTable(source=self.lastStep_CDS, columns=columns)
+        self.parameter_table = DataTable(source=self.lastStep_CDS, columns=columns, 
+            fit_columns=True, index_header='Eclipse Number')
 
         self.tab4_layout = column([self.parameter_table])
         self.tab4 = Panel(child=self.tab4_layout, title="Parameter table")
