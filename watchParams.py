@@ -234,23 +234,14 @@ class Watcher():
                 names=['phase', 'flux', 'err'],
                 skipinitialspace=True)
 
-        # The CV model object needs to be seeded with initial values. Extract these from the sliders
-        print("Initialising the CV model...", end='')
-        pars = [slider.value for slider in self.par_sliders]
-        if self.complex:
-            pars.extend([slider.value for slider in self.par_sliders_complex])
-        # Initialise the model
-        self.cv = CV(pars)
-        print(" Done.")
-            
         # Total model lightcurve
         # TODO: This is slow, make the page with this empty at first, then populate the data in a callback afterwards
-        self.lc_obs['calc']  = self.cv.calcFlux(pars, np.array(self.lc_obs['phase']))
+        self.lc_obs['calc']  = np.zeros_like(self.lc_obs['phase'])
         # Components 
-        self.lc_obs['sec']   = self.cv.yrs
-        self.lc_obs['bspot'] = self.cv.ys
-        self.lc_obs['wd']    = self.cv.ywd
-        self.lc_obs['disc']  = self.cv.yd
+        self.lc_obs['sec']   = np.zeros_like(self.lc_obs['phase'])
+        self.lc_obs['bspot'] = np.zeros_like(self.lc_obs['phase'])
+        self.lc_obs['wd']    = np.zeros_like(self.lc_obs['phase'])
+        self.lc_obs['disc']  = np.zeros_like(self.lc_obs['phase'])
 
         print("Read in the observation, with the shape {}".format(self.lc_obs.shape))
 
@@ -579,13 +570,10 @@ class Watcher():
                 for i in range(self.necl):
                     # work out the name of the parameter
                     g = get.format(i)
-                    # print("getting par {}".format(g))
                     # get the index of that parameter in parNames
                     index = self.parNames.index(g)
-                    # print("This is at index {}".format(index))
                     # grab the value from lastStep
                     val = self.lastStep[index]
-                    # print("and has a value {}".format(val))
                     # store
                     l.append(val)
                 
@@ -674,12 +662,13 @@ class Watcher():
         # Make this add to the right tab
         self.tab1_layout.children.append(row(new_plot))
 
+        self.lc_isvalid.label = 'Get current step'
+        self.lc_isvalid.button_type = 'default'
+
+
         print("Added a new plot!")
 
         self.doc.add_next_tick_callback(self.update_chain)
-
-        self.lc_isvalid.label = 'Get current step'
-        self.lc_isvalid.button_type = 'default'
 
     def reset_sliders(self):
         '''Set the parameters to the initial guesses.'''
@@ -899,29 +888,27 @@ class Watcher():
         self.lc_plot.title.text = fname
         print("The title should now be {}".format(self.lc_plot.title.text))
 
-    def update_lc_model(self, attr, old, new):
-        '''Callback to redraw the model lightcurve in the second tab'''
-
+    def recalc_lc_model(self):
         try:
             # Regenerate the model lightcurve
             pars = [slider.value for slider in self.par_sliders]
             if self.complex:
                 pars.extend([slider.value for slider in self.par_sliders_complex])
 
-            self.lc_obs.data['calc'] = self.cv.calcFlux(pars, np.array(self.lc_obs.data['phase']))
-            # Total mode lightcurve
-            self.lc_obs.data['calc'] = self.cv.calcFlux(pars, np.array(self.lc_obs.data['phase']))
+            self.lc_obs['calc']  = self.cv.calcFlux(pars, np.array(self.lc_obs['phase']))
             # Components 
-            self.lc_obs.data['sec']   = self.cv.yrs
-            self.lc_obs.data['bspot'] = self.cv.ys
-            self.lc_obs.data['wd']    = self.cv.ywd
-            self.lc_obs.data['disc']  = self.cv.yd
-
-
+            self.lc_obs['sec']   = self.cv.yrs
+            self.lc_obs['bspot'] = self.cv.ys
+            self.lc_obs['wd']    = self.cv.ywd
+            self.lc_obs['disc']  = self.cv.yd
         except Exception:
             print("Invalid parameters!")
             self.lc_isvalid.button_type = 'danger'
             self.lc_isvalid.label = 'Invalid Parameters'
+
+    def update_lc_model(self, attr, old, new):
+        '''Callback to redraw the model lightcurve in the second tab'''
+        self.recalc_lc_model()
 
     def make_header(self):
         '''Update the text at the top of the first tab to reflect mcmc_input, and the user defined stuff.'''
