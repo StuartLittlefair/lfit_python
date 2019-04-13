@@ -734,6 +734,8 @@ class Watcher():
             if self.complex:
                 pars.extend([slider.value for slider in self.par_sliders_complex])
 
+            self.cv = CV(pars)
+
             self.lc_obs.data['calc']  = self.cv.calcFlux(pars, np.array(self.lc_obs.data['phase']))
             # Components 
             self.lc_obs.data['sec']   = self.cv.yrs
