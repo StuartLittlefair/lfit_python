@@ -4,7 +4,7 @@ from bokeh.models import ColumnDataSource, Band, Whisker
 from bokeh.models.annotations import Title
 from bokeh.plotting import curdoc, figure
 from bokeh.server.callbacks import NextTickCallback
-from bokeh.models.widgets import inputs, markups, DataTable
+from bokeh.models.widgets import inputs, markups, DataTable, TableColumn
 from bokeh.models.widgets.buttons import Toggle, Button
 from bokeh.models.widgets import Slider, Panel, Tabs, Dropdown, TextInput
 
