@@ -314,7 +314,7 @@ class Watcher():
 
         self.lastStep_CDS = ColumnDataSource(tableDict)
         columns = [
-            TableColumn(field=par, title=par, formatter=tables.NumberFormatter(format='.0000')) for par in self.tableColumns
+            TableColumn(field=par, title=par, formatter=tables.NumberFormatter(format='0.0000')) for par in self.tableColumns
         ]
         self.parameter_table = DataTable(source=self.lastStep_CDS, columns=columns, 
             fit_columns=True, index_header='Eclipse Number', index_width=100, width=1000)
@@ -440,6 +440,13 @@ class Watcher():
         for param in parNames:
             line = self.mcmc_input_dict[param].strip().split(' ')
             line = [x for x in line if x != '']
+
+            if 'gaussian' in line:
+                min = line[2] - 5*line[3]
+                max = line[2] + 5*line[3]
+                line[2] = min
+                line[3] = max
+
             line = [line[0], line[2], line[3]]
 
             parameter = [float(x) for x in line]
