@@ -383,6 +383,7 @@ class Watcher():
 
         # Is the file open? Check once a second until it is, then once we find it remove this callback.
         self.check_file = self.doc.add_next_tick_callback(self.open_file)
+        self.doc.add_next_tick_callback(self.recalc_lc_model)
 
         print("Finished initialising the dashboard!")
 
