@@ -346,7 +346,7 @@ class Watcher():
 
         self.lastStep_CDS = ColumnDataSource(self.parDict)
         columns = [
-            TableColumn(field=par, title=par, formatter='{:>.4f}') for par in self.parNames
+            TableColumn(field=par, title=par) for par in self.parNames
         ]
         self.parameter_table = DataTable(source=self.lastStep_CDS, columns=columns)
 
