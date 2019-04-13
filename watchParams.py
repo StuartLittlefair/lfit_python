@@ -734,12 +734,12 @@ class Watcher():
             if self.complex:
                 pars.extend([slider.value for slider in self.par_sliders_complex])
 
-            self.lc_obs['calc']  = self.cv.calcFlux(pars, np.array(self.lc_obs['phase']))
+            self.lc_obs.data['calc']  = self.cv.calcFlux(pars, np.array(self.lc_obs['phase']))
             # Components 
-            self.lc_obs['sec']   = self.cv.yrs
-            self.lc_obs['bspot'] = self.cv.ys
-            self.lc_obs['wd']    = self.cv.ywd
-            self.lc_obs['disc']  = self.cv.yd
+            self.lc_obs.data['sec']   = self.cv.yrs
+            self.lc_obs.data['bspot'] = self.cv.ys
+            self.lc_obs.data['wd']    = self.cv.ywd
+            self.lc_obs.data['disc']  = self.cv.yd
         except Exception:
             print("Invalid parameters!")
             self.lc_isvalid.button_type = 'danger'
