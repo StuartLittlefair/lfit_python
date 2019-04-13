@@ -345,7 +345,10 @@ class Watcher():
         ######################################################
 
         self.lastStep_CDS = ColumnDataSource(self.parDict)
-        self.parameter_table = DataTable(source=self.lastStep_CDS, columns=self.parDict.keys())
+        columns = [
+            TableColumn(field=par, title=par, formatter='{:>.4f}') for par in self.parNames
+        ]
+        self.parameter_table = DataTable(source=self.lastStep_CDS, columns=columns)
 
         self.tab4_layout = column([self.parameter_table])
         self.tab4 = Panel(child=self.tab4_layout, title="Parameter table")
@@ -356,7 +359,7 @@ class Watcher():
         ######################################################
 
         # Make a tabs object
-        self.tabs = Tabs(tabs=[self.tab1, self.tab2, self.tab3])
+        self.tabs = Tabs(tabs=[self.tab1, self.tab2, self.tab3, self.tab4])
         # Add it
         self.doc = curdoc()
         self.doc.add_root(self.tabs)
