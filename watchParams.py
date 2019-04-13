@@ -578,9 +578,25 @@ class Watcher():
             # print("Adding timeout callback")
             print('  End of file! waiting for new step to be written...', end='\r')
             self.next_read = self.doc.add_timeout_callback(self.update_chain, 10000)
+
             print("\nUpdating the table with lastStep...")
-            for i, n in enumerate(self.parNames):
-                self.lastStep_CDS.data[n] = lastStep[i]
+            for p in self.tableColumns:
+                get = p + "_{}"
+                
+                l = []
+                for i in range(self.necl):
+                    # work out the name of the parameter
+                    g = get.format(i)
+                    # get the index of that parameter in parNames
+                    index = self.parNames.index(g)
+                    # grab the value from lastStep
+                    val = lastStep[index]
+                    # store
+                    l.append(val)
+                
+                self.lastStep_CDS.data[p] = np.array(l)
+
+
             return None
         else:
             # We read in a step but we don't want it.
