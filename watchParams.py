@@ -322,7 +322,7 @@ class Watcher():
             TableColumn(field='file', title='File')
             )
         self.parameter_table = DataTable(source=self.lastStep_CDS, columns=columns, 
-            fit_columns=True, width=1000)
+            fit_columns=True, width=1500)
 
         self.tab3_layout = column([self.parameter_table])
         self.tab3 = Panel(child=self.tab3_layout, title="Parameter table")
