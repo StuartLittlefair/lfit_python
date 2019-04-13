@@ -344,7 +344,7 @@ class Watcher():
         ################# Tab 4: Param Table #################
         ######################################################
 
-        self.tableColumns = ['file', 'wdFlux', 'dFlux', 'sFlux', 'rsFlux', 'rdisc', 
+        self.tableColumns = ['wdFlux', 'dFlux', 'sFlux', 'rsFlux', 'rdisc', 
             'ulimb', 'scale', 'az', 'fis', 'dexp', 'phi0']
         
         # Extra parameters for the complex model
@@ -433,9 +433,9 @@ class Watcher():
         self.nProd    = int(self.mcmc_input_dict['nprod'])
 
         # Parameter keys
-        parNames = ['file_0', 'wdFlux_0', 'dFlux_0', 'sFlux_0', 'rsFlux_0', 'q', 'dphi',\
+        parNames = ['wdFlux_0', 'dFlux_0', 'sFlux_0', 'rsFlux_0', 'q', 'dphi',\
                 'rdisc_0', 'ulimb_0', 'rwd', 'scale_0', 'az_0', 'fis_0', 'dexp_0', 'phi0_0']
-        parNameTemplate = ['file_{}', 'wdFlux_{0}', 'dFlux_{0}', 'sFlux_{0}', 'rsFlux_{0}',\
+        parNameTemplate = ['wdFlux_{0}', 'dFlux_{0}', 'sFlux_{0}', 'rsFlux_{0}',\
                 'rdisc_{0}', 'ulimb_{0}', 'scale_{0}', 'az_{0}', 'fis_{0}', 'dexp_{0}', 'phi0_{0}']
 
         if self.complex:
