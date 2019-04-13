@@ -726,6 +726,24 @@ class Watcher():
         
         self.lc_isvalid.button_type = 'default'
 
+    def recalc_lc_model(self):
+        try:
+            # Regenerate the model lightcurve
+            pars = [slider.value for slider in self.par_sliders]
+            if self.complex:
+                pars.extend([slider.value for slider in self.par_sliders_complex])
+
+            self.lc_obs['calc']  = self.cv.calcFlux(pars, np.array(self.lc_obs['phase']))
+            # Components 
+            self.lc_obs['sec']   = self.cv.yrs
+            self.lc_obs['bspot'] = self.cv.ys
+            self.lc_obs['wd']    = self.cv.ywd
+            self.lc_obs['disc']  = self.cv.yd
+        except Exception:
+            print("Invalid parameters!")
+            self.lc_isvalid.button_type = 'danger'
+            self.lc_isvalid.label = 'Invalid Parameters'
+
     def update_selectList(self):
         '''Change the options on self.plotPars to reflect how many eclipses are in the MCMC chain'''
 
@@ -887,24 +905,6 @@ class Watcher():
         print("Old title: {}".format(self.lc_plot.title.text))
         self.lc_plot.title.text = fname
         print("The title should now be {}".format(self.lc_plot.title.text))
-
-    def recalc_lc_model(self):
-        try:
-            # Regenerate the model lightcurve
-            pars = [slider.value for slider in self.par_sliders]
-            if self.complex:
-                pars.extend([slider.value for slider in self.par_sliders_complex])
-
-            self.lc_obs['calc']  = self.cv.calcFlux(pars, np.array(self.lc_obs['phase']))
-            # Components 
-            self.lc_obs['sec']   = self.cv.yrs
-            self.lc_obs['bspot'] = self.cv.ys
-            self.lc_obs['wd']    = self.cv.ywd
-            self.lc_obs['disc']  = self.cv.yd
-        except Exception:
-            print("Invalid parameters!")
-            self.lc_isvalid.button_type = 'danger'
-            self.lc_isvalid.label = 'Invalid Parameters'
 
     def update_lc_model(self, attr, old, new):
         '''Callback to redraw the model lightcurve in the second tab'''
