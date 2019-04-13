@@ -562,6 +562,7 @@ class Watcher():
             # print("Adding timeout callback")
             print('  End of file! waiting for new step to be written...', end='\r')
             self.next_read = self.doc.add_timeout_callback(self.update_chain, 10000)
+            print("\nUpdating the table with lastStep...")
             for i, n in enumerate(self.parNames):
                 self.lastStep_CDS.data[n] = lastStep[i]
             return None
