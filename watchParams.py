@@ -361,7 +361,7 @@ class Watcher():
             TableColumn(field=par, title=par) for par in self.tableColumns
         ]
         self.parameter_table = DataTable(source=self.lastStep_CDS, columns=columns, 
-            fit_columns=True, index_header='Eclipse Number')
+            fit_columns=True, index_header='Eclipse Number', width=1000)
 
         self.tab4_layout = column([self.parameter_table])
         self.tab4 = Panel(child=self.tab4_layout, title="Parameter table")
