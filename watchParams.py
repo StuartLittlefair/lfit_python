@@ -311,13 +311,17 @@ class Watcher():
         for p in self.tableColumns:
             get = p + "_{}"
             tableDict[p] = [self.parDict[get.format(i)][0] for i in range(self.necl)]
+        tableDict['file'] = [self.mcmc_input_dict['file_{}'.format(i)] for i in range(self.necl)]
 
         self.lastStep_CDS = ColumnDataSource(tableDict)
         columns = [
             TableColumn(field=par, title=par, formatter=tables.NumberFormatter(format='0.0000')) for par in self.tableColumns
         ]
+        columns.insert(0, 
+            TableColumn(field='file', title='File')
+            )
         self.parameter_table = DataTable(source=self.lastStep_CDS, columns=columns, 
-            fit_columns=True, index_header='Eclipse Number', index_width=100, width=1000)
+            fit_columns=True, width=1000)
 
         self.tab3_layout = column([self.parameter_table])
         self.tab3 = Panel(child=self.tab3_layout, title="Parameter table")
