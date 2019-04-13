@@ -866,30 +866,34 @@ class Watcher():
             self.lc_isvalid.label = 'Invalid Parameters'
 
     def make_header(self):
-        self.reportChain_label.text =  'This chain has <b>{:,d}</b> burn steps, and <b>{:,d}</b> product steps.</br>'.format(
+        header =  'This chain has <b>{:,d}</b> burn steps, and <b>{:,d}</b> product steps.</br>'.format(
             self.nBurn, self.nProd)
-        self.reportChain_label.text += " We're using <b>{:,d}</b> walkers,".format(self.nWalkers)
+        header += " We're using <b>{:,d}</b> walkers,".format(self.nWalkers)
 
         if bool(int(self.mcmc_input_dict['usePT'])):
-            self.reportChain_label.text += ' with parallel tempering sampling <b>{:,d}</b> temperatures,'.format(
+            header += ' with parallel tempering sampling <b>{:,d}</b> temperatures,'.format(
                 int(self.mcmc_input_dict['ntemps']))
 
-        self.reportChain_label.text += ' and running on <b>{:,d}</b> cores.</br>'.format(int(self.mcmc_input_dict['nthread']))
+        header += ' and running on <b>{:,d}</b> cores.</br>'.format(int(self.mcmc_input_dict['nthread']))
         if self.thin:
             p = str(self.thin)
-            if p[-1] == '1':
-                suffix = 'st'
+            if p == '1':
+                write = 'other'
+            elif p[-1] == '1':
+                write = p+'st'
             elif p[-1] == '2':
-                suffix = 'nd'
+                write = p+'nd'
             elif p[-1] == '3':
-                suffix = 'rd'
+                write = p+'rd'
             else:
-                suffix = 'th'
+                write = p+'th'
 
-            self.reportChain_label.text += " When plotting parameter evolutions, I'm skipping every "
-            self.reportChain_label.text += "<b>{}{}</b> step and only keeping the last <b>{:,d}</b> data".format(self.thin, suffix, self.tail)
+            header += " When plotting parameter evolutions, I'm skipping every "
+            header += "<b>{}</b> step and only keeping the last <b>{:,d}</b> data".format(write, sp+elf.tail)
         else:
-            self.reportChain_label.text += " When plotting parameter evolutions, I'll plot every step."
+            header += " When plotting parameter evolutions, I'll plot every step."
+        
+        self.reportChain_label.text = header
 
     def write2input(self):
         '''Get the slider values, and modify mcmc_input.dat to match them.'''
