@@ -4,7 +4,7 @@ from bokeh.models import ColumnDataSource, Band, Whisker
 from bokeh.models.annotations import Title
 from bokeh.plotting import curdoc, figure
 from bokeh.server.callbacks import NextTickCallback
-from bokeh.models.widgets import inputs, markups
+from bokeh.models.widgets import inputs, markups, DataTable
 from bokeh.models.widgets.buttons import Toggle, Button
 from bokeh.models.widgets import Slider, Panel, Tabs, Dropdown, TextInput
 
@@ -91,12 +91,32 @@ class Watcher():
             menu.append((fname.split('/')[-1], fname))
         # The observational data filenames will be safe enough in a button.
 
+        # Parameter keys
+        parNames = ['wdFlux_0', 'dFlux_0', 'sFlux_0', 'rsFlux_0', 'q', 'dphi',\
+                'rdisc_0', 'ulimb_0', 'rwd', 'scale_0', 'az_0', 'fis_0', 'dexp_0', 'phi0_0']
+        parNameTemplate = ['wdFlux_{0}', 'dFlux_{0}', 'sFlux_{0}', 'rsFlux_{0}',\
+                'rdisc_{0}', 'ulimb_{0}', 'scale_{0}', 'az_{0}', 'fis_{0}', 'dexp_{0}', 'phi0_{0}']
 
-        # This is a list of the model-generation-relevant parameter names. i.e., 18 parameters.
-        # The model generation function itself will filter out the unwanted ones, rather than changing this.
-        self.parNames = ['wdFlux_0', 'dFlux_0', 'sFlux_0', 'rsFlux_0', 'q', 'dphi', 'rdisc_0', 'ulimb_0',
-            'rwd', 'scale_0', 'az_0', 'fis_0', 'dexp_0', 'phi0_0',
-            'exp1_0', 'exp2_0', 'tilt_0', 'yaw_0']
+        # Extra parameters for the complex model
+        if self.complex:
+            parNames.extend(['exp1_0', 'exp2_0', 'tilt_0', 'yaw_0'])
+            parNameTemplate.extend(['exp1_{0}', 'exp2_{0}', 'tilt_{0}', 'yaw_{0}'])
+            print("Using the complex BS model!")
+        else:
+            print("Using the simple BS model!")
+
+        # Extra parameters for the GP
+        if self.GP:
+            print("Using the GP!")
+            parNames.extend(['ampin_gp', 'ampout_gp', 'tau_gp'])
+
+        # Extend the parameter names for each eclipse
+        for i in range(1, self.necl):
+            parNames.extend([template.format(i) for template in parNameTemplate])
+        
+        # Copy the above onto self
+        self.parNames = list(parNames)
+        # Human-readable names
         self.parDesc = ['White Dwarf Flux', 'Disc Flux', 'Bright Spot Flux', 'Secondary Flux', 'Mass Ratio',
             'Eclipse Duration', 'Disc Radius', 'Limb Darkening', 'White Dwarf Radius', 'Bright Spot Scale',
             'Bright Spot Azimuth', 'Isotropic Emission Fract.', 'Disc Profile', 'Phase Offset',
@@ -318,6 +338,13 @@ class Watcher():
 
         self.tab3_layout = column([self.burn_input, self.corner_plot_button, self.cornerReporter])
         self.tab3 = Panel(child=self.tab3_layout, title="Corner Plotting")
+
+
+        ######################################################
+        ################# Tab 4: Param Table #################
+        ######################################################
+
+        self.parameter_table = DataTable(source=self.lastStep_CDS, columns=self.plotPars)
 
 
         ######################################################
@@ -558,28 +585,7 @@ class Watcher():
         fileNumber = int(i)
         print('This is file {}'.format(fileNumber))
 
-        # Parameter keys
-        parNames = ['wdFlux_0', 'dFlux_0', 'sFlux_0', 'rsFlux_0', 'q', 'dphi',\
-                'rdisc_0', 'ulimb_0', 'rwd', 'scale_0', 'az_0', 'fis_0', 'dexp_0', 'phi0_0']
-        parNameTemplate = ['wdFlux_{0}', 'dFlux_{0}', 'sFlux_{0}', 'rsFlux_{0}',\
-                'rdisc_{0}', 'ulimb_{0}', 'scale_{0}', 'az_{0}', 'fis_{0}', 'dexp_{0}', 'phi0_{0}']
-
-        # Extra parameters for the comlpex model
-        if self.complex:
-            parNames.extend(['exp1_0', 'exp2_0', 'tilt_0', 'yaw_0'])
-            parNameTemplate.extend(['exp1_{0}', 'exp2_{0}', 'tilt_{0}', 'yaw_{0}'])
-            print("Using the complex BS model!")
-        else:
-            print("Using the simple BS model!")
-
-        # Extra parameters for the GP
-        if self.GP:
-            print("Using the GP!")
-            parNames.extend(['ampin_gp', 'ampout_gp', 'tau_gp'])
-
-        # Extend the parameter names for each eclipse
-        for i in range(1, self.necl):
-            parNames.extend([template.format(i) for template in parNameTemplate])
+        parNames = self.parNames
 
         # If we have s > 0, that means we've read in some chain. Get the last step.
         if self.s > 0:
@@ -668,6 +674,9 @@ class Watcher():
         for i in range(self.necl-1):
             for name in parNameTemplate:
                 parNames.append(name.format(i+1))
+
+        self.parNames = list(parNames)
+        
         parNames.append('Likelihood')
 
         self.selectList = [(par, par) for par in parNames]
