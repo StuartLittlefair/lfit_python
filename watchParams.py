@@ -538,8 +538,6 @@ class Watcher():
             # print("Step we want to skip, adding next tick callback")
             self.next_read = self.doc.add_next_tick_callback(self.update_chain)
             self.init = start
-            if np.sum(lastStep) > 0:
-                self.lastStep = lastStep
             return None
 
     def reset_sliders(self):
@@ -739,34 +737,6 @@ class Watcher():
             self.s = 0
 
         print("Closed and re-opened the file!")
-
-
-    # def update_tail(self, attr, old, new):
-    #     tail = self.tail_input.value
-    #     try:
-    #         tail = int(tail)
-    #     except:
-    #         self.tail_input.value = ''
-
-    #     self.tail = tail
-    #     self.make_header()
-
-    #     # close and re-open the file
-    #     self.paramFollowSource.data = {'step': []}
-    #     for l in self.labels:
-    #         self.paramFollowSource.data[l+'Mean']     = []
-    #         self.paramFollowSource.data[l+'StdUpper'] = []
-    #         self.paramFollowSource.data[l+'StdLower'] = []
-
-    #     print("Reset the data storage to empty")
-
-    #     # Move the file cursor back to the beginning of the file
-    #     if not self.f is False:
-    #         self.f.close()
-    #         self.f = open(self.chain_fname, 'r')
-    #         self.s = 0
-
-    #     print("Closed and re-opened the file!")
 
     def make_header(self):
         self.reportChain_label.text =  'This chain has <b>{:,d}</b> burn steps, and <b>{:,d}</b> product steps.</br>'.format(
