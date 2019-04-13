@@ -631,8 +631,8 @@ class Watcher():
                 pass
             else:
                 # Generate summaries
-                means = np.mean(step, axis=0)
-                stds  = np.std(step,  axis=0)
+                means = np.nanmean(step, axis=0)
+                stds  = np.nanstd(step,  axis=0)
 
                 # Stream accepts a dict of lists
                 newdata = dict()
