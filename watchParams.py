@@ -317,7 +317,7 @@ class Watcher():
             TableColumn(field=par, title=par, formatter=tables.NumberFormatter(format='.0000')) for par in self.tableColumns
         ]
         self.parameter_table = DataTable(source=self.lastStep_CDS, columns=columns, 
-            fit_columns='checkbox', index_header='Eclipse Number', index_width=100, width=1000)
+            fit_columns=True, index_header='Eclipse Number', index_width=100, width=1000)
 
         self.tab3_layout = column([self.parameter_table])
         self.tab3 = Panel(child=self.tab3_layout, title="Parameter table")
