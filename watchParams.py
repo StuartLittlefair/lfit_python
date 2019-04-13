@@ -48,17 +48,18 @@ class Watcher():
         In the following order:
             - Save the tail and thin parameters to the self.XX
             - Read in the mcmc_input file to self.parDict
-            - Set up self.parNames to have all 18 parameters in. Non-complex instances will select the first 14.
+            - Set up self.parNames to have all parameter names
             - Set the other misc. trackers in handling files
             - Initialise the data storage object
             - Set up the first tab, with the live chain tracking page
-            - Now, regardless of if we're complex or not, generate all 18 of the relevant sliders
-                - If we're not complex BS model, the last 4 will just not do anything. Remove their on_change calls?
+            - Now, regardless of if we're complex or not, generate all 18 of the parameter sliders
+                - If we're not complex BS model, the last 4 will just not do anything.
             - Set up the second tab, with the parameter tweaking tool.
             - Start watching for the creation of the chain file
         '''
 
         # TODO:
+        # - improve startup speed
         # - Add a 'plot all parameters' button to the parameter tracker, per eclipse
         # - Make the corner plot function threaded?
         # - Time how frequent steps are, and predict how long the chain will take to complete.
@@ -124,7 +125,7 @@ class Watcher():
 
 
         #####################################################
-        ########### First tab - Parameter History ###########
+        ############# Tab 1: Parameter History ##############
         #####################################################
 
         print("Creating the Parameter History tab...")
@@ -158,7 +159,7 @@ class Watcher():
 
 
         ######################################################
-        ############ Second tab - Model inspector ############
+        ############### Tab 2: Model inspector ###############
         ######################################################
 
         print("Creating the second tab...")
@@ -173,20 +174,19 @@ class Watcher():
                 value = param[0],
                 step  = (param[2] - param[1]) / 100,
                 width = 200,
-                # format='{:.5}'
+                format='0.0000'
             )
             slider.on_change('value', self.update_lc_model)
             # slider.callback_throttle = 100 #ms?
 
             self.par_sliders.append(slider)
 
-        # Stored in a separate list, so that I can haev them on their own row.
-        # Default values:
+        # Default values for the complex BS, as simple mcmc_input files may not have them:
         defaults = {
-            'exp1_0': [ 4.71, 0.001,  5.0],
-            'exp2_0': [ 1.19, 0.001,  5.0],
-            'tilt_0': [40.60, 0.001,  180],
-            'yaw_0': [35.35, -90.0, 90.0],
+            'exp1_0': [ 1.00, 0.001,  5.0],
+            'exp2_0': [ 2.00, 0.001,  5.0],
+            'tilt_0': [45.00, 0.001,  180],
+            'yaw_0':  [ 0.00, -90.0, 90.0],
         }
         self.par_sliders_complex = []
         for par, title in zip(self.parNames[14:], self.parDesc[14:]):
@@ -201,7 +201,7 @@ class Watcher():
                 value = param[0],
                 step  = (param[2] - param[1]) / 100,
                 width = 200,
-                # format='{:.5}'
+                format='0.0000'
             )
             # slider.callback_throttle = 100 #ms?
             # If we aren't using a complex model, changing these shouldn't bother updating the model.
@@ -226,6 +226,14 @@ class Watcher():
         self.complex_button.on_click(self.update_complex)
         print("Made the complex button...")
 
+        print("Grabbing the observations...")
+        # Grab the data from the file, to start with just use the first in the list
+        self.lc_obs = read_csv(menu[0][1],
+                sep=' ', comment='#',
+                header=None,
+                names=['phase', 'flux', 'err'],
+                skipinitialspace=True)
+
         # The CV model object needs to be seeded with initial values. Extract these from the sliders
         print("Initialising the CV model...", end='')
         pars = [slider.value for slider in self.par_sliders]
@@ -234,17 +242,10 @@ class Watcher():
         # Initialise the model
         self.cv = CV(pars)
         print(" Done.")
-
-        print("Grabbing the observations...")
-        # Grab the data from the file, to start with just use the first in the list
-        self.lc_obs = read_csv(menu[0][1],
-                sep=' ', comment='#',
-                header=None,
-                names=['phase', 'flux', 'err'],
-                skipinitialspace=True)
             
-        # Total mode lightcurve
-        self.lc_obs['calc'] = self.cv.calcFlux(pars, np.array(self.lc_obs['phase']))
+        # Total model lightcurve
+        # TODO: This is slow, make the page with this empty at first, then populate the data in a callback afterwards
+        self.lc_obs['calc']  = self.cv.calcFlux(pars, np.array(self.lc_obs['phase']))
         # Components 
         self.lc_obs['sec']   = self.cv.yrs
         self.lc_obs['bspot'] = self.cv.ys
@@ -255,6 +256,7 @@ class Watcher():
 
         # Whisker can only take the ColumnDataSource, not the pandas array
         self.lc_obs = ColumnDataSource(self.lc_obs)
+
 
         print("Creating the LC plot...", end='')
         # Initialise the figure
@@ -280,7 +282,9 @@ class Watcher():
         self.lc_plot.line(x='phase', y='disc',  source=self.lc_obs, alpha=0.5, line_color='magenta')
         print(" Done")
 
-        # I want a button that'll turn red when the parameters are invalid.
+        # I want a button that'll turn red when the parameters are invalid. When clicked, it will either return the 
+        # model back to the initial values, or, if a chain has been read in, set the model to the last step read by the
+        # watcher.
         self.lc_isvalid = Button(label='Initial Parameters', width=200)
         self.lc_isvalid.on_click(self.reset_sliders)
         print("Made the valid parameters button")
@@ -332,26 +336,26 @@ class Watcher():
         ################# Tab 4: Corner plot #################
         ######################################################
 
-        # Make corner plots. I need to know how long the burn in is though!
-        self.burn_input = TextInput(placeholder='No. steps to discard', )
-        self.corner_plot_button = Button(label='Make corner plots')
-        self.corner_plot_button.on_click(self.make_corner_plots)
-        print("Defualt button type is {}".format(self.corner_plot_button.button_type))
+        # # Make corner plots. I need to know how long the burn in is though!
+        # self.burn_input = TextInput(placeholder='No. steps to discard', )
+        # self.corner_plot_button = Button(label='Make corner plots')
+        # self.corner_plot_button.on_click(self.make_corner_plots)
+        # print("Defualt button type is {}".format(self.corner_plot_button.button_type))
 
-        self.cornerReporter = markups.Div(width=700)
-        self.cornerReporter.text = "The chain file will have <b>{:,d}</b> steps when completed</br>".format(self.nProd)
-        self.cornerReporter.text += "We're using <b>{:,d}</b> walkers, making for <b>{:,d}</b> total lines to read in.</br>".format(
-            self.nWalkers, self.nProd*self.nWalkers)
-        self.cornerReporter.text += "I've not yet added support for embedded images here, and bokeh isn't a great tool for corner plots this big. You'll probably have to scp the files manually."
-        curdir = path.dirname(path.realpath(__file__))
-        self.cornerReporter.text += "This one-liner should do it:</br><b>scp callisto:{}/eclipse*.png .</b>".format(curdir)
+        # self.cornerReporter = markups.Div(width=700)
+        # self.cornerReporter.text = "The chain file will have <b>{:,d}</b> steps when completed</br>".format(self.nProd)
+        # self.cornerReporter.text += "We're using <b>{:,d}</b> walkers, making for <b>{:,d}</b> total lines to read in.</br>".format(
+        #     self.nWalkers, self.nProd*self.nWalkers)
+        # self.cornerReporter.text += "I've not yet added support for embedded images here, and bokeh isn't a great tool for corner plots this big. You'll probably have to scp the files manually."
+        # curdir = path.dirname(path.realpath(__file__))
+        # self.cornerReporter.text += "This one-liner should do it:</br><b>scp callisto:{}/eclipse*.png .</b>".format(curdir)
 
-        #TODO: 
-        # - Show the corner plots in the page? Or, add a link to download them?
-        # - Corner plots can make the server run out of memory for large files! can we fix this?
+        # #TODO: 
+        # # - Show the corner plots in the page? Or, add a link to download them?
+        # # - Corner plots can make the server run out of memory for large files! can we fix this?
 
-        self.tab4_layout = column([self.burn_input, self.corner_plot_button, self.cornerReporter])
-        self.tab4 = Panel(child=self.tab4_layout, title="Corner Plotting")
+        # self.tab4_layout = column([self.burn_input, self.corner_plot_button, self.cornerReporter])
+        # self.tab4 = Panel(child=self.tab4_layout, title="Corner Plotting")
 
 
         ######################################################
@@ -359,7 +363,7 @@ class Watcher():
         ######################################################
 
         # Make a tabs object
-        self.tabs = Tabs(tabs=[self.tab1, self.tab2, self.tab3, self.tab4])
+        self.tabs = Tabs(tabs=[self.tab1, self.tab2, self.tab3])#, self.tab4])
         # Add it
         self.doc = curdoc()
         self.doc.add_root(self.tabs)
@@ -387,7 +391,7 @@ class Watcher():
         self.labels = []     # The labels, in the same order as pars
 
         # Is the file open? Check once a second until it is, then once we find it remove this callback.
-        self.check_file = self.doc.add_periodic_callback(self.open_file, 1000)
+        self.check_file = self.doc.add_next_tick_callback(self.open_file)
 
         print("Finished initialising the dashboard!")
 
@@ -458,6 +462,7 @@ class Watcher():
             print("Found the file, '{}'!".format(file))
         except:
             self.f = False
+            self.doc.add_timeout_callback(self.open_file, 10000)
             return
 
         # Determine the number of walkers, just to check
@@ -596,6 +601,86 @@ class Watcher():
             self.init = start
             return None
 
+    def update_chain(self):
+        '''Call the readStep() function, and stream the live chain data to the plotter.'''
+
+        # Do we have anything to plot?
+        if self.labels != []:
+            step = self.readStep()
+
+            if step is None:
+                # No data to plot
+                pass
+            else:
+                # Generate summaries
+                means = np.nanmean(step, axis=0)
+                stds  = np.nanstd(step,  axis=0)
+
+                # Stream accepts a dict of lists
+                newdata = dict()
+                newdata['step'] = [self.s]
+
+                for i, label in enumerate(self.labels):
+                    newdata[label+'Mean'] = [means[i]]
+                    newdata[label+'StdUpper']  = [means[i]+stds[i]]
+                    newdata[label+'StdLower']  = [means[i]-stds[i]]
+
+                # Add to the plot.
+                self.paramFollowSource.stream(newdata, self.tail)
+
+    def add_tracking_plot(self, attr, old, new):
+        '''Add a plot to the page'''
+
+        print("Attempting to add a plot to the page")
+
+        label = str(self.plotPars.value)
+        params = [par[0] for par in self.selectList]
+        par = params.index(label)
+        self.labels.append(label)
+        self.pars.append(par)
+
+        # Clear data from the source structure
+        self.paramFollowSource.data = {'step': []}
+        for l in self.labels:
+            self.paramFollowSource.data[l+'Mean']     = []
+            self.paramFollowSource.data[l+'StdUpper'] = []
+            self.paramFollowSource.data[l+'StdLower'] = []
+
+        print("Reset the data storage to empty")
+
+        # Move the file cursor back to the beginning of the file
+        if not self.f is False:
+            self.f.close()
+            self.f = open(self.chain_fname, 'r')
+            self.s = 0
+
+        print("Closed and re-opened the file!")
+
+        new_plot = bk.plotting.figure(title=label, plot_height=300, plot_width=1200,
+            toolbar_location='above', y_axis_location="right",
+            tools="ypan,ywheel_zoom,ybox_zoom,reset")
+            # tools=[])
+        new_plot.line(x='step', y=label+'Mean', alpha=1, line_width=3, color='red', source=self.paramFollowSource)
+        band = Band(base='step', lower=label+'StdLower', upper=label+'StdUpper', source=self.paramFollowSource,
+                    level='underlay', fill_alpha=0.5, line_width=0, line_color='black', fill_color='green')
+        new_plot.add_layout(band)
+
+        new_plot.x_range.follow = "end"
+        new_plot.x_range.follow_interval = self.tail
+        new_plot.x_range.range_padding = 0
+        new_plot.y_range.range_padding_units = 'percent'
+        new_plot.y_range.range_padding = 1
+
+        # Make this add to the right tab
+        self.tab1_layout.children.append(row(new_plot))
+
+        print("Added a new plot!")
+
+        self.doc.add_next_tick_callback(self.update_chain)
+
+        self.lc_isvalid.label = 'Get current step'
+        self.lc_isvalid.button_type = 'default'
+
     def reset_sliders(self):
         '''Set the parameters to the initial guesses.'''
         print("Resetting the sliders!")
@@ -651,33 +736,6 @@ class Watcher():
                 slider.on_change('value', self.update_lc_model)
         
         self.lc_isvalid.button_type = 'default'
-
-    def update_chain(self):
-        '''Call the readStep() function, and stream the live chain data to the plotter.'''
-
-        # Do we have anything to plot?
-        if self.labels != []:
-            step = self.readStep()
-
-            if step is None:
-                # No data to plot
-                pass
-            else:
-                # Generate summaries
-                means = np.nanmean(step, axis=0)
-                stds  = np.nanstd(step,  axis=0)
-
-                # Stream accepts a dict of lists
-                newdata = dict()
-                newdata['step'] = [self.s]
-
-                for i, label in enumerate(self.labels):
-                    newdata[label+'Mean'] = [means[i]]
-                    newdata[label+'StdUpper']  = [means[i]+stds[i]]
-                    newdata[label+'StdLower']  = [means[i]-stds[i]]
-
-                # Add to the plot.
-                self.paramFollowSource.stream(newdata, self.tail)
 
     def update_selectList(self):
         '''Change the options on self.plotPars to reflect how many eclipses are in the MCMC chain'''
@@ -866,6 +924,8 @@ class Watcher():
             self.lc_isvalid.label = 'Invalid Parameters'
 
     def make_header(self):
+        '''Update the text at the top of the first tab to reflect mcmc_input, and the user defined stuff.'''
+
         header =  'This chain has <b>{:,d}</b> burn steps, and <b>{:,d}</b> product steps.</br>'.format(
             self.nBurn, self.nProd)
         header += " We're using <b>{:,d}</b> walkers,".format(self.nWalkers)
@@ -957,59 +1017,6 @@ class Watcher():
             for line in mcmc_file:
                 f.write(line)
         self.parse_mcmc_input()
-
-    def add_tracking_plot(self, attr, old, new):
-        '''Add a plot to the page'''
-
-        print("Attempting to add a plot to the page")
-
-        label = str(self.plotPars.value)
-        params = [par[0] for par in self.selectList]
-        par = params.index(label)
-        self.labels.append(label)
-        self.pars.append(par)
-
-        # Clear data from the source structure
-        self.paramFollowSource.data = {'step': []}
-        for l in self.labels:
-            self.paramFollowSource.data[l+'Mean']     = []
-            self.paramFollowSource.data[l+'StdUpper'] = []
-            self.paramFollowSource.data[l+'StdLower'] = []
-
-        print("Reset the data storage to empty")
-
-        # Move the file cursor back to the beginning of the file
-        if not self.f is False:
-            self.f.close()
-            self.f = open(self.chain_fname, 'r')
-            self.s = 0
-
-        print("Closed and re-opened the file!")
-
-        new_plot = bk.plotting.figure(title=label, plot_height=300, plot_width=1200,
-            toolbar_location='above', y_axis_location="right",
-            tools="ypan,ywheel_zoom,ybox_zoom,reset")
-            # tools=[])
-        new_plot.line(x='step', y=label+'Mean', alpha=1, line_width=3, color='red', source=self.paramFollowSource)
-        band = Band(base='step', lower=label+'StdLower', upper=label+'StdUpper', source=self.paramFollowSource,
-                    level='underlay', fill_alpha=0.5, line_width=0, line_color='black', fill_color='green')
-        new_plot.add_layout(band)
-
-        new_plot.x_range.follow = "end"
-        new_plot.x_range.follow_interval = self.tail
-        new_plot.x_range.range_padding = 0
-        new_plot.y_range.range_padding_units = 'percent'
-        new_plot.y_range.range_padding = 1
-
-        # Make this add to the right tab
-        self.tab1_layout.children.append(row(new_plot))
-
-        print("Added a new plot!")
-
-        self.doc.add_next_tick_callback(self.update_chain)
-
-        self.lc_isvalid.label = 'Get current step'
-        self.lc_isvalid.button_type = 'default'
 
     def make_corner_plots(self):
         print("Making corner plots...")
