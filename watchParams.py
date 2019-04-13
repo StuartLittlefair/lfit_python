@@ -4,7 +4,7 @@ from bokeh.models import ColumnDataSource, Band, Whisker
 from bokeh.models.annotations import Title
 from bokeh.plotting import curdoc, figure
 from bokeh.server.callbacks import NextTickCallback
-from bokeh.models.widgets import inputs, markups, DataTable, TableColumn
+from bokeh.models.widgets import inputs, markups, DataTable, TableColumn, tables
 from bokeh.models.widgets.buttons import Toggle, Button
 from bokeh.models.widgets import Slider, Panel, Tabs, Dropdown, TextInput
 
@@ -121,19 +121,6 @@ class Watcher():
             'Eclipse Duration', 'Disc Radius', 'Limb Darkening', 'White Dwarf Radius', 'Bright Spot Scale',
             'Bright Spot Azimuth', 'Isotropic Emission Fract.', 'Disc Profile', 'Phase Offset',
             'BS Exponent 1', 'BS Exponent 2', 'BS Emission Tilt', 'BS Emission Yaw']
-
-        if self.GP:
-            self.parNames.extend(['ampin_gp', 'ampout_gp', 'tau_gp'])
-
-        # fun loading animation
-        load = ['.', '..', '...']
-        for _ in range(5):
-            load.extend(['... -', '... \\', '... |', '... /', '... -', '... \\', '... |', '... /', '... -'])
-        load.extend(['...', '..', '.'])
-        load.extend(['', '', '', '', '']*4)
-        self.load = load
-        self.twait = len(load)
-
 
 
         #####################################################
@@ -315,7 +302,34 @@ class Watcher():
         print("Constructed the Lightcurve Inspector tab!")
 
         ######################################################
-        ################# Tab 3: Corner plot #################
+        ################# Tab 3: Param Table #################
+        ######################################################
+
+        self.tableColumns = ['wdFlux', 'dFlux', 'sFlux', 'rsFlux', 'rdisc', 
+            'ulimb', 'scale', 'az', 'fis', 'dexp', 'phi0']
+        
+        # Extra parameters for the complex model
+        if self.complex:
+            self.tableColumns.extend(['exp1', 'exp2', 'tilt', 'yaw'])
+
+        tableDict = {}
+        for p in self.tableColumns:
+            get = p + "_{}"
+            tableDict[p] = [self.parDict[get.format(i)][0] for i in range(self.necl)]
+
+        self.lastStep_CDS = ColumnDataSource(tableDict)
+        columns = [
+            TableColumn(field=par, title=par, formatter=tables.NumberFormatter(format='.0000')) for par in self.tableColumns
+        ]
+        self.parameter_table = DataTable(source=self.lastStep_CDS, columns=columns, 
+            fit_columns='checkbox', index_header='Eclipse Number', index_width=100, width=1000)
+
+        self.tab3_layout = column([self.parameter_table])
+        self.tab3 = Panel(child=self.tab3_layout, title="Parameter table")
+
+
+        ######################################################
+        ################# Tab 4: Corner plot #################
         ######################################################
 
         # Make corner plots. I need to know how long the burn in is though!
@@ -336,35 +350,8 @@ class Watcher():
         # - Show the corner plots in the page? Or, add a link to download them?
         # - Corner plots can make the server run out of memory for large files! can we fix this?
 
-        self.tab3_layout = column([self.burn_input, self.corner_plot_button, self.cornerReporter])
-        self.tab3 = Panel(child=self.tab3_layout, title="Corner Plotting")
-
-
-        ######################################################
-        ################# Tab 4: Param Table #################
-        ######################################################
-
-        self.tableColumns = ['wdFlux', 'dFlux', 'sFlux', 'rsFlux', 'rdisc', 
-            'ulimb', 'scale', 'az', 'fis', 'dexp', 'phi0']
-        
-        # Extra parameters for the complex model
-        if self.complex:
-            self.tableColumns.extend(['exp1', 'exp2', 'tilt', 'yaw'])
-
-        tableDict = {}
-        for p in self.tableColumns:
-            get = p + "_{}"
-            tableDict[p] = [self.parDict[get.format(i)][0] for i in range(self.necl)]
-
-        self.lastStep_CDS = ColumnDataSource(tableDict)
-        columns = [
-            TableColumn(field=par, title=par) for par in self.tableColumns
-        ]
-        self.parameter_table = DataTable(source=self.lastStep_CDS, columns=columns, 
-            fit_columns=True, index_header='Eclipse Number', width=1000)
-
-        self.tab4_layout = column([self.parameter_table])
-        self.tab4 = Panel(child=self.tab4_layout, title="Parameter table")
+        self.tab4_layout = column([self.burn_input, self.corner_plot_button, self.cornerReporter])
+        self.tab4 = Panel(child=self.tab4_layout, title="Corner Plotting")
 
 
         ######################################################
@@ -579,7 +566,7 @@ class Watcher():
             print('  End of file! waiting for new step to be written...', end='\r')
             self.next_read = self.doc.add_timeout_callback(self.update_chain, 10000)
 
-            print("\nUpdating the table with lastStep...")
+            # print("\nUpdating the table with lastStep...")
             for p in self.tableColumns:
                 get = p + "_{}"
                 
@@ -789,34 +776,8 @@ class Watcher():
 
         print("Closed and re-opened the file!")
 
-    def make_header(self):
-        self.reportChain_label.text =  'This chain has <b>{:,d}</b> burn steps, and <b>{:,d}</b> product steps.</br>'.format(
-            self.nBurn, self.nProd)
-        self.reportChain_label.text += " We're using <b>{:,d}</b> walkers,".format(self.nWalkers)
-
-        if bool(int(self.mcmc_input_dict['usePT'])):
-            self.reportChain_label.text += ' with parallel tempering sampling <b>{:,d}</b> temperatures,'.format(
-                int(self.mcmc_input_dict['ntemps']))
-
-        self.reportChain_label.text += ' and running on <b>{:,d}</b> cores.</br>'.format(int(self.mcmc_input_dict['nthread']))
-        if self.thin:
-            p = str(self.thin)
-            if p[-1] == '1':
-                suffix = 'st'
-            elif p[-1] == '2':
-                suffix = 'nd'
-            elif p[-1] == '3':
-                suffix = 'rd'
-            else:
-                suffix = 'th'
-
-            self.reportChain_label.text += " When plotting parameter evolutions, I'm skipping every "
-            self.reportChain_label.text += "<b>{}{}</b> step and only keeping the last <b>{:,d}</b> data".format(self.thin, suffix, self.tail)
-        else:
-            self.reportChain_label.text += " When plotting parameter evolutions, I'll plot every step."
-
     def update_lc_obs(self, attr, old, new):
-        '''redraw the observations for the lightcurve'''
+        '''callback to redraw the observations for the lightcurve'''
 
         print("Redrawing the observations")
         # Re-read the observations
@@ -881,7 +842,7 @@ class Watcher():
         print("The title should now be {}".format(self.lc_plot.title.text))
 
     def update_lc_model(self, attr, old, new):
-        '''Redraw the model lightcurve in the second tab'''
+        '''Callback to redraw the model lightcurve in the second tab'''
 
         try:
             # Regenerate the model lightcurve
@@ -903,6 +864,32 @@ class Watcher():
             print("Invalid parameters!")
             self.lc_isvalid.button_type = 'danger'
             self.lc_isvalid.label = 'Invalid Parameters'
+
+    def make_header(self):
+        self.reportChain_label.text =  'This chain has <b>{:,d}</b> burn steps, and <b>{:,d}</b> product steps.</br>'.format(
+            self.nBurn, self.nProd)
+        self.reportChain_label.text += " We're using <b>{:,d}</b> walkers,".format(self.nWalkers)
+
+        if bool(int(self.mcmc_input_dict['usePT'])):
+            self.reportChain_label.text += ' with parallel tempering sampling <b>{:,d}</b> temperatures,'.format(
+                int(self.mcmc_input_dict['ntemps']))
+
+        self.reportChain_label.text += ' and running on <b>{:,d}</b> cores.</br>'.format(int(self.mcmc_input_dict['nthread']))
+        if self.thin:
+            p = str(self.thin)
+            if p[-1] == '1':
+                suffix = 'st'
+            elif p[-1] == '2':
+                suffix = 'nd'
+            elif p[-1] == '3':
+                suffix = 'rd'
+            else:
+                suffix = 'th'
+
+            self.reportChain_label.text += " When plotting parameter evolutions, I'm skipping every "
+            self.reportChain_label.text += "<b>{}{}</b> step and only keeping the last <b>{:,d}</b> data".format(self.thin, suffix, self.tail)
+        else:
+            self.reportChain_label.text += " When plotting parameter evolutions, I'll plot every step."
 
     def write2input(self):
         '''Get the slider values, and modify mcmc_input.dat to match them.'''
