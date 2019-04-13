@@ -311,7 +311,8 @@ class Watcher():
         for p in self.tableColumns:
             get = p + "_{}"
             tableDict[p] = [self.parDict[get.format(i)][0] for i in range(self.necl)]
-        tableDict['file'] = [self.mcmc_input_dict['file_{}'.format(i)] for i in range(self.necl)]
+        # This is opaque, but just trust me. Couldn't be bothered to be clearer.
+        tableDict['file'] = [self.mcmc_input_dict['file_{}'.format(i)].split('/')[-1] for i in range(self.necl)]
 
         self.lastStep_CDS = ColumnDataSource(tableDict)
         columns = [
