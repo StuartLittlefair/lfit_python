@@ -445,7 +445,7 @@ class Watcher():
             line = self.mcmc_input_dict[param].strip().split(' ')
             line = [x for x in line if x != '']
 
-            if 'gaussian' in line:
+            if 'gauss' in line:
                 min = line[2] - 5*line[3]
                 max = line[2] + 5*line[3]
                 line[2] = min
