@@ -447,8 +447,8 @@ class Watcher():
             line = [x for x in line if x != '']
 
             if 'gauss' in line:
-                min = line[2] - 5*line[3]
-                max = line[2] + 5*line[3]
+                min = float(line[2]) - (5*float(line[3]))
+                max = float(line[2]) + (5*float(line[3]))
                 line[2] = min
                 line[3] = max
 
