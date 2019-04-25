@@ -18,6 +18,7 @@ import configobj
 import time
 from os import path
 from os import getcwd
+import sys
 
 from pprint import pprint
 
@@ -760,6 +761,10 @@ class Watcher():
 
             self.cv = CV(pars)
 
+            rwd = pars[8]
+            scale = pars[9]
+
+
             self.lc_obs.data['calc']  = self.cv.calcFlux(pars, np.array(self.lc_obs.data['phase']))
             # Components
             self.lc_obs.data['sec']   = self.cv.yrs
@@ -768,6 +773,12 @@ class Watcher():
             self.lc_obs.data['disc']  = self.cv.yd
             self.lc_isvalid.button_type = 'default'
             self.lc_isvalid.label = 'Get current step'
+
+            if rwd < (1./3.)*scale or scale > 3.*rwd:
+                print("BS Scale must be between 1/3 and 3 time WD size!")
+                self.lc_isvalid.button_type = 'danger'
+                self.lc_isvalid.label = 'BAD BS/RWD RATIO!'
+
         except Exception:
             print("Invalid parameters!")
             self.lc_isvalid.button_type = 'danger'
