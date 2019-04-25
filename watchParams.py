@@ -17,6 +17,7 @@ from pandas import read_csv, DataFrame
 import configobj
 import time
 from os import path
+from os import getcwd
 
 from pprint import pprint
 
@@ -138,7 +139,7 @@ class Watcher():
         print("Made the parameter picker...")
 
         # Lets report some characteristics of the chain
-        self.reportChain_label = markups.Div(width=500)
+        self.reportChain_label = markups.Div(width=1000)
         self.make_header()
         print("Made the little header")
 
@@ -342,7 +343,7 @@ class Watcher():
         self.cornerReporter.text += "We're using <b>{:,d}</b> walkers, making for <b>{:,d}</b> total lines to read in.</br>".format(
             self.nWalkers, self.nProd*self.nWalkers)
         self.cornerReporter.text += "I've not yet added support for embedded images here, and bokeh isn't a great tool for corner plots this big. You'll probably have to scp the files manually."
-        curdir = path.dirname(path.realpath(__file__))
+        curdir = getcwd()
         self.cornerReporter.text += "This one-liner should do it:</br><b>scp callisto:{}/eclipse*.png .</b>".format(curdir)
 
         # #TODO:
@@ -941,7 +942,8 @@ class Watcher():
     def make_header(self):
         '''Update the text at the top of the first tab to reflect mcmc_input, and the user defined stuff.'''
 
-        header =  'This chain has <b>{:,d}</b> burn steps, and <b>{:,d}</b> product steps.</br>'.format(
+        header  = "I'm working from the directory: <b>{}</b></br>".format(getcwd())
+        header +=  'This chain has <b>{:,d}</b> burn steps, and <b>{:,d}</b> product steps.</br>'.format(
             self.nBurn, self.nProd)
         header += " We're using <b>{:,d}</b> walkers,".format(self.nWalkers)
 
