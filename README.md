@@ -5,9 +5,9 @@ This project is the successor to `LFIT` - a `C++` code for fitting cataclysmic v
 ## LFIT; functional knowledge you're gonna need
 [lfit](https://github.com/StuartLittlefair/lfit) is a pretty robust piece of code. It's core functionality is easy to use, though perhaps a bit finnicky to pass parameters to. More on this in a few paragraphs.
 
-`lfit` operates not in time space, but rather in phase space. This necessitates a bit of pre-processing to get a lightcurve from the raw format, into flux as a function of eclipse phase. The eclipse minimum is assumed to occur at phase 0.0, though a variable in the model is a phase offset to tweak this... as a last resort! Good ephemeral data is much better than putting a plaster on the problem. 
+`lfit` operates not in time space, but rather in phase space, which scales the model against the roche radius of the system. This necessitates a bit of pre-processing to get a lightcurve from the raw format, into flux as a function of eclipse phase. The eclipse minimum is assumed to occur at phase 0.0, though a variable in the model is a phase offset to tweak this... as a last resort! Good ephemeral data is much better than putting a plaster on the problem, and a significant value of `phi0` indicates that your ephemeris needs refitting. 
 
-To reiterate - `lfit` will output a lightcurve in `phase`, `flux`. 
+To reiterate - `lfit` will give a lightcurve in `phase`, `flux`. 
 
 The module has, essentially, one main useful object with one main function. The `lfit.CV` class handles the four components that are considered (namely, the disc, donor star, white dwarf, and bright spot), and puts them all together for you. These components *can* be called individually, but this **usually** is more useful for diagnostics than for modelling. The `lfit.CV` has a `calcFlux()` method, which will make up your lightcurve.
 
@@ -46,7 +46,11 @@ Note that the CV must be initialised with the initial parameters. This is becaus
 The model is usually only very dimly sensitive to the limb darkening coefficient (LDC), as this parameter only comes into play *during* the WD ingress and egress. As such, it's recommended to first make a fit with a naiive LDC, then use the resulting WD model to calculate the value of the LDC that *should* have been used, and conduct another fit with the new LDC.
 
 ### Quickly diagnosing a fittable eclipse
-Something that is important to understand is that the location of the BS ingress and egress, in conjuntion with the width of the eclipse and the size of the disc, constrains the mass ratio, q. It is crucial to be able to resolve these BS features in order to lift degeneracy between the other three.
+Not all eclipses are suitable for lightcurve modelling with this software. The BS ingress and egress must be clearly visible in order to lift degeneracies in the model. The BS is created when the mass transfer stream strikes the outer edge of the accretion disc. The disc is assumed to be circular, and the mass stream follows a ballistic trajectory, constraining location for the BS for a given mass ratio and disc radius combination - the mass ratio controls the donor radius, and the disc radius controls the point along the ballistic trajectory that the BS lies. Further complicating the matter is the fact that inclination will also affect the location of the eclipse. With this information, we have only two observables, but three free parameters, leading to degeneracy. 
+
+Fortunately, we also have the WD eclipse. This is sensitive to the mass ratio and inclination, though *not* the disc radius. However, by adding in the further two observables of WD ingress and egress, we now have *four* observables, and *three* parameters, and the problem becomes uniquely solvable. 
+
+In short, in order for an eclipse to be uniquely solvable for this software, it must have visible, unambiguous (unless using several eclipses) WD ingress and egress *and* BS ingress and egress features. 
 
 ### Real world data considerations
 One part of LFIT that I'd be remiss not to mention is the bin width. When comparing models to data, we must account for the duration of a single exposure - if we don't, then periods where the flux is changing rapidly (i.e. the highly important ingresses and egresses), would be incorrect. `calcFlux()` can also take a `width` argument, which is the exposure width of the data. This will often not be an issue if your observations are sucessive, i.e. negligible dead time between frames, but if this is *not* the case (as it often is), you must define this! If it's not defined, the software will infer the bin width from the data, perhaps incorrectly.
@@ -88,13 +92,13 @@ Actually using the software is fairly easy. In essence,
 
 1. Write a configuration file defining the initial conditions, and parameters of the MCMC
 2. Run `mcmcfit.py` with the input file, e.g. `python3 /PATH/TO/LFIT_PYTHON/mcmcift.py mcmc_input.dat`
-3. Wait. 
+3. Wait...
 4. Run `wdparams.py` with its relevant input file, e.g. `python3 /PATH/TO/LFIT_PYTHON/wdparams.py wdinput.dat`
 5. Use `ldparams.py` to calculate the limb darkening coefficient of this WD model
 6. Repeat steps 1-4 with the new value of limb darkening
 5. Analyse results!
 
-In reality, this is often iterative, and the result of one chain leads into the start position of another, until convergence is reached. Then, the resulting converged chain is fed into `wdparams.py` for conversion into physical parameters.
+This is iterative, and the result of one chain leads into the start position of another, until convergence is reached. Then, the resulting converged chain is fed into `wdparams.py` for conversion into physical parameters.
 
 This branch also has a notifier, which will email the resulting lightcurve figures, and the likelihood history and summary of the chain_prod file. Corner plots are not sent, as these are often several MB each, so must be retrieved manually. To use this, first a gmail bot account needs to be created (this is just a normal gmail account, but with a dumber email address. I used mcmcfit.bot@gmail.com, as an example.), and its credentials supplied in a file called `PATH/TO/LFIT_PYTHON/email_details.json`, with the following format:
 ```json
