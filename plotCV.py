@@ -1,3 +1,7 @@
+'''
+Plotting routines to accompany mcmcfit.py
+'''
+
 import argparse
 import glob
 import json
@@ -9,8 +13,7 @@ import networkx as nx
 import numpy as np
 import yagmail as yag
 
-import mcmc_utils as u
-import plotCV
+import mcmc_utils as utils
 from CVModel import construct_model, extract_par_and_key
 
 
@@ -19,7 +22,7 @@ def nxdraw(model):
 
     # Build the network
     G = model.create_tree()
-    pos = model.hierarchy_pos(G)
+    pos = hierarchy_pos(G)
 
     # Figure has two inches of width per node
     figsize = (2*float(G.number_of_nodes()), 8.0)
@@ -34,6 +37,84 @@ def nxdraw(model):
 
     plt.show()
 
+def hierarchy_pos(G,
+                  root=None, width=1.,
+                  vert_gap=0.2, vert_loc=0, xcenter=0.5):
+    '''
+    From Joel's answer at https://stackoverflow.com/a/29597209/2966723.
+    Licensed under Creative Commons Attribution-Share Alike
+
+    If the graph is a tree this will return the positions to plot this in a
+    hierarchical layout.
+
+    G: the graph (must be a tree)
+
+    root: the root node of current branch
+    - if the tree is directed and this is not given,
+    the root will be found and used
+    - if the tree is directed and this is given, then
+    the positions will be just for the descendants of this node.
+    - if the tree is undirected and not given,
+    then a random choice will be used.
+
+    width: horizontal space allocated for this branch - avoids overlap with
+    other branches
+
+    vert_gap: gap between levels of hierarchy
+
+    vert_loc: vertical location of root
+
+    xcenter: horizontal location of root
+    '''
+    if not nx.is_tree(G):
+        fail_msg = 'cannot use hierarchy_pos on a graph that is not a tree'
+        raise TypeError(fail_msg)
+
+    if root is None:
+        if isinstance(G, nx.DiGraph):
+            # Allows back compatibility with nx version 1.11
+            root = next(iter(nx.topological_sort(G)))
+        else:
+            import random
+            root = random.choice(list(G.nodes))
+
+    return _hierarchy_pos(G, root, width, vert_gap, vert_loc, xcenter)
+
+def _hierarchy_pos(G, root,
+                   width=1., vert_gap=0.2, vert_loc=0, xcenter=0.5,
+                   pos=None, parent=None):
+    '''
+    see hierarchy_pos docstring for most arguments
+
+    pos: a dict saying where all nodes go if they have been assigned
+    parent: parent of this branch. - only affects it if non-directed
+
+    '''
+
+    if pos is None:
+        pos = {root: (xcenter, vert_loc)}
+    else:
+        pos[root] = (xcenter, vert_loc)
+
+    children = list(G.neighbors(root))
+
+    if not isinstance(G, nx.DiGraph) and parent is not None:
+        children.remove(parent)
+
+    if len(children) != 0:
+        dx = width/len(children)
+        nextx = xcenter - width/2 - dx/2
+        for child in children:
+            nextx += dx
+            pos = _hierarchy_pos(
+                G, child,
+                width=dx, vert_gap=vert_gap,
+                vert_loc=vert_loc-vert_gap, xcenter=nextx,
+                pos=pos, parent=root
+            )
+
+    return pos
+
 def plot_eclipse(ecl_node, save=False, figsize=(11., 8.), fname=None,
                  save_dir='.', ext='.png'):
     '''Create a plot of the eclipse's data.
@@ -43,10 +124,6 @@ def plot_eclipse(ecl_node, save=False, figsize=(11., 8.), fname=None,
     If fname is defined, save the figure with that filename. Otherwise,
     infer one from the data filename
     '''
-
-    # Re-init my CV object with the current params.
-    ecl_node.initCV()
-
     # Generate the lightcurve of the total, and the components.
     flx = ecl_node.cv.calcFlux(ecl_node.cv_parlist, ecl_node.lc.x, ecl_node.lc.w)
     wd_flx = ecl_node.cv.ywd
@@ -118,7 +195,6 @@ def plot_eclipse(ecl_node, save=False, figsize=(11., 8.), fname=None,
         plt.savefig(fname)
 
     return fig, axs
-
 
 def plot_GP_eclipse(ecl_node, save=False, figsize=(11., 8.), fname=None,
                     save_dir='.', ext='.png'):
@@ -264,7 +340,7 @@ def notipy(send_to, fnames, body):
 
 
 def fit_summary(chain_fname, input_fname, nskip=0, thin=1, destination='',
-                automated=False):
+                automated=False, corners=True):
     '''Takes the chain file made by mcmcfit.py and summarises the initial
     and final conditions. Uses the input filename normally supplied to
     mcmcfit.py to accurately reconstruct the model.
@@ -285,6 +361,8 @@ def fit_summary(chain_fname, input_fname, nskip=0, thin=1, destination='',
       automated: bool
         If this is True, no figures will actually show, and will only be
         saved to file.
+      corners: bool
+        If this is True, create and save corner plots of each eclipse's params
     '''
 
     # Retrieve some info from the input dict.
@@ -300,7 +378,7 @@ def fit_summary(chain_fname, input_fname, nskip=0, thin=1, destination='',
     with open(chain_fname, 'r') as chain_file:
         colKeys = chain_file.readline().strip().split(' ')[1:]
     print("Reading in the file...")
-    data = u.readchain_dask(chain_fname)
+    data = utils.readchain_dask(chain_fname)
 
     print("Done!\nData shape: {}".format(data.shape))
     print("Expected a shape (nwalkers, nprod, npars): ({}, {}, {})".format(nwalkers, nsteps, len(colKeys)))
@@ -332,7 +410,7 @@ def fit_summary(chain_fname, input_fname, nskip=0, thin=1, destination='',
     ax.plot(steps, likes, color="green")
 
     ax.set_xlabel("Step")
-    ax.set_ylabel("-ln_like")
+    ax.set_ylabel("ln_like")
 
     plt.tight_layout()
 
@@ -393,6 +471,16 @@ def fit_summary(chain_fname, input_fname, nskip=0, thin=1, destination='',
     # # # # # # # # # # # # # # # # # # # # # # # #
     model = construct_model(input_fname)
 
+    with open('modparams.txt', 'w') as f:
+        f.write("parName,mean,84th percentile,16th percentile\n")
+        lolim, result, uplim = np.percentile(chain, [16, 50, 84], axis=0)
+        labels = model.dynasty_par_names
+
+        for n, m, u, l in zip(labels, result, uplim, lolim):
+            s = "{} {} {} {}\n".format(n, m, u, l)
+            f.write(s)
+        f.write('\n')
+
     # We want to know where we started, so we can evaluate improvements.
     # Wok out how many degrees of freedom we have in the model
     eclipses = model.search_node_type('Eclipse')
@@ -404,7 +492,7 @@ def fit_summary(chain_fname, input_fname, nskip=0, thin=1, destination='',
     dof -= 1
 
     model_preport = 'The following is the result of the MCMC fit running in:\n'
-    model_preport += "  Machine name: {}\n  Directory: {}\n".format(os.uname().nodename, os.path.curdir)
+    model_preport += "  Machine name: {}\n  Directory: {}\n".format(os.uname().nodename, os.getcwd())
     model_preport += "\n\nInitial guess has a chisq of {:.3f} ({:d} D.o.F.).\n".format(model.chisq(), dof)
     model_preport += "\nEvaluating the model, we get;\n"
     model_preport += "a ln_prior of {:.3f}\n".format(model.ln_prior())
@@ -415,7 +503,7 @@ def fit_summary(chain_fname, input_fname, nskip=0, thin=1, destination='',
     if not automated:
         print("Initial conditions being plotted now...")
 
-    plotCV.plot_model(model, not automated, save=True, figsize=(11, 8), save_dir='Initial_figs')
+    plot_model(model, not automated, save=True, figsize=(11, 8), save_dir='Initial_figs')
 
     # Set the parameters of the model to the results of the chain
     for key, value in resultDict.items():
@@ -442,9 +530,10 @@ def fit_summary(chain_fname, input_fname, nskip=0, thin=1, destination='',
     if not automated:
         print("Final conditions being plotted now...")
 
-    plotCV.plot_model(model, not automated, save=True, figsize=(11, 8), save_dir='Final_figs/')
+    plot_model(model, not automated, save=True, figsize=(11, 8), save_dir='Final_figs/')
 
     if emailme:
+        print("Sending a summary email. Corner plots are omitted due to filesize.")
         # Gather the files
         fnames = list(glob.iglob('Final_figs/*.pdf', recursive=True))
         fnames = list(glob.iglob('Final_figs/*.png', recursive=True))
@@ -453,53 +542,75 @@ def fit_summary(chain_fname, input_fname, nskip=0, thin=1, destination='',
         notipy(destination, fnames, model_preport+model_report)
 
 
-    # Corner plots. Collect the eclipses.
-    eclipses = model.search_node_type("Eclipse")
-    for eclipse in eclipses:
-        # Get the par names from the eclipse.
-        # Sometimes, the walkers can fall into a phi0 == 0.0. When this happens,
-        # the thumbplot gets confused and dies, since there's no range.
-        # This parameter it typically only important if something goes badly
-        # wrong anyway, so if it gets stuck here, just filter it out.
-        dirac_delta_par0 = False
-        if eclipse.phi0 == 0.0:
-            dirac_delta_par0 = True
+    print("The chain file has the folloing variables:")
+    for p in colKeys:
+        print("-> {}".format(p))
 
-        if dirac_delta_par0:
-            par_labels = [par for par in eclipse.node_par_names if 'phi0' not in par]
-        else:
+    if corners:
+        # Corner plots. Collect the eclipses.
+        eclipses = model.search_node_type("Eclipse")
+        for eclipse in eclipses:
+            # Get the par names from the eclipse.
+            print("Doing the corner plot for eclipse {}".format(eclipse))
+
+            # Sometimes, the walkers can fall into a phi0 == 0.0. When this happens,
+            # the thumbplot gets confused and dies, since there's no range.
+            # This parameter it typically only important if something goes badly
+            # wrong anyway, so if it gets stuck here, just filter it out.
+
             par_labels = eclipse.node_par_names
+            par_labels = ["{}_{}".format(par, eclipse.label) for par in par_labels]
 
-        par_labels = ["{}_{}".format(par, eclipse.label) for par in par_labels]
+            # Get the par names from the band
+            band = eclipse.parent
+            par_labels += ["{}_{}".format(par, band.label) for par in band.node_par_names]
 
-        # Get the par names from the band
-        band = eclipse.parent
-        par_labels += ["{}_{}".format(par, band.label) for par in band.node_par_names]
+            # get the par names from the core part of the model
+            my_model = band.parent
+            par_labels += ["{}_{}".format(par, my_model.label) for par in my_model.node_par_names]
 
-        # get the par names from the core part of the model
-        my_model = band.parent
-        par_labels += ["{}_{}".format(par, my_model.label) for par in my_model.node_par_names]
+            # Only plot parameters that are in the chain file.
+            labels = []
+            for par in par_labels:
+                for col in colKeys:
+                    if par in col:
+                        labels.append(par)
 
-        print("\nMy par_labels is:")
-        print(par_labels)
+            print("\nMy corner plot labels are:")
+            print(labels)
 
-        # Get the indexes in the chain file, and gather those columns
-        keys = [colKeys.index(par) for par in par_labels]
-        chain_slice = chain[:, keys]
-        print("chain_slice has the shape:", chain_slice.shape)
+            # Get the indexes in the chain file, and gather those columns
+            keys = [colKeys.index(par) for par in par_labels]
+            chain_slice = chain[:, keys]
+            print("chain_slice has the shape:", chain_slice.shape)
 
-        fig = u.thumbPlot(chain_slice, par_labels)
+            # If I've nothing to plot, continue to the next thing.
+            if par_labels == []:
+                continue
 
-        oname = "Final_figs/" + eclipse.name + '_corners.png'
-        print("Saving to {}...".format(oname))
-        plt.savefig(oname)
-        plt.close()
+            dev = np.std(chain_slice, axis=0)
+            dev[np.where(dev == 0)] = np.nan
+            print(dev)
+            chain_slice = chain_slice[:, ~np.isnan(dev)]
+            par_labels = [p for p, d in zip(par_labels, dev) if d != np.nan]
 
-        del chain_slice
-        try:
-            del fig
-        except:
-            pass
+
+            print("\nAfter checking for immobile variables,My corner plot labels are:")
+            print(labels)
+            print("chain_slice has the shape:", chain_slice.shape)
+
+            fig = utils.thumbPlot(chain_slice, par_labels)
+
+            oname = "Final_figs/" + eclipse.name + '_corners.png'
+            print("Saving to {}...".format(oname))
+            plt.savefig(oname)
+            plt.close()
+
+            del chain_slice
+            try:
+                del fig
+            except:
+                pass
 
 
 if __name__ == "__main__":
@@ -545,6 +656,12 @@ if __name__ == "__main__":
         action='store_true',
         help="If I'm being quiet, no figure will be shown, only saved to file.",
     )
+    parser.add_argument(
+        '--no-corners',
+        dest='corners',
+        action='store_false',
+        help="Do not create the corner plots"
+    )
 
     args = parser.parse_args()
 
@@ -556,5 +673,6 @@ if __name__ == "__main__":
 
     destination = args.notify
     automated=bool(args.quiet)
+    corners = args.corners
 
-    fit_summary(chain_fname, input_fname, nskip, thin, destination, automated=automated)
+    fit_summary(chain_fname, input_fname, nskip, thin, destination, automated=automated, corners=corners)

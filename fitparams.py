@@ -53,7 +53,7 @@ def plotMult(x,parsList,total,label):
     axis.yaxis.set_ticklabels([])
     axis.set_ylim(ymin=0)
     axis.tick_params(axis='x', which='major', labelsize=7, pad=2.5)
-    axis.tick_params(top='on',right='on')
+    axis.tick_params(top=True,right=True)
     plotMult.axindex += 1
 # add fig, axs objects to plotMult function for plot incrementing
 plotMult.fig, plotMult.axs = plt.subplots(5,2)
@@ -63,7 +63,7 @@ plotMult.axindex = 0
 
 
 def plot(array,label,params):
-    (y,bins) = numpy.histogram(array,bins=50,normed=True)
+    (y,bins) = numpy.histogram(array,bins=50,density=True)
     x = 0.5*(bins[:-1] + bins[1:])
     y /= float(len(array))
     maxloc = y.argmax()
@@ -78,7 +78,7 @@ def plot(array,label,params):
     axis.yaxis.set_ticklabels([])
     axis.set_ylim(ymin=0)
     axis.tick_params(axis='x', which='major', labelsize=7, pad=2.5)
-    axis.tick_params(top='on',right='on')
+    axis.tick_params(top=True,right=True)
     plot.axindex += 1
 plot.fig, plot.axs = plt.subplots(5,2)
 plot.fig.delaxes(plot.axs[4,1])
@@ -86,7 +86,7 @@ plt.subplots_adjust(wspace=0.08)
 plot.axindex = 0
 
 def fitSkewedGaussian(array):
-    (y,bins) = numpy.histogram(array,bins=50,normed=True)
+    (y,bins) = numpy.histogram(array,bins=50, density=True)
     x = 0.5*(bins[:-1] + bins[1:])
     y /= float(len(array))
     maxloc = y.argmax()
@@ -245,7 +245,7 @@ if __name__ == "__main__":
                 result *= fitfunc(parsList[i],x)
 
             plotMult(x,parsList[0:],result,param.longString)
-            plotMult.fig.savefig('pdf.pdf')
+            plotMult.fig.savefig('parameter_prob_dists.pdf')
             getStatsPDF(x,result,param.shortString)
 
         plt.close(plotMult.fig)

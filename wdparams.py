@@ -3,18 +3,19 @@ from __future__ import division, print_function
 import os
 import sys
 import warnings
-from builtins import input, object, range
-from collections import MutableSequence
+from collections.abc import MutableSequence
 from os.path import realpath
 
 import emcee
 import matplotlib.pyplot as plt
-import numpy
+import numpy as np
 import scipy.interpolate as interp
 import seaborn
 from past.utils import old_div
 
-from mcmc_utils import *
+from mcmc_utils import (flatchain, readchain, readchain_dask, readflatchain,
+                        run_burnin, run_mcmc_save, thumbPlot)
+from model import Param
 
 
 class wdModel(MutableSequence):
@@ -75,7 +76,7 @@ def model(thisModel,mask):
     d = thisModel.dist
 
     # load bergeron models
-    root, fn = os.path.split(__file__)
+    root, _ = os.path.split(__file__)
     data = np.loadtxt(os.path.join(root, 'Bergeron/da_ugrizkg5.txt'))
 
     teffs = np.unique(data[:,0])
@@ -83,10 +84,10 @@ def model(thisModel,mask):
 
     nteff = len(teffs)
     nlogg = len(loggs)
-    assert t <= teffs.max()
-    assert t >= teffs.min()
-    #assert g >= loggs.min()
-    #assert g <= loggs.max()
+    if t >= teffs.max() or t <= teffs.min():
+        return -np.inf
+    if g <= loggs.min() or g >= loggs.max():
+        return -np.inf
 
     abs_mags = []
     # u data in col 4, g in 5, r in 6, i in 7, z in 8, kg5 in 9
@@ -158,7 +159,7 @@ class Flux(object):
         self.val = val
         self.err = err
         self.band = band
-        self.mag = 2.5*numpy.log10(old_div(3631000,self.val))
+        self.mag = 2.5*np.log10(old_div(3631000,self.val))
         self.magerr = 2.5*0.434*(old_div(self.err,self.val))
 
 def plotFluxes(fluxes,fluxes_err,mask,model):
@@ -235,8 +236,8 @@ def plotColors(mags):
     gr = gmags-rmags
 
     # make grid of teff, logg and colours
-    teff = numpy.unique(data[:,0])
-    logg = numpy.unique(data[:,1])
+    teff = np.unique(data[:,0])
+    logg = np.unique(data[:,1])
     nteff = len(teff)
     nlogg = len(logg)
     # reshape colours onto 2D grid of (logg, teff)
@@ -247,19 +248,19 @@ def plotColors(mags):
     # If u band data available, chances are g and r data available too
     # u-g
     col1  = mags[0].mag - mags[1].mag
-    col1e = numpy.sqrt(mags[0].magerr**2 + mags[1].magerr**2)
+    col1e = np.sqrt(mags[0].magerr**2 + mags[1].magerr**2)
     col1l = mags[0].band + '-' + mags[1].band
 
     if rband_used:
         # g-r
         col2  = mags[1].mag - mags[2].mag
-        col2e = numpy.sqrt(mags[1].magerr**2 + mags[2].magerr**2)
+        col2e = np.sqrt(mags[1].magerr**2 + mags[2].magerr**2)
         col2l = mags[1].band + '-' + mags[2].band
 
     else:
         # g-i
         col2  = mags[1].mag - mags[3].mag
-        col2e = numpy.sqrt(mags[1].magerr**2 + mags[3].magerr**2)
+        col2e = np.sqrt(mags[1].magerr**2 + mags[3].magerr**2)
         col2l = mags[1].band + '-' + mags[3].band
 
     print('%s = %f +/- %f' % (col1l,col1,col1e))
@@ -321,11 +322,15 @@ if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(description='Fit WD Fluxes')
     parser.add_argument('file',action='store',help="input file")
+    parser.add_argument('--summarise', dest='summarise', action='store_true', help='Summarise existing chain file without running a new fit.')
 
     args = parser.parse_args()
 
     # Use parseInput function to read data from input file
     input_dict = parseInput(args.file)
+    summarise = args.summarise
+    if summarise:
+        print("I will NOT run a fit, but just re-create the output figures!")
 
     # Read information about mcmc, priors, neclipses, sys err
     nburn    = int( input_dict['nburn'] )
@@ -343,6 +348,7 @@ if __name__ == "__main__":
 
     syserr = float( input_dict['syserr'] )
 
+    chain_file = input_dict['chain']
     flat = int( input_dict['flat'] )
 
 
@@ -350,7 +356,6 @@ if __name__ == "__main__":
     # Load in chain file  #
     # # # # # # # # # # # #
 
-    chain_file = input_dict['chain']
     print("Reading in the chain file,", chain_file)
     if flat:
         with open(chain_file, 'r') as f:
@@ -512,7 +517,6 @@ if __name__ == "__main__":
 
     mask = np.array([uband_used,gband_used,rband_used,iband_used,zband_used,kg5band_used])
 
-
     print("I'm using the filters:")
     temp = ['u', 'g', 'r','i' , 'z', 'kg5']
     for t, m, flux in zip(temp, mask, fluxes):
@@ -529,21 +533,100 @@ if __name__ == "__main__":
     myModel = wdModel(teff,logg,plax,ebv)
     npars = myModel.npars
 
-    if toFit:
-        guessP = np.array(myModel)
+    if summarise:
+        chain = readchain_dask('chain_wd.txt')
         nameList = ['Teff','log g','Parallax','E(B-V)']
 
-        p0 = emcee.utils.sample_ball(guessP,scatter*guessP,size=nwalkers)
-        sampler = emcee.EnsembleSampler(nwalkers,npars,ln_prob,args=[myModel,y,e,mask],threads=nthread)
+        # Plot the likelihoods
+        fig, ax = plt.subplots()
+        likes = chain[:, :, -1]
+
+        # Plot the mean likelihood evolution
+        likes = np.mean(likes, axis=0)
+        steps = np.arange(len(likes))
+        std = np.std(likes)
+
+        # Make the likelihood plot
+        fig, ax = plt.subplots(figsize=(11, 8))
+        ax.fill_between(steps, likes-std, likes+std, color='red', alpha=0.4)
+        ax.plot(steps, likes, color="green")
+
+        ax.set_xlabel("Step")
+        ax.set_ylabel("ln_like")
+
+        plt.tight_layout()
+        plt.show()
+        plt.savefig('likelihoods.png')
+        plt.close()
+
+        # Flatten the chain for the thumbplot. Strip off the ln_prob, too
+        flat = flatchain(chain[:, :, :-1])
+        bestPars = []
+        for i in range(npars):
+            par = flat[:,i]
+            lolim,best,uplim = np.percentile(par,[16,50,84])
+            myModel[i] = best
+
+            print("%s = %f +%f -%f" % (nameList[i],best,uplim-best,best-lolim))
+            bestPars.append(best)
+
+        print("Creating corner plots...")
+        fig = thumbPlot(flat, nameList)
+        fig.savefig('cornerPlot.pdf')
+        fig.show()
+        plt.close()
+
+        toFit = False
+
+    if toFit:
+        guessP = np.array(myModel)
+        nameList = ['Teff','log_g','Parallax','E(B-V)']
+
+        p0 = emcee.utils.sample_ball(guessP, scatter*guessP, size=nwalkers)
+        sampler = emcee.EnsembleSampler(
+            nwalkers,
+            npars,
+            ln_prob,
+            args=[myModel, y, e, mask],
+            threads=nthread
+        )
 
         #burnIn
-        pos, prob, state = run_burnin(sampler,p0,nburn)
+        pos, prob, state = run_burnin(sampler, p0, nburn)
         #pos, prob, state = sampler.run_mcmc(p0,nburn)
 
         #production
         sampler.reset()
-        sampler = run_mcmc_save(sampler,pos,nprod,state,"chain_wd.txt")
-        chain = flatchain(sampler.chain,npars,thin=thin)
+        col_names = "walker_no " + ' '.join(nameList) + ' ln_prob'
+        sampler = run_mcmc_save(
+            sampler,
+            pos, nprod, state,
+            "chain_wd.txt", col_names=col_names
+        )
+        chain = flatchain(sampler.chain, npars, thin=thin)
+
+        # Plot the likelihoods
+        fig, ax = plt.subplots()
+        likes = sampler.chain[:, :, -1]
+
+        # Plot the mean likelihood evolution
+        likes = np.mean(likes, axis=0)
+        steps = np.arange(len(likes))
+        std = np.std(likes)
+
+        # Make the likelihood plot
+        fig, ax = plt.subplots(figsize=(11, 8))
+        ax.fill_between(steps, likes-std, likes+std, color='red', alpha=0.4)
+        ax.plot(steps, likes, color="green")
+
+        ax.set_xlabel("Step")
+        ax.set_ylabel("ln_like")
+
+        plt.tight_layout()
+        plt.show()
+        plt.savefig('likelihoods.png')
+        plt.close()
+
 
         bestPars = []
         for i in range(npars):
@@ -553,12 +636,15 @@ if __name__ == "__main__":
 
             print("%s = %f +%f -%f" % (nameList[i],best,uplim-best,best-lolim))
             bestPars.append(best)
+        print("Creating corner plots...")
         fig = thumbPlot(chain,nameList)
         fig.savefig('cornerPlot.pdf')
         fig.show()
         plt.close()
     else:
         bestPars = [par for par in myModel]
+
+    print("Done!")
 
     dof = len(mags) - mags.count(0) - npars - 1
     print("Chisq = %.2f (%d D.O.F)" % (chisq(myModel,y,e,mask), dof))

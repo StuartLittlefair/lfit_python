@@ -1,14 +1,18 @@
-'''This script will run the actual fitting procedure.
+'''
+This script will run the actual fitting procedure.
 Requires the input file, and data files defined in that.
 Supplied at the command line, via:
 
     python3 mcmcfit.py mcmc_input.dat
+
+Can also notify the user of a completed chain with the --notify flag.
 '''
 
 import argparse
 import multiprocessing as mp
 import os
 from pprint import pprint
+from shutil import rmtree
 from sys import exit
 
 import configobj
@@ -17,6 +21,7 @@ import numpy as np
 
 import mcmc_utils as utils
 from CVModel import construct_model, extract_par_and_key
+
 
 # I need to wrap the model's ln_like, ln_prior, and ln_prob functions
 # in order to pickle them :(
@@ -55,11 +60,20 @@ if __name__ in '__main__':
         type=str,
         default=''
     )
+    parser.add_argument(
+        '--debug',
+        help='Enable the debugging flag in the model',
+        action='store_true'
+    )
 
     args = parser.parse_args()
     input_fname = args.input
     dest = args.notify
+    debug = args.debug
 
+    if debug:
+        if os.path.isdir("DEBUGGING"):
+            rmtree("DEBUGGING")
 
     # I want to pre-check that the details have been supplied.
     if dest is not '':
@@ -84,7 +98,7 @@ if __name__ in '__main__':
 
 
     # Build the model from the input file
-    model = construct_model(input_fname)
+    model = construct_model(input_fname, debug)
 
     print("\nStructure:")
     pprint(model.structure)
@@ -223,10 +237,13 @@ if __name__ in '__main__':
     pool = mp.Pool(nthreads)
 
     if use_pt:
+        print("MCMC using parallel tempering at {} levels, for {} total walkers.".format(ntemps, nwalkers*ntemps))
         # Create the initial ball of walker positions
         p_0 = utils.initialise_walkers_pt(p_0, p0_scatter_1,
                                           nwalkers, ntemps, ln_prior, model)
         # Create the sampler
+        # TODO: The emcee PTSampler is deprecated. Use this package instead:
+        # https://github.com/willvousden/ptemcee
         sampler = emcee.PTSampler(ntemps, nwalkers, npars,
                                   ln_like, ln_prior,
                                   loglargs=(model,),
@@ -293,6 +310,15 @@ if __name__ in '__main__':
         # Collect results from all walkers
         chain = utils.flatchain(sampler.chain, npars, thin=10)
 
+    with open('modparams.txt', 'w') as f:
+        f.write("parName,mean,84th percentile,16th percentile\n")
+        lolim, result, uplim = np.percentile(chain, [16, 50, 84], axis=0)
+        labels = model.dynasty_par_names
+
+        for n, m, u, l in zip(labels, result, uplim, lolim):
+            s = "{} {} {} {}\n".format(n, m, u, l)
+            f.write(s)
+        f.write('\n')
 
     from plotCV import fit_summary
     fit_summary('chain_prod.txt', input_fname, destination=dest,

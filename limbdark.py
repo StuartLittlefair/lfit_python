@@ -1,3 +1,11 @@
+'''Uses the output fluxes of a White Dwarf from an MCMC chain, and uses them
+to calculate the limb darkening coefficient that should be used when fitting
+that body. Data is typically not sensitive enough to this to fit it
+independantly, so a few iterations through this script should aid in the
+science.
+'''
+
+
 from __future__ import print_function
 
 from builtins import input, zip
@@ -10,7 +18,8 @@ from scipy.interpolate import (RectBivariateSpline, SmoothBivariateSpline,
 def ld (band,logg,teff,law='linear'):
     assert band in ['u','g','r','i','z']
     assert law in ['linear','quad','sqr']
-    filename= 'Gianninas13/ld_coeffs_%s.txt' % band
+    filename = '/'.join(__file__.split('/')[:-1])
+    filename += '/Gianninas13/ld_coeffs_%s.txt' % band
     data=np.loadtxt(filename)
     x=data[:,0] #logg (grid increments through all teffs at a single logg, then +logg)
     y=data[:,1] #teff
@@ -51,6 +60,7 @@ def main():
     #ldvals = []
     #for g,t in zip(gvals,tvals):
     #    ldvals.extend( ld('i',g,t) )
+    print('-------------------')
     for band in ['u','g','r','i','z']:
         ldvals = [ld(band,g,t) for g,t in zip(gvals,tvals)]
         print('%s band LD coeff = %f +/- %f' % (band, np.median(ldvals),np.std(ldvals)))
