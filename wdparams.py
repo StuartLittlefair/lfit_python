@@ -85,7 +85,11 @@ def parseInput(file):
     input_dict = {}
     for line in blob:
         # Each line is then split at the equals sign
-        k, v = line.split('=')
+        try:
+            k, v = line.split('=')
+        except Exception as e:
+            print(line)
+            raise e
         input_dict[k.strip()] = v.strip()
     return input_dict
 
@@ -127,9 +131,8 @@ def model(thisModel, mask):
 
     abs_mags = np.array(abs_mags)
 
-    #TODO: Fix this horrid bit!!!
     # A_x/E(B-V) extinction from Cardelli (1989)
-    # Where are these values from?? (KG5 estimated)
+    # TODO: Where are these values from?? (KG5 estimated)
     ext = ebv*np.array([5.155, 3.793, 2.751, 2.086, 1.479, 3.5])
     dmod = 5.0*np.log10(d/10.0)
     app_red_mags = abs_mags + ext + dmod
@@ -438,9 +441,9 @@ if __name__ == "__main__":
     # # # # # # # # # # # # # # # # # # # # # #
 
     # For each filter, fill lists with wd fluxes from mcmc chain, then append to main array
-    if 'wdFlux_u' in colKeys:
+    if 'wdflux_u' in colKeys:
 
-        index = colKeys.index('wdFlux_u')
+        index = colKeys.index('wdflux_u')
         uband = fchain[:, index]
         uband = np.array([uband])
 
@@ -656,6 +659,13 @@ if __name__ == "__main__":
     # # # # # # # # #
     myModel = wdModel(teff, logg, plax, ebv)
     npars = myModel.npars
+
+    # Plot color-color plot
+    if mask[0]:
+        plotColors(mags)
+
+    # Plot measured and model fluxes
+    plotFluxes(fluxes, fluxes_err, mask, myModel)
 
     if summarise:
         chain = readchain_dask('chain_wd.txt')
