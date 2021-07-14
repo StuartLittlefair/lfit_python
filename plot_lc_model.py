@@ -223,7 +223,8 @@ def plot_GP_eclipse(ecl_node, save=False, figsize=(11., 8.), fname=None,
     # Create the GP of this eclipse
     gp = ecl_node.create_GP()
     # Compute the GP
-    gp.compute(ecl_node.lc.x, ecl_node.lc.ye)
+    errfact = ecl_node.ancestor_param_dict['wnoise-fract'].currVal
+    gp.compute(ecl_node.lc.x, ecl_node.lc.ye * errfact)
 
     # Draw samples from the GP
     samples = gp.sample_conditional(residuals, ecl_node.lc.x, size=300)

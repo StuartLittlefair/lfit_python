@@ -511,7 +511,7 @@ class GPLCModel(LCModel):
 
     # Add the GP params
     node_par_names = LCModel.node_par_names
-    node_par_names += ('ln_ampin_gp', 'ln_ampout_gp', 'ln_tau_gp')
+    node_par_names += ('ln_ampin_gp', 'ln_ampout_gp', 'ln_tau_gp', 'wnoise-fract')
 
 
 class SimpleGPEclipse(SimpleEclipse):
@@ -642,7 +642,10 @@ class SimpleGPEclipse(SimpleEclipse):
             )
 
         # Use that kernel to make a GP object
-        georgeGP = george.GP(kernel, solver=george.HODLRSolver)
+        georgeGP = george.GP(
+            kernel,
+            solver=george.HODLRSolver
+        )
 
         self.log('SimpleGPEclipse.create_GP', "Successfully created a new GP!")
         return georgeGP
@@ -684,7 +687,8 @@ class SimpleGPEclipse(SimpleEclipse):
         # Create the GP of this eclipse
         gp = self.create_GP()
         # Compute the GP
-        gp.compute(self.lc.x, self.lc.ye)
+        errfact = self.ancestor_param_dict['wnoise-fract'].currVal
+        gp.compute(self.lc.x, self.lc.ye * errfact)
 
         # The 'quiet' argument tells the GP to return -inf when you get
         # an invalid kernel, rather than throwing an exception.
@@ -793,15 +797,26 @@ def construct_model(input_file, debug=False, nodata=False):
     if debug:
         print("\nThe bands have these parameters: {}".format(band_par_names))
 
-    # Use the Eclipse class to find the parameters we're interested in
-    if is_complex:
-        ecl_pars = ComplexEclipse.node_par_names
-        if debug:
-            print("Using the complex BS model")
+    if not use_gp:
+        # Use the Eclipse class to find the parameters we're interested in
+        if is_complex:
+            ecl_pars = ComplexEclipse.node_par_names
+            if debug:
+                print("Using the complex BS model")
+        else:
+            ecl_pars = SimpleEclipse.node_par_names
+            if debug:
+                print("Using the simple BS model")
     else:
-        ecl_pars = SimpleEclipse.node_par_names
-        if debug:
-            print("Using the simple BS model")
+        # Use the Eclipse class to find the parameters we're interested in
+        if is_complex:
+            ecl_pars = ComplexGPEclipse.node_par_names
+            if debug:
+                print("Using the complex BS model, with a gaussian process")
+        else:
+            ecl_pars = SimpleGPEclipse.node_par_names
+            if debug:
+                print("Using the simple BS model, with a gaussian process")
 
     # I care about the order in which eclipses and bands are defined.
     # Collect that order here.
