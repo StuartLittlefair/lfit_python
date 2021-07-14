@@ -161,8 +161,6 @@ class Watcher():
                 step  = (param[2] - param[1]) / 200,
                 width = 200,
                 format='0.0000',
-                callback_throttle=50,
-                callback_policy='mouseup'
             )
 
             self.par_sliders.append(slider)
@@ -184,8 +182,6 @@ class Watcher():
                 step  = (param[2] - param[1]) / 200,
                 width = 200,
                 format='0.0000',
-                callback_throttle=50,
-                callback_policy='mouseup'
             )
 
             self.par_sliders_complex.append(slider)
@@ -207,8 +203,6 @@ class Watcher():
                 step  = (param[2] - param[1]) / 200,
                 width = 200,
                 format='0.0000',
-                callback_throttle=50,
-                callback_policy='mouseup'
             )
 
             self.par_sliders_GP.append(slider)
@@ -216,8 +210,9 @@ class Watcher():
         # Add the callbacks:
         for slider in self.par_sliders:
             slider.on_change('value_throttled', self.update_lc_model)
-        for slider in self.par_sliders_complex:
-            slider.on_change('value_throttled', self.update_lc_model)
+        if self.complex:
+            for slider in self.par_sliders_complex:
+                slider.on_change('value_throttled', self.update_lc_model)
         for slider in self.par_sliders_GP:
             slider.on_change('value_throttled', self.update_lc_model)
         print("Made the sliders...")
@@ -229,7 +224,7 @@ class Watcher():
             menu=menu, width=500
         )
         self.lc_obs_fname = self.current_eclipse.lc.fname
-        self.lc_change_fname_button.on_change('value', self.update_lc_obs)
+        self.lc_change_fname_button.on_click(self.update_lc_obs)
         print("Made the data picker...")
 
         # Button to switch from the complex to simple BS model, and vice versa
@@ -321,17 +316,24 @@ class Watcher():
         self.lnlike = None
         self.like_label = markups.Div(width=1000)
 
+        self.console_logs = markups.Div(
+            text='Model errors will go here!',
+            width=1000, height=30,
+        )
+
         # Arrange the tab layout
         inspector_layout = row([
             column([
                 row(
                     [self.lc_change_fname_button,
-                    self.complex_button, self.GP_button,
+                    self.complex_button,
+                    # self.GP_button,
                     self.lc_isvalid, self.write2input_button]),
             self.lc_plot, self.lc_res_plot,
             ]),
             column([
                 # self.like_label,
+                self.console_logs,
                 gridplot(
                     self.par_sliders, ncols=2,
                     toolbar_options={'logo': None}),
@@ -340,9 +342,9 @@ class Watcher():
                     self.par_sliders_complex, ncols=2,
                     toolbar_options={'logo': None}),
                 Spacer(width=200, height=15, sizing_mode='scale_width'),
-                gridplot(
-                    self.par_sliders_GP, ncols=2,
-                    toolbar_options={'logo': None})
+                # gridplot(
+                #     self.par_sliders_GP, ncols=2,
+                #     toolbar_options={'logo': None})
             ])
         ])
 
@@ -545,13 +547,16 @@ class Watcher():
 
         # Disable the callbacks
         for slider in all_sliders:
-            slider.remove_on_change('value_throttled', self.update_lc_model)
+            try:
+                slider.remove_on_change('value_throttled', self.update_lc_model)
+            except:
+                print("Slider {} already had its callback removed!".format(slider.title))
         print("Removed all the callbacks.\nSetting the slider values...")
 
         for par_name, param in self.parDict.items():
             for slider in all_sliders:
                 if slider.name == par_name:
-                    slider.value_throttled = param[0]
+                    # slider.value_throttled = param[0]
                     slider.value = param[0]
                     slider.start = param[1]
                     slider.end   = param[2]
@@ -579,6 +584,8 @@ class Watcher():
         '''Update the colour of the GP button'''
         self.GP = self.GP_button.active
         self.GP_button.button_type = 'success' if self.GP else 'danger'
+        if self.GP:
+            self.recalc_GP_model('')
 
     def update_complex(self, new):
         '''Handler for toggling the complex button. This should just enable/disable the complex sliders '''
@@ -633,7 +640,12 @@ class Watcher():
 
         # I need to check the complex and GP sliders, as well as the simple
         # ones.
-        eclipse_par_sliders = self.par_sliders + self.par_sliders_complex
+        eclipse_par_sliders = self.par_sliders
+        if self.complex:
+            print("Using the complex model, so handling those sliders too")
+            eclipse_par_sliders += self.par_sliders_complex
+
+        print("Using the GP, so setting those sliders")
         eclipse_par_sliders += self.par_sliders_GP
 
         for i, par_name in enumerate(self.model.dynasty_par_names):
@@ -671,8 +683,15 @@ class Watcher():
         # Calculate
         try:
             components = self.current_eclipse.calcComponents()
-        except:
+            self.lc_change_fname_button.button_type = 'success'
+            self.lc_isvalid.button_type = 'success'
+            self.console_logs.text = "Model errors will go here!"
+        except Exception as e:
             print("Invalid model parameters!")
+            print(e)
+            self.console_logs.text = str(e)
+            self.lc_change_fname_button.button_type = 'danger'
+            self.lc_isvalid.button_type = 'danger'
             self.model.dynasty_par_vals = old_pars
             return
 
@@ -689,11 +708,13 @@ class Watcher():
         # Push back into lc_obs
         self.lc_obs.data = dict(new_obs)
 
-        self.recalc_GP_model('')
+        if self.GP:
+            self.recalc_GP_model('')
 
-    def update_lc_obs(self, attr, old, new):
+    def update_lc_obs(self, event):
         '''callback to redraw the observations for the lightcurve'''
         print("\n\nCALLED UPDATE_LC_OBS")
+        new = event.item
 
         print("\nRedrawing the observations")
         print("I want to take the menu item: {}".format(new))

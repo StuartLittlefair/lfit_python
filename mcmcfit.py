@@ -17,13 +17,17 @@ from sys import exit
 
 import configobj
 import emcee
-import ptemcee
 import numpy as np
 
 import mcmc_utils as utils
 import plot_lc_model as plotCV
 from CVModel import construct_model, extract_par_and_key
-
+try:
+    import ptemcee
+    noPT = False
+except:
+    print("Failed to import ptemcee! Disabling parallel tempering.")
+    noPT = True
 
 # I need to wrap the model's ln_like, ln_prior, and ln_prob functions
 # in order to pickle them :(
@@ -129,6 +133,10 @@ if __name__ in '__main__':
     use_pt = bool(int(input_dict['usePT']))
     double_burnin = bool(int(input_dict['double_burnin']))
     comp_scat = bool(int(input_dict['comp_scat']))
+
+    if use_pt and noPT:
+        print("\n\n!!!! Can't use Parallel tempering !!!!\n\n")
+        use_pt = False
 
     # neclipses no longer strictly necessary, but can be used to limit the
     # maximum number of fitted eclipses

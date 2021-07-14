@@ -91,6 +91,7 @@ def initialise_walkers_pt(p, scatter, nwalkers, ntemps, ln_prior, model):
     # All invalid params need to be resampled
     while numInvalid > 0:
         # Create a mask of invalid params
+        ## TODO: Thread this
         isValid = np.array([np.isfinite(ln_prior(p, model)) for p in p0])
         bad = p0[~isValid]
         # Determine the number of good and bad walkers
@@ -118,12 +119,12 @@ def run_burnin(sampler, startPos, nSteps, storechain=False, progress=True):
 
     # emcee irritatingly changed the keyword. This is very ugly.
     try:
-        for pos, prob, state in sampler.sample(startPos, iterations=nSteps, storechain=storechain):
+        for pos, prob, state in sampler.sample(startPos, iterations=nSteps, store=storechain):
             iStep += 1
             if progress:
                 bar.update()
     except:
-        for pos, prob, state in sampler.sample(startPos, iterations=nSteps, store=storechain):
+        for pos, prob, state in sampler.sample(startPos, iterations=nSteps, storechain=storechain):
             iStep += 1
             if progress:
                 bar.update()
