@@ -100,7 +100,7 @@ The core functionality is ambiguous to the model being fitted, and sub-classed t
 
 Actually using the software is fairly easy. In essence,
 
-1. Write a configuration file defining the initial conditions, and parameters of the MCMC
+1. Write a configuration file defining the initial conditions, and parameters of the MCMC. This repo contains example configuration files that are documented reasonably well, just change the relevant parameters.
 2. Run `mcmcfit.py` with the input file, e.g. `python3 /PATH/TO/LFIT_PYTHON/mcmcift.py mcmc_input.dat`
 3. Wait. 
 4. Run `wdparams.py` with its relevant input file, e.g. `python3 /PATH/TO/LFIT_PYTHON/wdparams.py wdinput.dat`
