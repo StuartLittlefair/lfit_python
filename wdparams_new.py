@@ -112,7 +112,9 @@ class wdModel():
         self.obs_fluxes = fluxes
 
         # Teff, logg to model SDSS magnitudes tables
-        self.DA = pd.read_csv(os.path.join(ROOT, 'Bergeron/Table_DA'), delim_whitespace=True, skiprows=0, header=1)
+        table_loc = os.path.join(ROOT, 'Bergeron/Table_DA_sdss')
+        print("--->> I am using the WD model atmosphere table found here: {} <<---".format(table_loc))
+        self.DA = pd.read_csv(table_loc, delim_whitespace=True, skiprows=0, header=1)
         self.loggs = np.unique(self.DA['log_g'])
         self.teffs = np.unique(self.DA['Teff'])
         self.nlogg = len(self.loggs)
@@ -279,11 +281,19 @@ class Flux(object):
         'r_s':  619.9,
         'i_s':  771.1,
         'z_s':  915.6,
+<<<<<<< HEAD
         'us':  352.6,
         'gs':  473.2,
         'rs':  619.9,
         'is':  771.1,
         'zs':  915.6,
+=======
+        'us':   352.6,
+        'gs':   473.2,
+        'rs':   619.9,
+        'is':   771.1,
+        'zs':   915.6,
+>>>>>>> b2c1c3b1016ea8193155e01d08cbaf3d017b9572
     }
 
     def __init__(self, val, err, band, syserr=0.03, debug=False):
@@ -371,7 +381,11 @@ class Flux(object):
             self.band = self.orig_band
         else:
             self.band = self.orig_band + '_s'
+<<<<<<< HEAD
             
+=======
+
+>>>>>>> b2c1c3b1016ea8193155e01d08cbaf3d017b9572
         try:
             LOGFILE.write("Created a flux observation with these characteristics:\n")
             LOGFILE.write("Observed Flux: {:.3f}+/-{:.3f}\n".format(self.flux, self.err))
@@ -426,7 +440,11 @@ class Flux(object):
 
 
 
+<<<<<<< HEAD
 def plotColors(model):
+=======
+def plotColors(model, fname='colorplot.pdf'):
+>>>>>>> b2c1c3b1016ea8193155e01d08cbaf3d017b9572
     print("\n\n-----------------------------------------------")
     print("Creating color plots...")
     _, ax = plt.subplots(figsize=(6,6))
@@ -447,7 +465,11 @@ def plotColors(model):
     r_mag = flux_r.bergeron_mag(t, g)
 
     if model.DEBUG:
+<<<<<<< HEAD
         print("Observation bergeron magnitudes (GTC/HCAM), uncorrected for extinction:")
+=======
+        print("Observation, uncorrected for IS extinction:")
+>>>>>>> b2c1c3b1016ea8193155e01d08cbaf3d017b9572
         print("   Magnitudes:\n     u: {}\n     g: {}\n     r: {}".format(u_mag, g_mag, r_mag))
 
     # subtract interstellar extinction
@@ -456,7 +478,11 @@ def plotColors(model):
     g_mag -= model.extinction_coefficients['g_s'] * ex.currVal
     r_mag -= model.extinction_coefficients['r_s'] * ex.currVal
 
+<<<<<<< HEAD
     print("After correcting to GTC/HCAM/Super, and removing IS extinction:")
+=======
+    print("After correcting (if necessary), and removing IS extinction:")
+>>>>>>> b2c1c3b1016ea8193155e01d08cbaf3d017b9572
     print("   Magnitudes:\n     u: {}\n     g: {}\n     r: {}".format(u_mag, g_mag, r_mag))
 
     ug_mag = u_mag - g_mag
@@ -520,14 +546,22 @@ def plotColors(model):
         xerr=obs_ug_err,
         yerr=obs_gr_err,
         fmt='o', ls='none', color='darkred', capsize=3,
+<<<<<<< HEAD
         label='Observed (GTC/HCAM calculated)'
+=======
+        label='Observed'
+>>>>>>> b2c1c3b1016ea8193155e01d08cbaf3d017b9572
     )
 
     # Modelled color
     ax.errorbar(
         x=model_ug, y=model_gr,
         fmt='o', ls='none', color='blue', capsize=3,
+<<<<<<< HEAD
         label='Modelled - T: {:.0f} | logg: {:.2f}'.format(t, g)
+=======
+        label='Modelled'.format(t, g)
+>>>>>>> b2c1c3b1016ea8193155e01d08cbaf3d017b9572
     )
 
     # annotate for teff
@@ -577,13 +611,21 @@ def plotColors(model):
     ax.set_ylim([-0.5, 0.5])
     ax.legend()
 
+<<<<<<< HEAD
     plt.savefig("colorPlot.pdf")
+=======
+    plt.savefig(fname)
+>>>>>>> b2c1c3b1016ea8193155e01d08cbaf3d017b9572
     plt.show()
 
     print("Done!")
     print("-----------------------------------------------\n")
 
+<<<<<<< HEAD
 def plotFluxes(model):
+=======
+def plotFluxes(model, fname='fluxplot.pdf'):
+>>>>>>> b2c1c3b1016ea8193155e01d08cbaf3d017b9572
     '''Plot the colors, and the theoretical WD cooling tracks'''
     print("\n\n-----------------------------------------------")
     print("Creating flux plots...")
@@ -622,7 +664,11 @@ def plotFluxes(model):
     ax.errorbar(
         lambdas, obs_flx,
         xerr=None, yerr=obs_flx_err,
+<<<<<<< HEAD
         fmt='o', ls='none', color='blue', label='Observed app. flux (GTC/HCAM)',
+=======
+        fmt='o', ls='none', color='blue', label='Observed flux',
+>>>>>>> b2c1c3b1016ea8193155e01d08cbaf3d017b9572
         markersize=6, linewidth=1, capsize=None
     )
     # ax.set_title("Observed and modelled fluxes")
@@ -631,7 +677,11 @@ def plotFluxes(model):
     ax.legend()
 
     plt.tight_layout()
+<<<<<<< HEAD
     plt.savefig("fluxPlot.pdf")
+=======
+    plt.savefig(fname)
+>>>>>>> b2c1c3b1016ea8193155e01d08cbaf3d017b9572
     plt.show()
 
     print("Done!")
@@ -696,7 +746,14 @@ if __name__ == "__main__":
             fchain = readflatchain(chain_file)
         else:
             with open(chain_file, 'r') as f:
+<<<<<<< HEAD
                 colKeys = f.readline().strip().split()[1:]
+=======
+                line = f.readline()
+                while line[0] == '#':
+                    line = f.readline()
+                colKeys = line.strip().split()[1:]
+>>>>>>> b2c1c3b1016ea8193155e01d08cbaf3d017b9572
             chain = readchain(chain_file)
             print("The chain has the {} walkers, {} steps, and {} pars.".format(*chain.shape))
             fchain = flatchain(chain, thin=thin)
@@ -732,6 +789,10 @@ if __name__ == "__main__":
             mean, _, std = sigma_clipped_stats(fchain[:, index])
 
             flx = Flux(mean, std, band.lower().replace("wdflux_", ""), syserr=syserr, debug=debug)
+<<<<<<< HEAD
+=======
+            print("Band {} at chain file index {}\nFlux: {:.5f}+/-{:.5f}\nLabel applied in code: {}\n------------------------\n\n".format(band, index, mean, std, flx.orig_band))
+>>>>>>> b2c1c3b1016ea8193155e01d08cbaf3d017b9572
             fluxes.append(flx)
 
     while True:
@@ -902,4 +963,8 @@ if __name__ == "__main__":
     plotColors(myModel)
     plotFluxes(myModel)
 
+<<<<<<< HEAD
     LOGFILE.close()
+=======
+    LOGFILE.close()
+>>>>>>> b2c1c3b1016ea8193155e01d08cbaf3d017b9572
