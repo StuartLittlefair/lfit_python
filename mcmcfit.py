@@ -266,7 +266,7 @@ if __name__ in '__main__':
         p_0 = utils.initialise_walkers_pt(
             p_0, p0_scatter_1, nwalkers,
             ntemps,
-            ln_prior, model
+            ln_prior, ln_like, model
         )
 
         # Create the sampler

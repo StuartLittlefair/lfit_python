@@ -5,6 +5,7 @@ node, with child Bands, that have XEclipse leaves to evaluate the CV lightcurve
 fit to the data. Data is stored in the Lightcurve class.
 '''
 
+BIG = 9e99
 
 import os
 
@@ -168,7 +169,7 @@ class SimpleEclipse(Node):
                 ))
 
             self.log('SimpleEclipse.chisq', "I computed a flux that contains nans. Returning an inf chisq.")
-            return np.inf
+            return BIG
 
         # Calculate the chisq of this model.
         chisq = ((self.lc.y - flx) / self.lc.ye)**2

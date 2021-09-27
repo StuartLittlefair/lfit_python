@@ -72,7 +72,7 @@ def initialise_walkers(p, scatter, nwalkers, ln_prior, model):
     return p0
 
 
-def initialise_walkers_pt(p, scatter, nwalkers, ntemps, ln_prior, model):
+def initialise_walkers_pt(p, scatter, nwalkers, ntemps, ln_prior, ln_like, model):
     # Create starting ball of walkers with a certain amount of scatter
     p0 = np.array(
         [emcee.utils.sample_ball(p, scatter*p, size=nwalkers) for i in range(ntemps)]
@@ -91,12 +91,21 @@ def initialise_walkers_pt(p, scatter, nwalkers, ntemps, ln_prior, model):
     # All invalid params need to be resampled
     while numInvalid > 0:
         # Create a mask of invalid params
-        ## TODO: Thread this
-        isValid = np.array([np.isfinite(ln_prior(p, model)) for p in p0])
+        ## TODO: Thread this?
+        print("Getting priors and probs for all walkers (this can take a *while*)")
+        isValidPrior = np.array([np.isfinite(ln_prior(p, model)) for p in p0])
+        # if we have a linmin error, the prob is nan
+        isValidProb = np.array([np.isfinite(ln_like(p, model)) for p in p0])
+
+        print("I have {} bad priors, and {} bad probs!".format(np.sum(~isValidPrior), np.sum(~isValidProb)))
+
+        # Only a valid starting vector if BOTH are true
+        isValid = isValidPrior * isValidProb
+
         bad = p0[~isValid]
         # Determine the number of good and bad walkers
         nbad = len(bad)
-        print(nbad)
+        print("I have {} bad walkers!".format(nbad))
         ngood = len(p0[isValid])
         # Choose nbad random rows from ngood walker sample
         replacement_rows = np.random.randint(ngood, size=nbad)
@@ -108,7 +117,9 @@ def initialise_walkers_pt(p, scatter, nwalkers, ntemps, ln_prior, model):
         # Replace invalid walkers with new values
         p0[~isValid] = replacements
         numInvalid = len(p0[~isValid])
+
     p0 = p0.reshape(orig_shape)
+
     return p0
 
 

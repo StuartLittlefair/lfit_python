@@ -419,7 +419,7 @@ class Watcher():
             p2 = param.prior.p2
             isVar = param.isVar
 
-            newline = "{:>10s} = {:>12.4f} {:>12} {:>12.4f} {:>12.4f} {:>12}\n".format(
+            newline = "{:>10s} = {:>16.8f} {:>12} {:>16.8f} {:>16.8f} {:>12}\n".format(
                 parname_label,
                 value,
                 prior_type,

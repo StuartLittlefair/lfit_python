@@ -297,7 +297,18 @@ class Flux(object):
         # This is the actual band observed with.
         self.orig_band = band
 
-        self.cent_lambda = self.LAMBDAS[band]
+        while True:
+            try:
+                self.cent_lambda = self.LAMBDAS[band]
+                break
+            except:
+                print("Couldn't automatically look up this band's name: {}".format(band))
+                print("Please select one of the following:")
+                for label, cent in self.LAMBDAS.items():
+                    print("  - {}".format(label))
+                band = input("> ")
+                self.cent_lambda = self.LAMBDAS[band]
+
 
         self.mag = 2.5*np.log10(3631e3 / self.flux)
         self.magerr = 2.5*0.434*(self.err / self.flux)
