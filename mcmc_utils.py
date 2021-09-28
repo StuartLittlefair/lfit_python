@@ -83,27 +83,38 @@ def initialise_walkers_pt(p, scatter, nwalkers, ntemps, ln_prob, model):
     # Re-shape p0 array
     p0 = p0.reshape(nwalkers*ntemps, len(p))
 
-    # Make initial number of invalid walkers equal to total number of walkers
-    numInvalid = nwalkers*ntemps
-    print('Initialising walkers...')
-    print('Number of walkers currently invalid:')
+    print('\n\nInitialising walkers...')
+
+    ln_probs = [ln_prob(p, model) for p in p0]
+    isValid = np.isfinite(ln_probs)
+    whereInvalid = np.where(~isValid)[0] # Only take the 0th dimension
+    numInvalid = np.sum(~isValid)
+
+    print("My naiive walker ball has {} invalid walkers!".format(np.sum(~isValid)))
 
     # All invalid params need to be resampled
     while numInvalid > 0:
         # Create a mask of invalid params
         ## TODO: Thread this?
-        print("Getting priors and probs for all walkers (this can take a *while*)")
-        # ln_prob = lnlike + lnprob
-        isValid = np.array([np.isfinite(ln_prob(p, model)) for p in p0])
+        print("Getting priors and probs for {} previously bad walkers...".format(numInvalid))
 
+        # ln_prob = lnlike + lnprob. Only check walkers that are invalid
+        # check walkers that were previously found to be bad, and update those.
+        for loc in whereInvalid:
+            # print("getting ln_prob of value at location {}".format(loc))
+            isValid[loc] = np.isfinite(ln_prob(p0[loc], model))
+        whereInvalid = np.where(~isValid)[0]
 
-        bad = p0[~isValid]
         # Determine the number of good and bad walkers
-        nbad = len(bad)
-        print("I have {} bad walkers!".format(nbad))
+        numInvalid = np.sum(~isValid)
         ngood = len(p0[isValid])
+        if numInvalid:
+            print("Now, I have {} bad walkers. Rescattering those...".format(numInvalid))
+        else:
+            print("No more invalid walkers!")
+
         # Choose nbad random rows from ngood walker sample
-        replacement_rows = np.random.randint(ngood, size=nbad)
+        replacement_rows = np.random.randint(ngood, size=numInvalid)
         # Create replacement values from valid walkers
         replacements = p0[isValid][replacement_rows]
         # Add scatter to replacement values
@@ -111,7 +122,8 @@ def initialise_walkers_pt(p, scatter, nwalkers, ntemps, ln_prob, model):
             size=replacements.shape)
         # Replace invalid walkers with new values
         p0[~isValid] = replacements
-        numInvalid = len(p0[~isValid])
+
+        print()
 
     p0 = p0.reshape(orig_shape)
 
