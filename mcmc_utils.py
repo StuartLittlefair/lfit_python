@@ -260,7 +260,7 @@ def run_ptmcmc_save(sampler, startPos, nSteps, file, progress=True, col_names=''
                     f.write("{0:4d} {1:s} {2:f}\n".format(k, " ".join(
                     map(str, thisPos)), thisProb))
 
-    except:
+    except TypeError:
         for pos, prob, like in sampler.sample(startPos, iterations=nSteps, storechain=True, **kwargs):
             iStep += 1
             if progress:
