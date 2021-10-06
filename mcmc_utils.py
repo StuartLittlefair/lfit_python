@@ -118,19 +118,6 @@ def initialise_walkers_pt(p, scatter, nwalkers, ntemps, ln_prob, model):
 
     # All invalid params need to be resampled
     while numInvalid > 0:
-        # Create a mask of invalid params
-        ## TODO: Thread this?
-        print("Getting priors and probs for {} previously bad walkers...".format(numInvalid))
-
-        # ln_prob = lnlike + lnprob. Only check walkers that are invalid
-        # check walkers that were previously found to be bad, and update those.
-        for i, loc in enumerate(whereInvalid):
-            # print("getting ln_prob of value at location {}".format(loc))
-            isValid[loc] = np.isfinite(ln_prob(p0[loc], model))
-            print("  {}/{}".format(i+1, numInvalid), end='\r')
-        print()
-        whereInvalid = np.where(~isValid)[0]
-
         # Determine the number of good and bad walkers
         numInvalid = np.sum(~isValid)
         ngood = len(p0[isValid])
@@ -148,6 +135,19 @@ def initialise_walkers_pt(p, scatter, nwalkers, ntemps, ln_prob, model):
             size=replacements.shape)
         # Replace invalid walkers with new values
         p0[~isValid] = replacements
+
+        # Create a mask of invalid params
+        ## TODO: Thread this?
+        print("Getting priors and probs for {} previously bad walkers...".format(numInvalid))
+
+        # ln_prob = lnlike + lnprob. Only check walkers that are invalid
+        # check walkers that were previously found to be bad, and update those.
+        for i, loc in enumerate(whereInvalid):
+            # print("getting ln_prob of value at location {}".format(loc))
+            isValid[loc] = np.isfinite(ln_prob(p0[loc], model))
+            print("  {}/{}".format(i+1, numInvalid), end='\r')
+        print()
+        whereInvalid = np.where(~isValid)[0]
 
         print()
 
