@@ -86,6 +86,8 @@ class Prior(object):
             pars = self.estimate_inverse_gamma_parameters(p1, p2)
             self.p1 = pars['alpha']
             self.p2 = pars['beta']
+            self.low = p1
+            self.high = p2
             self.normalise = 1
 
     def ln_prob(self, val):
@@ -106,7 +108,12 @@ class Prior(object):
                     return TINY
         elif self.type == 'invgamma':
             alpha, beta = self.p1, self.p2
-            return beta**alpha * val**(-alpha-1)*np.exp(-beta/val)/gamma(alpha)
+            if val < 0.9*self.low or val > 1.1*self.high:
+                return 0.0
+            with warnings.catch_warnings():
+                warnings.simplefilter('ignore')
+                result = beta**alpha * val**(-alpha-1)*np.exp(-beta/val)/gamma(alpha)
+            return result
         elif self.type == 'uniform':
             if (val > self.p1) and (val < self.p2):
                 return np.log(1.0/np.abs(self.p1-self.p2))
