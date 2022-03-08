@@ -30,7 +30,8 @@ def extract_par_and_key(key):
 
         par = "_".join(key[:3])
         label = "_".join(key[3:])
-
+    elif key == 'tau_gp_core':
+        par, label = "tau_gp", "core"
     else:
         par, label = key.split('_')[0], '_'.join(key.split('_')[1:])
 
