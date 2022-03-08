@@ -210,7 +210,7 @@ if __name__ in '__main__':
         scat_fract = {
             'ln_ampin_gp': 5.0,
             'ln_ampout_gp': 5.0,
-            'ln_tau_gp': 5.0,
+            'tau_gp': 5.0,
             'q':      1,
             'rwd':    1,
             'dphi':   0.2,
@@ -250,7 +250,7 @@ if __name__ in '__main__':
 
     if use_pt:
         mp.set_start_method("forkserver")
-        pool = mp.Pool(nthreads)
+        pool = mp.get_context("spawn").Pool(nthreads)
         print("MCMC using parallel tempering at {} levels, for {} total walkers.".format(ntemps, nwalkers*ntemps))
 
         # Create the initial ball of walker positions
@@ -271,7 +271,7 @@ if __name__ in '__main__':
 
     else:
         mp.set_start_method("forkserver")
-        pool = mp.Pool(nthreads)
+        pool = mp.get_context("spawn").Pool(nthreads)
 
         # Create the initial ball of walker positions
         p_0 = utils.initialise_walkers(

@@ -128,7 +128,7 @@ class Watcher():
             'yaw': 'BS Yaw',
         }
         GP_parDesc = {
-            'ln_tau_gp': 'GP Timescale',
+            'tau_gp': 'GP Timescale',
             'ln_ampin_gp': 'GP intra-ecl amplitude',
             'ln_ampout_gp': 'GP inter-ecl amplitude'
         }
@@ -524,7 +524,7 @@ class Watcher():
             'yaw':     [ 0.00, -90.0, 90.0],
             'ln_ampin_gp':  [-9.99, -25.0, -1.0],
             'ln_ampout_gp': [-9.99, -25.0, -1.0],
-            'ln_tau_gp':    [-5.00, -20.0, -1.0]
+            'tau_gp':    [0.03, 0.006, 0.1]
         }
 
         for key, param in raw_params.items():
@@ -822,7 +822,7 @@ class Watcher():
 
         Requires an Eclipse object to create the GP for. """
 
-        # Get objects for ln_ampin_gp, ln_ampout_gp, ln_tau_gp and find the exponential
+        # Get objects for ln_ampin_gp, ln_ampout_gp, tau_gp and find the exponential
         # of their current values
         pardict = {}
         for slider in self.par_sliders_GP:
@@ -830,11 +830,11 @@ class Watcher():
 
         ln_ampin   = pardict['ln_ampin_gp']
         ln_ampout  = pardict['ln_ampout_gp']
-        ln_tau     = pardict['ln_tau_gp']
+        tau     = pardict['tau_gp']
 
         ampin_gp   = np.exp(ln_ampin)
         ampout_gp  = np.exp(ln_ampout)
-        tau_gp     = np.exp(ln_tau)
+        tau_gp     = tau
 
         # Calculate kernels for both out of and in eclipse WD eclipse
         # Kernel inside of WD has smaller amplitude than that of outside
@@ -845,11 +845,11 @@ class Watcher():
 
         # We need to make a fairly complex kernel.
         # Global flicker
-        kernel = ampin_gp * g.kernels.Matern32Kernel(tau_gp)
+        kernel = ampin_gp * g.kernels.Matern32Kernel(tau_gp**2)
         # inter-eclipse flicker
         for gap in changepoints:
             kernel += ampout_gp * g.kernels.Matern32Kernel(
-                tau_gp,
+                tau_gp**2,
                 block=gap
             )
 
