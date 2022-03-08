@@ -191,8 +191,10 @@ def plot_eclipse(ecl_node, save=False, figsize=(11., 8.), fname=None,
 
         # If we didnt get told to use a certain fname, use this node's name
         if fname is None:
-            fname = ecl_node.lc.name.replace('.calib', ext).replace('.txt', ext)
-
+            fname = ecl_node.lc.name.replace('.calib', '')
+            fname = fname.replace('.txt', '')
+            fname += ext
+            
         # Make the filename
         fname = '/'.join([save_dir, fname])
 
