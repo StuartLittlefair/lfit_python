@@ -297,18 +297,7 @@ class Flux(object):
         # This is the actual band observed with.
         self.orig_band = band
 
-        while True:
-            try:
-                self.cent_lambda = self.LAMBDAS[band]
-                break
-            except:
-                print("Couldn't automatically look up this band's name: {}".format(band))
-                print("Please select one of the following:")
-                for label, cent in self.LAMBDAS.items():
-                    print("  - {}".format(label))
-                band = input("> ")
-                self.cent_lambda = self.LAMBDAS[band]
-
+        self.cent_lambda = self.LAMBDAS[band]
 
         self.mag = 2.5*np.log10(3631e3 / self.flux)
         self.magerr = 2.5*0.434*(self.err / self.flux)
@@ -384,7 +373,6 @@ class Flux(object):
             self.band = self.orig_band
         else:
             self.band = self.orig_band + '_s'
-
         try:
             LOGFILE.write("Created a flux observation with these characteristics:\n")
             LOGFILE.write("Observed Flux: {:.3f}+/-{:.3f}\n".format(self.flux, self.err))
@@ -540,7 +528,7 @@ def plotColors(model, fname='colorplot.pdf'):
     ax.errorbar(
         x=model_ug, y=model_gr,
         fmt='o', ls='none', color='blue', capsize=3,
-        label='Modelled'.format(t, g)
+        label='Modelled - T: {:.0f} | logg: {:.2f}'.format(t, g)
     )
 
     # annotate for teff
