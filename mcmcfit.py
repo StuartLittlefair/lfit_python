@@ -265,7 +265,7 @@ if __name__ in '__main__':
         p_0 = utils.initialise_walkers_pt(
             p_0, p0_scatter_1, nwalkers,
             ntemps,
-            ln_prob, model
+            ln_prior, model
         )
 
         # Create the sampler
@@ -284,7 +284,7 @@ if __name__ in '__main__':
         # Create the initial ball of walker positions
         p_0 = utils.initialise_walkers(
             p_0, p0_scatter_1, nwalkers,
-            ln_prob, model
+            ln_prior, model
         )
 
         # Create the sampler
