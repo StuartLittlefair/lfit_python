@@ -298,12 +298,21 @@ if __name__ in '__main__':
         print("Executing the second burn-in phase")
 
         # Get the Get the most likely step of the first burn-in
-        p_0 = pos[np.argmax(prob)]
-        # And scatter the walker ball about that position
-        p_0 = utils.initialise_walkers(
-            p_0, p0_scatter_2, nwalkers,
-            ln_prior, model
-        )
+        if use_pt:
+            p_0 = pos[np.unravel_index(prob.argmax(), prob.shape)]
+            # Create the initial ball of walker positions
+            p_0 = utils.initialise_walkers_pt(
+                p_0, p0_scatter_2, nwalkers,
+                ntemps,
+                ln_prior, model
+            )
+        else:
+            p_0 = pos[np.argmax(prob)]
+            # And scatter the walker ball about that position
+            p_0 = utils.initialise_walkers(
+                p_0, p0_scatter_2, nwalkers,
+                ln_prior, model
+            )
 
         # Run that burn-in
         pos, prob, state = utils.run_burnin(sampler, p_0, nburn)
