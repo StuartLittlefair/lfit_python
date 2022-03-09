@@ -11,7 +11,7 @@ Can also notify the user of a completed chain with the --notify flag.
 import argparse
 import multiprocessing as mp
 import os
-from pprint import pprint
+from pprintpp import pprint
 from shutil import rmtree
 from sys import exit
 

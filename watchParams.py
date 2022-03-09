@@ -516,10 +516,12 @@ class Watcher():
     def update_par_dict(self):
         '''Take the current eclipse, and update the parDict with its limits
         from the file.'''
+        print("Updating the parameter dict")
         raw_params = self.current_eclipse.ancestor_param_dict
+        print("My current eclipse is {}".format(self.current_eclipse.lc.fname))
 
         # Default values for the complex BS, as simple mcmc_input files may not have them:
-        parDict = {
+        self.parDict = {
             'exp1':    [ 1.00, 0.001,  5.0],
             'exp2':    [ 2.00, 0.001,  5.0],
             'tilt':    [45.00, 0.001,  180],
@@ -534,9 +536,9 @@ class Watcher():
             lolim = param.prior.p1
             hilim = param.prior.p2
             prior = param.prior.type
-            parDict[key] = [currval, lolim, hilim, prior]
+            self.parDict[key] = [currval, lolim, hilim, prior]
+            print("parDict[{}]: {}".format(key, currval))
 
-        self.parDict = parDict
 
     def reset_sliders(self):
         '''Set the parameters to the initial guesses.'''
@@ -553,9 +555,15 @@ class Watcher():
                 print("Slider {} already had its callback removed!".format(slider.title))
         print("Removed all the callbacks.\nSetting the slider values...")
 
+        print("Here's a list of my slider names!")
+        for slider in all_sliders:
+            print("  - {}".format(slider.name))
+
         for par_name, param in self.parDict.items():
+            print("Searching for slider for parameter {}".format(par_name))
             for slider in all_sliders:
                 if slider.name == par_name:
+                    print("Found that slider! Setting value to {}".format(param[0]))
                     # slider.value_throttled = param[0]
                     slider.value = param[0]
                     slider.start = param[1]
@@ -654,19 +662,19 @@ class Watcher():
                 for slider in eclipse_par_sliders:
                     if par_name.startswith(slider.name):
                         # print("Slider {} found, taking its value".format(slider.name))
-                        par_vals[i] = slider.value_throttled
+                        par_vals[i] = slider.value
 
             if par_name.endswith(band.label):
                 for slider in self.par_sliders:
                     if par_name.startswith(slider.name):
                         # print("Slider {} found, taking its value".format(slider.name))
-                        par_vals[i] = slider.value_throttled
+                        par_vals[i] = slider.value
 
             if par_name.endswith(self.model.label):
                 for slider in self.par_sliders:
                     if par_name.startswith(slider.name):
                         # print("Slider {} found, taking its value".format(slider.name))
-                        par_vals[i] = slider.value_throttled
+                        par_vals[i] = slider.value
 
         print("I altered the the following parameter vector components:")
         old_pars = self.model.dynasty_par_vals
@@ -761,6 +769,8 @@ class Watcher():
         print("Old title: {}".format(self.lc_plot.title.text))
         self.lc_plot.title.text = title_text
         print("The title should now be {}".format(title_text))
+
+        self.update_lc_model('value_throttled', '', '')
 
         # self.update_like_header(gp=self.GP)
 

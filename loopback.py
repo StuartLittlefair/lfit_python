@@ -37,7 +37,7 @@ if __name__ in "__main__":
         newvalues[k] = v
 
     print("New values:")
-    from pprint import pprint
+    from pprintpp import pprint
     pprint(newvalues)
 
     mcmc_file = []
