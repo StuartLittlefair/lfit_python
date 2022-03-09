@@ -5,6 +5,7 @@ node, with child Bands, that have XEclipse leaves to evaluate the CV lightcurve
 fit to the data. Data is stored in the Lightcurve class.
 '''
 
+BIG = 9e99
 
 import os
 
@@ -168,7 +169,7 @@ class SimpleEclipse(Node):
                 ))
 
             self.log('SimpleEclipse.chisq', "I computed a flux that contains nans. Returning an inf chisq.")
-            return np.inf
+            return BIG
 
         # Calculate the chisq of this model.
         chisq = ((self.lc.y - flx) / self.lc.ye)**2
@@ -642,7 +643,10 @@ class SimpleGPEclipse(SimpleEclipse):
             )
 
         # Use that kernel to make a GP object
-        georgeGP = george.GP(kernel, solver=george.HODLRSolver)
+        georgeGP = george.GP(
+            kernel,
+            solver=george.HODLRSolver
+        )
 
         self.log('SimpleGPEclipse.create_GP', "Successfully created a new GP!")
         return georgeGP
@@ -787,15 +791,26 @@ def construct_model(input_file, debug=False, nodata=False):
     if debug:
         print("\nThe bands have these parameters: {}".format(band_par_names))
 
-    # Use the Eclipse class to find the parameters we're interested in
-    if is_complex:
-        ecl_pars = ComplexEclipse.node_par_names
-        if debug:
-            print("Using the complex BS model")
+    if not use_gp:
+        # Use the Eclipse class to find the parameters we're interested in
+        if is_complex:
+            ecl_pars = ComplexEclipse.node_par_names
+            if debug:
+                print("Using the complex BS model")
+        else:
+            ecl_pars = SimpleEclipse.node_par_names
+            if debug:
+                print("Using the simple BS model")
     else:
-        ecl_pars = SimpleEclipse.node_par_names
-        if debug:
-            print("Using the simple BS model")
+        # Use the Eclipse class to find the parameters we're interested in
+        if is_complex:
+            ecl_pars = ComplexGPEclipse.node_par_names
+            if debug:
+                print("Using the complex BS model, with a gaussian process")
+        else:
+            ecl_pars = SimpleGPEclipse.node_par_names
+            if debug:
+                print("Using the simple BS model, with a gaussian process")
 
     # I care about the order in which eclipses and bands are defined.
     # Collect that order here.

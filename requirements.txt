@@ -21,7 +21,7 @@ packaging>=19.1
 pandas>=0.25.1
 Pillow>6.2.0
 ptemcee
-pprint>=0.1
+pprintpp
 pybind11>=2.3.0
 pyparsing>=2.4.2
 python-dateutil>=2.8.0

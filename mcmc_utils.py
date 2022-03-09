@@ -43,24 +43,46 @@ def thumbPlot(chain, labels, **kwargs):
     return fig
 
 
-def initialise_walkers(p, scatter, nwalkers, ln_prior, model):
+def initialise_walkers(p, scatter, nwalkers, ln_prob, model):
+    print('\n\nInitialising walkers')
+
     # Create starting ball of walkers with a certain amount of scatter
-    p0 = emcee.utils.sample_ball(p, scatter*p, size=nwalkers)
-    # Make initial number of invalid walkers equal to total number of walkers
-    numInvalid = nwalkers
-    print('Initialising walkers...')
-    print('Number of walkers currently invalid:')
+    p0 = np.array(emcee.utils.sample_ball(p, scatter*p, size=nwalkers))
+
+    print("Checking initial walker ball for invalid locations...")
+    ln_probs = [ln_prob(p, model) for p in p0]
+    print("Done!")
+    isValid = np.isfinite(ln_probs)
+    whereInvalid = np.where(~isValid)[0] # Only take the 0th dimension
+    numInvalid = np.sum(~isValid)
+
+    print("My naiive walker ball has {} invalid walkers.".format(np.sum(~isValid)))
+
     # All invalid params need to be resampled
     while numInvalid > 0:
         # Create a mask of invalid params
-        isValid = np.array([np.isfinite(ln_prior(p, model)) for p in p0])
-        bad = p0[~isValid]
+        ## TODO: Thread this?
+        print("Getting priors and probs for {} previously bad walkers...".format(numInvalid))
+
+        # ln_prob = lnlike + lnprob. Only check walkers that are invalid
+        # check walkers that were previously found to be bad, and update those.
+        for i, loc in enumerate(whereInvalid):
+            # print("getting ln_prob of value at location {}".format(loc))
+            isValid[loc] = np.isfinite(ln_prob(p0[loc], model))
+            print("  {}/{}".format(i+1, numInvalid), end='\r')
+        print()
+        whereInvalid = np.where(~isValid)[0]
+
         # Determine the number of good and bad walkers
-        nbad = len(bad)
-        print(nbad)
+        numInvalid = np.sum(~isValid)
         ngood = len(p0[isValid])
+        if numInvalid:
+            print("Now, I have {} bad walkers. Rescattering those...".format(numInvalid))
+        else:
+            print("No more invalid walkers!")
+
         # Choose nbad random rows from ngood walker sample
-        replacement_rows = np.random.randint(ngood, size=nbad)
+        replacement_rows = np.random.randint(ngood, size=numInvalid)
         # Create replacement values from valid walkers
         replacements = p0[isValid][replacement_rows]
         # Add scatter to replacement values
@@ -68,37 +90,44 @@ def initialise_walkers(p, scatter, nwalkers, ln_prior, model):
             size=replacements.shape)
         # Replace invalid walkers with new values
         p0[~isValid] = replacements
-        numInvalid = len(p0[~isValid])
+
+        print()
+
     return p0
 
 
-def initialise_walkers_pt(p, scatter, nwalkers, ntemps, ln_prior, model):
+def initialise_walkers_pt(p, scatter, nwalkers, ntemps, ln_prob, model):
     # Create starting ball of walkers with a certain amount of scatter
-    p0 = np.array(
-        [emcee.utils.sample_ball(p, scatter*p, size=nwalkers) for i in range(ntemps)]
-    )
+    p0 = np.array([emcee.utils.sample_ball(p, scatter*p, size=nwalkers) for i in range(ntemps)])
 
     orig_shape = p0.shape
 
     # Re-shape p0 array
     p0 = p0.reshape(nwalkers*ntemps, len(p))
 
-    # Make initial number of invalid walkers equal to total number of walkers
-    numInvalid = nwalkers*ntemps
-    print('Initialising walkers...')
-    print('Number of walkers currently invalid:')
+    print('\n\nInitialising walkers')
+
+    print("Checking initial walker ball for invalid locations...")
+    ln_probs = [ln_prob(p, model) for p in p0]
+    print("Done!")
+    isValid = np.isfinite(ln_probs)
+    whereInvalid = np.where(~isValid)[0] # Only take the 0th dimension
+    numInvalid = np.sum(~isValid)
+
+    print("My naiive walker ball has {} invalid walkers.".format(np.sum(~isValid)))
 
     # All invalid params need to be resampled
     while numInvalid > 0:
-        # Create a mask of invalid params
-        isValid = np.array([np.isfinite(ln_prior(p, model)) for p in p0])
-        bad = p0[~isValid]
         # Determine the number of good and bad walkers
-        nbad = len(bad)
-        print(nbad)
+        numInvalid = np.sum(~isValid)
         ngood = len(p0[isValid])
+        if numInvalid:
+            print("Now, I have {} bad walkers. Rescattering those...".format(numInvalid))
+        else:
+            print("No more invalid walkers!")
+
         # Choose nbad random rows from ngood walker sample
-        replacement_rows = np.random.randint(ngood, size=nbad)
+        replacement_rows = np.random.randint(ngood, size=numInvalid)
         # Create replacement values from valid walkers
         replacements = p0[isValid][replacement_rows]
         # Add scatter to replacement values
@@ -106,8 +135,24 @@ def initialise_walkers_pt(p, scatter, nwalkers, ntemps, ln_prior, model):
             size=replacements.shape)
         # Replace invalid walkers with new values
         p0[~isValid] = replacements
-        numInvalid = len(p0[~isValid])
+
+        # Create a mask of invalid params
+        ## TODO: Thread this?
+        print("Getting priors and probs for {} previously bad walkers...".format(numInvalid))
+
+        # ln_prob = lnlike + lnprob. Only check walkers that are invalid
+        # check walkers that were previously found to be bad, and update those.
+        for i, loc in enumerate(whereInvalid):
+            # print("getting ln_prob of value at location {}".format(loc))
+            isValid[loc] = np.isfinite(ln_prob(p0[loc], model))
+            print("  {}/{}".format(i+1, numInvalid), end='\r')
+        print()
+        whereInvalid = np.where(~isValid)[0]
+
+        print()
+
     p0 = p0.reshape(orig_shape)
+
     return p0
 
 
@@ -118,12 +163,12 @@ def run_burnin(sampler, startPos, nSteps, storechain=False, progress=True):
 
     # emcee irritatingly changed the keyword. This is very ugly.
     try:
-        for pos, prob, state in sampler.sample(startPos, iterations=nSteps, storechain=storechain):
+        for pos, prob, state in sampler.sample(startPos, iterations=nSteps, store=storechain):
             iStep += 1
             if progress:
                 bar.update()
     except:
-        for pos, prob, state in sampler.sample(startPos, iterations=nSteps, store=storechain):
+        for pos, prob, state in sampler.sample(startPos, iterations=nSteps, storechain=storechain):
             iStep += 1
             if progress:
                 bar.update()
@@ -215,7 +260,7 @@ def run_ptmcmc_save(sampler, startPos, nSteps, file, progress=True, col_names=''
                     f.write("{0:4d} {1:s} {2:f}\n".format(k, " ".join(
                     map(str, thisPos)), thisProb))
 
-    except:
+    except TypeError:
         for pos, prob, like in sampler.sample(startPos, iterations=nSteps, storechain=True, **kwargs):
             iStep += 1
             if progress:
