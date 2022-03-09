@@ -501,8 +501,8 @@ class GPLCModel(LCModel):
     Gaussian Process hyper-parameters.
 
     These parameters require some explaination.
-    ln_tau_gp:
-      the ln(timescale) of the covariance matrix
+    tau_gp:
+      the timescale of the covariance matrix
     ln_ampin_gp:
       The base amplitude of the covariance matrix
     ln_ampout_gp:
@@ -512,7 +512,7 @@ class GPLCModel(LCModel):
 
     # Add the GP params
     node_par_names = LCModel.node_par_names
-    node_par_names += ('ln_ampin_gp', 'ln_ampout_gp', 'ln_tau_gp', 'wnoise-fract')
+    node_par_names += ('ln_ampin_gp', 'ln_ampout_gp', 'tau_gp')
 
 
 class SimpleGPEclipse(SimpleEclipse):
@@ -612,17 +612,17 @@ class SimpleGPEclipse(SimpleEclipse):
 
         self.log('SimpleGPEclipse.create_GP', "Creating a new GP")
 
-        # Get objects for ln_ampin_gp, ln_ampout_gp, ln_tau_gp and find the exponential
+        # Get objects for ln_ampin_gp, ln_ampout_gp, tau_gp and find the exponential
         # of their current values
         pardict = self.ancestor_param_dict
 
         ln_ampin = pardict['ln_ampin_gp']
         ln_ampout = pardict['ln_ampout_gp']
-        ln_tau = pardict['ln_tau_gp']
+        tau = pardict['tau_gp']
 
         ampin_gp = np.exp(ln_ampin.currVal)
         ampout_gp = np.exp(ln_ampout.currVal)
-        tau_gp = np.exp(ln_tau.currVal)
+        tau_gp = tau.currVal
 
         # Calculate kernels for both out of and in eclipse WD eclipse
         # Kernel inside of WD has smaller amplitude than that of outside
@@ -634,11 +634,11 @@ class SimpleGPEclipse(SimpleEclipse):
         # We need to make a fairly complex kernel.
         # Global flicker
         self.log('SimpleGPEclipse.create_GP', "Constructing a new kernel")
-        kernel = ampin_gp * george.kernels.Matern32Kernel(tau_gp)
+        kernel = ampin_gp * george.kernels.Matern32Kernel(tau_gp**2)
         # inter-eclipse flicker
         for gap in changepoints:
             kernel += ampout_gp * george.kernels.Matern32Kernel(
-                tau_gp,
+                tau_gp**2,
                 block=gap
             )
 
@@ -688,8 +688,7 @@ class SimpleGPEclipse(SimpleEclipse):
         # Create the GP of this eclipse
         gp = self.create_GP()
         # Compute the GP
-        errfact = self.ancestor_param_dict['wnoise-fract'].currVal
-        gp.compute(self.lc.x, self.lc.ye * errfact)
+        gp.compute(self.lc.x, self.lc.ye)
 
         # The 'quiet' argument tells the GP to return -inf when you get
         # an invalid kernel, rather than throwing an exception.
@@ -732,12 +731,6 @@ def construct_model(input_file, debug=False, nodata=False):
     '''
 
     input_dict = configobj.ConfigObj(input_file)
-
-    for key, item in input_dict.items():
-        if key in ['ampin_gp', 'ampout_gp', 'tau_gp']:
-            print("OI! Don't use {0}, use ln_{0}!!".format(key))
-            input_dict['ln_'+key] = item
-            input("As punishment, you have to hit enter to continue:\n> ")
 
     # Do we use the complex model? Do we use the GP?
     is_complex = bool(int(input_dict['complex']))

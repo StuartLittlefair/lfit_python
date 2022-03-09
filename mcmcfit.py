@@ -218,8 +218,7 @@ if __name__ in '__main__':
         scat_fract = {
             'ln_ampin_gp': 5.0,
             'ln_ampout_gp': 5.0,
-            'ln_tau_gp': 5.0,
-            'wnoise-fract': 5.0,
+            'tau_gp': 5.0,
             'q':      1,
             'rwd':    1,
             'dphi':   0.2,
@@ -259,7 +258,7 @@ if __name__ in '__main__':
 
     if use_pt:
         mp.set_start_method("forkserver")
-        pool = mp.Pool(nthreads)
+        pool = mp.get_context("spawn").Pool(nthreads)
         print("MCMC using parallel tempering at {} levels, for {} total walkers.".format(ntemps, nwalkers*ntemps))
 
         # Create the initial ball of walker positions
@@ -280,7 +279,7 @@ if __name__ in '__main__':
 
     else:
         mp.set_start_method("forkserver")
-        pool = mp.Pool(nthreads)
+        pool = mp.get_context("spawn").Pool(nthreads)
 
         # Create the initial ball of walker positions
         p_0 = utils.initialise_walkers(
@@ -307,12 +306,21 @@ if __name__ in '__main__':
         print("Executing the second burn-in phase")
 
         # Get the Get the most likely step of the first burn-in
-        p_0 = pos[np.argmax(prob)]
-        # And scatter the walker ball about that position
-        p_0 = utils.initialise_walkers(
-            p_0, p0_scatter_2, nwalkers,
-            ln_prior, model
-        )
+        if use_pt:
+            p_0 = pos[np.unravel_index(prob.argmax(), prob.shape)]
+            # Create the initial ball of walker positions
+            p_0 = utils.initialise_walkers_pt(
+                p_0, p0_scatter_2, nwalkers,
+                ntemps,
+                ln_prior, model
+            )
+        else:
+            p_0 = pos[np.argmax(prob)]
+            # And scatter the walker ball about that position
+            p_0 = utils.initialise_walkers(
+                p_0, p0_scatter_2, nwalkers,
+                ln_prior, model
+            )
 
         # Run that burn-in
         pos, prob, state = utils.run_burnin(sampler, p_0, nburn)
