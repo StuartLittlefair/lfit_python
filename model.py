@@ -88,7 +88,7 @@ class Prior(object):
             self.p2 = pars['beta']
             self.low = p1
             self.high = p2
-            self.normalise = 1
+            self.normalise = pars['beta']**pars['alpha'] / gamma(pars['alpha'])
 
     def ln_prob(self, val):
         if self.type == 'gauss':
@@ -108,11 +108,9 @@ class Prior(object):
                     return TINY
         elif self.type == 'invgamma':
             alpha, beta = self.p1, self.p2
-            if val < 0.9*self.low or val > 1.1*self.high:
-                return 0.0
             with warnings.catch_warnings():
                 warnings.simplefilter('ignore')
-                result = beta**alpha * val**(-alpha-1)*np.exp(-beta/val)/gamma(alpha)
+                result = self.normalise * val**(-alpha-1) * np.exp(-beta/val)
             return result
         elif self.type == 'uniform':
             if (val > self.p1) and (val < self.p2):
