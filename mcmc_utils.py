@@ -10,16 +10,7 @@ import seaborn
 from matplotlib import pyplot as plt
 # lightweight progress bar
 from tqdm import tqdm
-
-try:
-    import triangle
-    # This triangle should have a method corner
-    # There are two python packages with conflicting names
-    getattr(triangle, "corner")
-except (AttributeError, ImportError):
-    # We want the other package
-    # print("Could not import package, `triangle`, falling back on `corner.triangle`")
-    import corner as triangle
+import corner
 
 try:
     import dask.dataframe as dd
@@ -30,16 +21,18 @@ except ImportError:
 TINY = -np.inf
 
 
-
 def fracWithin(pdf, val):
     return pdf[pdf >= val].sum()
 
 
 def thumbPlot(chain, labels, **kwargs):
     seaborn.set(style='ticks')
-    seaborn.set_style({"xtick.direction": "in","ytick.direction": "in"})
-    fig = triangle.corner(chain, labels=labels, bins=50,
-                          label_kwargs=dict(fontsize=18), **kwargs)
+    seaborn.set_style({"xtick.direction": "in",
+                       "ytick.direction": "in"})
+    fig = corner.corner(chain, labels=labels, bins=30,
+                        quantiles=[0.16, 0.5, 0.84],
+                        show_titles=True, title_fmt='.1e',
+                        label_kwargs=dict(fontsize=18), **kwargs)
     return fig
 
 

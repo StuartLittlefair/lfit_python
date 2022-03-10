@@ -6,6 +6,7 @@ import argparse
 import glob
 import json
 import os
+import warnings
 
 import configobj
 import matplotlib.pyplot as plt
@@ -15,7 +16,7 @@ import numpy as np
 from random import choice
 
 import mcmc_utils as utils
-from CVModel import construct_model, extract_par_and_key
+from CVModel import construct_model
 
 try:
     import yagmail as yag
@@ -23,6 +24,7 @@ try:
 except ImportError:
     print("Couldn't import yagmail, emailing is disabled!")
     no_yag = True
+
 
 def nxdraw(model):
     '''Draw a hierarchical node map of a model.'''
@@ -43,6 +45,7 @@ def nxdraw(model):
         node_color='grey', font_weight='heavy')
 
     plt.show()
+
 
 def hierarchy_pos(G,
                   root=None, width=1.,
@@ -86,6 +89,7 @@ def hierarchy_pos(G,
 
     return _hierarchy_pos(G, root, width, vert_gap, vert_loc, xcenter)
 
+
 def _hierarchy_pos(G, root,
                    width=1., vert_gap=0.2, vert_loc=0, xcenter=0.5,
                    pos=None, parent=None):
@@ -120,6 +124,7 @@ def _hierarchy_pos(G, root,
             )
 
     return pos
+
 
 def plot_eclipse(ecl_node, save=False, figsize=(11., 8.), fname=None,
                  save_dir='.', ext='.png'):
@@ -207,6 +212,7 @@ def plot_eclipse(ecl_node, save=False, figsize=(11., 8.), fname=None,
 
     return fig, axs
 
+
 def plot_GP_eclipse(ecl_node, save=False, figsize=(11., 8.), fname=None,
                     save_dir='.', ext='.png'):
     '''Plot my data. Returns fig, ax
@@ -266,6 +272,7 @@ def plot_GP_eclipse(ecl_node, save=False, figsize=(11., 8.), fname=None,
 
     return fig, ax
 
+
 def plot_model(model, show, *args, **kwargs):
     '''Calls the relevant plotter for each eclipse contained in the model.
     Passes *args and **kwargs to it.
@@ -298,6 +305,7 @@ def plot_model(model, show, *args, **kwargs):
         plt.close()
         del fig
         del ax
+
 
 def notify(send_to, fnames, body):
     '''Handle the actual sending an email. A pre-defined bot (login details
@@ -354,6 +362,7 @@ def notify(send_to, fnames, body):
 
     return
 
+
 def fit_summary(chain_fname, input_fname, nskip=0, thin=1, destination='',
                 automated=False, corners=True):
     '''Takes the chain file made by mcmcfit.py and summarises the initial
@@ -395,13 +404,17 @@ def fit_summary(chain_fname, input_fname, nskip=0, thin=1, destination='',
     colKeys = list(df.columns.values)[1:-1]
 
     print("Done!\nData shape: {}".format(df.shape))
-    print("Expected a shape (nwalkers, nprod, npars+2): ({}, {}, {})".format(nwalkers, nsteps, len(colKeys)+2))
+    print("Expected a shape (nwalkers, nprod, npars+2): ({}, {}, {})".format(
+        nwalkers, nsteps, len(colKeys)+2)
+    )
 
     nwalkers = df['walker_no'].max() + 1
     df['step'] = df.index // nwalkers
     nsteps = df['step'].max()+1
 
-    print("The chain file actually contains {} walkers, over {} steps.".format(nwalkers, nsteps))
+    print("The chain file actually contains {} walkers, over {} steps.".format(
+        nwalkers, nsteps)
+    )
 
     # Create the Final_figs and Initial_figs directories.
     if not os.path.isdir("Final_figs"):
@@ -452,7 +465,7 @@ def fit_summary(chain_fname, input_fname, nskip=0, thin=1, destination='',
             nskip = input("You opted not to skip any data, are you still sure? (default 0)\n-> nskip: ")
             try:
                 nskip = int(nskip)
-            except:
+            except ValueError:
                 nskip = 0
     data = df.loc[df['step'] >= nskip]
     print("First step is {}".format(steps.min()))
@@ -465,23 +478,22 @@ def fit_summary(chain_fname, input_fname, nskip=0, thin=1, destination='',
             thin = input("You opted not to thin the data, are you sure? (defaults to no thinning)\n-> thin: ")
             try:
                 thin = int(thin)
-            except:
-                thin = False
+            except ValueError:
+                thin = 1
     if thin > 1:
-        df = df.loc[df.step % thin != 0]
+        data = data.loc[data.step % thin != 0]
 
     nwalkers = len(np.unique(data['walker_no']))
     nsteps = len(np.unique(data['step']))
     npars = len(colKeys)
-    print("After thinning and skipping: {} walkers, {} steps, {} params".format(nwalkers, nsteps, npars))
-
-    print(data.head())
+    print("After thinning and skipping: {} walkers, {} steps, {} params".format(
+        nwalkers, nsteps, npars)
+    )
     plt.close()
-
 
     # Analyse the chain. Take the mean as the result, and 2 sigma as the error
     result = pd.DataFrame()
-    result['mean'] = data.mean()
+    result['median'] = data.quantile(0.50)
     result['84th percentile'] = data.quantile(0.84)
     result['16th percentile'] = data.quantile(0.16)
 
@@ -490,7 +502,7 @@ def fit_summary(chain_fname, input_fname, nskip=0, thin=1, destination='',
     print("Result of the chain:")
     with pd.option_context('display.max_rows', None, 'display.max_columns', None):
         print(result)
-    modparams = result.loc[colKeys,:]
+    modparams = result.loc[colKeys, :]
     modparams.to_csv('modparams.csv', header=True)
 
     # # # # # # # # # # # # # # # # # # # # # # # #
@@ -498,7 +510,7 @@ def fit_summary(chain_fname, input_fname, nskip=0, thin=1, destination='',
     # # # # # # # # # # # # # # # # # # # # # # # #
 
     model = construct_model(input_fname)
-    parDict = {k:v for k, v in data.mean().to_dict().items() if k in colKeys}
+    parDict = {k: v for k, v in result['median'].to_dict().items() if k in colKeys}
 
     # We want to know where we started, so we can evaluate improvements.
     # Wok out how many degrees of freedom we have in the model
@@ -511,8 +523,12 @@ def fit_summary(chain_fname, input_fname, nskip=0, thin=1, destination='',
     dof -= 1
 
     model_preport = 'The following is the result of the MCMC fit running in:\n'
-    model_preport += "  Machine name: {}\n  Directory: {}\n".format(os.uname().nodename, os.getcwd())
-    model_preport += "\n\nInitial guess has a chisq of {:.3f} ({:d} D.o.F.).\n".format(model.chisq(), dof)
+    model_preport += "  Machine name: {}\n  Directory: {}\n".format(
+        os.uname().nodename, os.getcwd()
+    )
+    model_preport += "\n\nInitial guess has a chisq of {:.3f} ({:d} D.o.F.).\n".format(
+        model.chisq(), dof
+    )
     model_preport += "\nEvaluating the model, we get;\n"
     model_preport += "a ln_prior of {:.3f}\n".format(model.ln_prior())
     model_preport += "a ln_like of {:.3f}\n".format(model.ln_like())
@@ -589,18 +605,9 @@ def fit_summary(chain_fname, input_fname, nskip=0, thin=1, destination='',
             par_labels += ["{}_{}".format(par, my_model.label) for par in my_model.node_par_names]
 
             # Only plot parameters that are in the chain file.
-            labels = []
-            print("PAR_LABELS: {}".format(par_labels))
-            print("COL_KEYS: {}".format(colKeys))
-            for par in par_labels:
-                for col in colKeys:
-                    if par == col:
-                        labels.append(par)
-                        continue
-            par_labels = labels
-
+            par_labels = list(set(par_labels).intersection(colKeys))
             print("\nMy corner plot labels are:")
-            print(labels)
+            print(par_labels)
 
             # Get the indexes in the chain file, and gather those columns
             chain_slice = np.asarray(data[par_labels])
@@ -610,23 +617,25 @@ def fit_summary(chain_fname, input_fname, nskip=0, thin=1, destination='',
             if par_labels == []:
                 continue
 
+            # skip immobile pars (with warning)
             dev = np.std(chain_slice, axis=0)
-            dev[np.where(dev == 0)] = np.nan
-            print(dev)
-            chain_slice = chain_slice[:, ~np.isnan(dev)]
-            par_labels = [p for p, d in zip(labels, dev) if not np.isnan(d)]
+            if any(dev == 0):
+                stationary_mask = np.where(dev == 0)[0]
+                bad_params = ', '.join([par_labels[i] for i in stationary_mask])
+                warnings.warn(f'chains for {bad_params} are stationary')
+                dev[stationary_mask] = np.nan
+                chain_slice = chain_slice[:, ~np.isnan(dev)]
+                par_labels = [p for p, d in zip(par_labels, dev) if not np.isnan(d)]
 
-
-            print("\nAfter checking for immobile variables,My corner plot labels are:~")
+            print("\nAfter checking for immobile variables, my corner plot labels are:~")
             print(par_labels)
             print("chain_slice has the shape:", chain_slice.shape)
             print("Par_labels has the shape: ", len(par_labels))
 
             fig = utils.thumbPlot(chain_slice, par_labels)
-
             fname = os.path.split(eclipse.lc.fname)[1]
             fname = os.path.splitext(fname)[0]
-            oname = "Final_figs/" + fname + '_corners.png'
+            oname = "Final_figs/" + fname + '_corners.pdf'
             print("Saving to {}...".format(oname))
             plt.savefig(oname)
             plt.close()
