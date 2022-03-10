@@ -4,9 +4,6 @@ structure of the model fed to emcee. The `trunk` is an LCModel or GPLCModel
 node, with child Bands, that have XEclipse leaves to evaluate the CV lightcurve
 fit to the data. Data is stored in the Lightcurve class.
 '''
-
-BIG = 9e99
-
 import os
 
 import configobj
@@ -16,6 +13,9 @@ import numpy as np
 from trm import roche
 
 from model import Node, Param, extract_par_and_key
+
+
+BIG = 9e99
 
 
 class Lightcurve:
@@ -51,8 +51,9 @@ class Lightcurve:
             try:
                 data = np.loadtxt(fname, delimiter=delimiter, comments='#')
                 break
-            except ValueError as exception:
-                print("Couldn't split the calib file with '{}', trying next delimiter...".format(delimiter))
+            except ValueError:
+                print("Couldn't split the calib file with '{}', trying next delimiter...".format(
+                    delimiter))
         phase, flux, error = data.T
 
         # Filter out nans.
@@ -221,11 +222,10 @@ class SimpleEclipse(Node):
         q = ancestor_param_dict['q'].currVal
         try:
             xl1 = roche.xl1(q)
-        except AssertionError as err:
+        except AssertionError:
             if verbose:
                 print("Failed to get the L1 point!")
             return -np.inf
-
 
         # Get the rdisc, scaled to the Roche Radius
         rdisc = ancestor_param_dict['rdisc'].currVal
