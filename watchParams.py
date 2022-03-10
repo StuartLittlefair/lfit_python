@@ -20,10 +20,12 @@ try:
 except ImportError:
     raise ImportError("Failed to import model modules!")
 
+
 def parseInput(file):
     """Splits input file up making it easier to read"""
     input_dict = configobj.ConfigObj(file)
     return input_dict
+
 
 class Watcher():
     '''This class will initialise a bokeh page, with some useful lfit MCMC chain supervision tools.
@@ -158,7 +160,7 @@ class Watcher():
                 end   = param[2],
                 value_throttled = param[0],
                 value = param[0],
-                step  = (param[2] - param[1]) / 200,
+                step  = (param[2] - param[1]) / 400,
                 width = 200,
                 format='0.0000',
             )
@@ -633,10 +635,16 @@ class Watcher():
 
         self.update_lc_model('value', '', '')
 
-    def update_lc_model(self, attr, old, new):
+    def update_lc_model(self, attr, old, new, debug=False):
         '''Callback to recalculate and redraw the CV model'''
-        print("\n\nCALLED UPDATE_LC_MODEL")
-        print("I want to update {} with the slider values.".format(
+
+
+        def print_bug(msg):
+            if debug:
+                print(msg)
+
+        print_bug("\n\nCALLED UPDATE_LC_MODEL")
+        print_bug("I want to update {} with the slider values.".format(
             self.current_eclipse.name
         ))
 
@@ -650,37 +658,37 @@ class Watcher():
         # ones.
         eclipse_par_sliders = self.par_sliders
         if self.complex:
-            print("Using the complex model, so handling those sliders too")
+            print_bug("Using the complex model, so handling those sliders too")
             eclipse_par_sliders += self.par_sliders_complex
 
-        print("Using the GP, so setting those sliders")
+        print_bug("Using the GP, so setting those sliders")
         eclipse_par_sliders += self.par_sliders_GP
 
         for i, par_name in enumerate(self.model.dynasty_par_names):
-            # print("Param {}: {}".format(i, par_name))
+            print_bug("Param {}: {}".format(i, par_name))
             if par_name.endswith(self.current_eclipse.label):
                 for slider in eclipse_par_sliders:
                     if par_name.startswith(slider.name):
-                        # print("Slider {} found, taking its value".format(slider.name))
+                        print_bug("Slider {} found, taking its value".format(slider.name))
                         par_vals[i] = slider.value
 
             if par_name.endswith(band.label):
                 for slider in self.par_sliders:
                     if par_name.startswith(slider.name):
-                        # print("Slider {} found, taking its value".format(slider.name))
+                        print_bug("Slider {} found, taking its value".format(slider.name))
                         par_vals[i] = slider.value
 
             if par_name.endswith(self.model.label):
                 for slider in self.par_sliders:
                     if par_name.startswith(slider.name):
-                        # print("Slider {} found, taking its value".format(slider.name))
+                        print_bug("Slider {} found, taking its value".format(slider.name))
                         par_vals[i] = slider.value
 
-        print("I altered the the following parameter vector components:")
+        print_bug("I altered the the following parameter vector components:")
         old_pars = self.model.dynasty_par_vals
         for i, (old_par, new_par) in enumerate(zip(old_pars, par_vals)):
             if old_par != new_par:
-                print("parameter {} --- Old value: {:.3f}  ---  New value: {:.3f}".format(
+                print_bug("parameter {} --- Old value: {:.3f}  ---  New value: {:.3f}".format(
                     i, old_par, new_par
                 ))
         self.model.dynasty_par_vals = par_vals
