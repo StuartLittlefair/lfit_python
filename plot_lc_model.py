@@ -127,7 +127,7 @@ def _hierarchy_pos(G, root,
 
 
 def plot_eclipse(ecl_node, save=False, figsize=(11., 8.), fname=None,
-                 save_dir='.', ext='.png'):
+                 save_dir='.', ext='.pdf'):
     '''Create a plot of the eclipse's data.
 
     If save is True, a copy of the figure is saved.
@@ -214,7 +214,7 @@ def plot_eclipse(ecl_node, save=False, figsize=(11., 8.), fname=None,
 
 
 def plot_GP_eclipse(ecl_node, save=False, figsize=(11., 8.), fname=None,
-                    save_dir='.', ext='.png'):
+                    save_dir='.', ext='.pdf'):
     '''Plot my data. Returns fig, ax
 
     If save is True, save the figures.
@@ -222,8 +222,9 @@ def plot_GP_eclipse(ecl_node, save=False, figsize=(11., 8.), fname=None,
     '''
 
     # Get the figure and axes from the eclipse
-    fig, ax = plot_eclipse(ecl_node, False, figsize, fname, save_dir,
-                ext)
+    fig, ax = plot_eclipse(
+        ecl_node, False, figsize, fname, save_dir, ext
+    )
 
     # Get the residuals of the model
     residuals = ecl_node.lc.y - ecl_node.calcFlux()
@@ -564,7 +565,6 @@ def fit_summary(chain_fname, input_fname, nskip=0, thin=1, destination='',
         print("Sending a summary email. Corner plots are omitted due to filesize.")
         # Gather the files
         fnames = list(glob.iglob('Final_figs/*.pdf', recursive=True))
-        fnames += list(glob.iglob('Final_figs/*.png', recursive=True))
 
         fnames = [name for name in fnames if not "corner" in name.lower()]
 
