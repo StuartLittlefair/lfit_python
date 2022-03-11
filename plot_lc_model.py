@@ -482,7 +482,7 @@ def fit_summary(chain_fname, input_fname, nskip=0, thin=1, destination='',
             except ValueError:
                 thin = 1
     if thin > 1:
-        data = data.loc[data.step % thin != 0]
+        data = data.loc[data.step % thin == 0]
 
     nwalkers = len(np.unique(data['walker_no']))
     nsteps = len(np.unique(data['step']))
