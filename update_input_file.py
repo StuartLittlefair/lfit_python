@@ -4,53 +4,45 @@ previous chain.
 """
 import argparse
 
-import configobj
-import numpy as np
-
-from mcmc_utils import flatchain, readchain_dask as readchain
-
-
-
-def update_entry(name, input_dict, newval):
-    fields = input_dict[name].split(' ')
-    fields = [v for v in fields if v != '']
-    fields[0] = str(newval)
-    input_dict[name] = '    '.join(fields)
+import pandas as pd
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     parser.add_argument("-t", "--thin", action="store", type=int,
-                        default=10, help="thinning for chain (default=10)")
+                        default=5, help="thinning for chain (default=5)")
     parser.add_argument('input_file', help='mcmc input file')
     parser.add_argument('chain_file', help='chain output file')
     args = parser.parse_args()
 
-    input_dict = configobj.ConfigObj(args.input_file)
     print("Reading in the chain")
-    chain = readchain(args.chain_file)
-    nwalkers, nsteps, npars = chain.shape
-    fchain = flatchain(chain, npars, thin=args.thin)
+    df = pd.read_csv(args.chain_file, delim_whitespace=True)
+    nwalkers = df['walker_no'].max() + 1
+    df['step'] = df.index // nwalkers
+    df = df.loc[df.step % args.thin == 0]
 
-    # get param names from chain file
-    firstLine = open(args.chain_file).readline()
-    # first entry is walker number - strip
-    fields = firstLine.strip().split()[1:]
+    # get median from df
+    results = df.quantile(0.5)
     # strip "core" from core params
-    for i in range(len(fields)):
-        if 'core' in fields[i]:
-            fields[i] = fields[i].split("_")[0]
+    results.index = [entry.replace('_core', '') for entry in results.index]
 
-    # get median values
-    vals = np.median(fchain, axis=0)
+    # replace lines in MCMC input file
+    line_fmt = "{:>10} {:1} {:>16.8f} {:>12} {:>16} {:>16} {:>12}\n"
+    mcmc_input = open(args.input_file).readlines()
+    for i, line in enumerate(mcmc_input):
+        if line.startswith('#'):
+            continue
+        fields = line.strip().split()  # split line on whitespace
+        if len(fields) == 0:
+            continue
 
-    # update
-    for n, v in zip(fields, vals):
-        if n in input_dict:
-            print("\nUpdating the entry:")
-            print("n: {}".format(n))
-            print("v: {}".format(v))
-            update_entry(n, input_dict, v)
+        parname = fields[0]
+        if parname in results.index:
+            # we have an updated value for this parameter!
+            fields[2] = results[parname]
+            mcmc_input[i] = line_fmt.format(*fields)
 
-    input_dict.write()
+    with open(args.input_file, 'w') as f:
+        for line in mcmc_input:
+            f.write(line)
