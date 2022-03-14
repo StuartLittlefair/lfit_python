@@ -1,4 +1,4 @@
-'''
+"""
 This script will run the actual fitting procedure.
 Requires the input file, and data files defined in that.
 Supplied at the command line, via:
@@ -6,7 +6,7 @@ Supplied at the command line, via:
     python3 mcmcfit.py mcmc_input.dat
 
 Can also notify the user of a completed chain with the --notify flag.
-'''
+"""
 
 import argparse
 import multiprocessing as mp
@@ -22,8 +22,10 @@ import numpy as np
 import mcmc_utils as utils
 import plot_lc_model as plotCV
 from CVModel import construct_model, extract_par_and_key
+
 try:
     import ptemcee
+
     noPT = False
 except:
     print("Failed to import ptemcee! Disabling parallel tempering.")
@@ -52,34 +54,28 @@ def ln_like(param_vector, model):
     return val
 
 
-if __name__ in '__main__':
+if __name__ in "__main__":
 
     # Set up the parser.
     parser = argparse.ArgumentParser(
-        description='''Execute an MCMC fit to a dataset.'''
+        description="""Execute an MCMC fit to a dataset."""
     )
 
     parser.add_argument(
-        "input",
-        help="The filename for the MCMC parameters' input file.",
-        type=str,
+        "input", help="The filename for the MCMC parameters' input file.", type=str,
     )
     parser.add_argument(
-        '--notify',
+        "--notify",
         help="The script will email a summary results of the MCMC to this address",
         type=str,
-        default=''
+        default="",
     )
     parser.add_argument(
-        '--debug',
-        help='Enable the debugging flag in the model',
-        action='store_true'
+        "--debug", help="Enable the debugging flag in the model", action="store_true"
     )
 
     parser.add_argument(
-        "--quiet",
-        help="Do not plot the initial conditions",
-        action="store_true"
+        "--quiet", help="Do not plot the initial conditions", action="store_true"
     )
 
     args = parser.parse_args()
@@ -93,18 +89,18 @@ if __name__ in '__main__':
             rmtree("DEBUGGING")
 
     # I want to pre-check that the details have been supplied.
-    if dest != '':
-        location = __file__.split('/')[:-1] + ["email_details.json"]
-        details_loc = '/'.join(location)
+    if dest != "":
+        location = __file__.split("/")[:-1] + ["email_details.json"]
+        details_loc = "/".join(location)
         if not os.path.isfile(details_loc):
             print("Couldn't find the file {}! Creating it now.")
-            with open(details_loc, 'w') as f:
+            with open(details_loc, "w") as f:
                 s = '{\n  "user": "Bot email address",\n  "pass": "Bot email password"\n}'
                 f.write(s)
 
         # Check that the details file has been filled in.
         # If it hasn't, ask the user to get it done.
-        with open(details_loc, 'r') as f:
+        with open(details_loc, "r") as f:
             details = f.read()
         if "Bot email address" in details:
             print("The model will continue for now, but there are no")
@@ -122,17 +118,17 @@ if __name__ in '__main__':
     input_dict = configobj.ConfigObj(input_fname)
 
     # Read in information about mcmc
-    nburn = int(input_dict['nburn'])
-    nprod = int(input_dict['nprod'])
-    nthreads = int(input_dict['nthread'])
-    nwalkers = int(input_dict['nwalkers'])
-    ntemps = int(input_dict['ntemps'])
-    scatter_1 = float(input_dict['first_scatter'])
-    scatter_2 = float(input_dict['second_scatter'])
-    to_fit = int(input_dict['fit'])
-    use_pt = bool(int(input_dict['usePT']))
-    double_burnin = bool(int(input_dict['double_burnin']))
-    comp_scat = bool(int(input_dict['comp_scat']))
+    nburn = int(input_dict["nburn"])
+    nprod = int(input_dict["nprod"])
+    nthreads = int(input_dict["nthread"])
+    nwalkers = int(input_dict["nwalkers"])
+    ntemps = int(input_dict["ntemps"])
+    scatter_1 = float(input_dict["first_scatter"])
+    scatter_2 = float(input_dict["second_scatter"])
+    to_fit = int(input_dict["fit"])
+    use_pt = bool(int(input_dict["usePT"]))
+    double_burnin = bool(int(input_dict["double_burnin"]))
+    comp_scat = bool(int(input_dict["comp_scat"]))
 
     if use_pt and noPT:
         print("\n\n!!!! Can't use Parallel tempering !!!!\n\n")
@@ -141,21 +137,25 @@ if __name__ in '__main__':
     # neclipses no longer strictly necessary, but can be used to limit the
     # maximum number of fitted eclipses
     try:
-        neclipses = int(input_dict['neclipses'])
+        neclipses = int(input_dict["neclipses"])
     except KeyError:
         neclipses = len(model.search_node_type("Eclipse"))
         print("The model has {} eclipses.".format(neclipses))
 
     # Wok out how many degrees of freedom we have in the model
     # How many data points do we have?
-    dof = np.sum([ecl.lc.n_data for ecl in model.search_node_type('Eclipse')])
+    dof = np.sum([ecl.lc.n_data for ecl in model.search_node_type("Eclipse")])
     # Subtract a DoF for each variable
     dof -= len(model.dynasty_par_names)
     # Subtract one DoF for the fit
     dof -= 1
     dof = int(dof)
 
-    print("\n\nInitial guess has a chisq of {:.3f} ({:d} D.o.F.).".format(model.chisq(), dof))
+    print(
+        "\n\nInitial guess has a chisq of {:.3f} ({:d} D.o.F.).".format(
+            model.chisq(), dof
+        )
+    )
     print("\nFrom the wrapper functions with the above parameters, we get;")
     pars = model.dynasty_par_vals
     print("a ln_prior of {:.3f}".format(ln_prior(pars, model)))
@@ -168,8 +168,7 @@ if __name__ in '__main__':
 
         pars, names = model.__get_descendant_params__()
         for par, name in zip(pars, names):
-            print("{:>15s}_{:<5s}: Valid?: {}".format(
-                par.name, name, par.isValid))
+            print("{:>15s}_{:<5s}: Valid?: {}".format(par.name, name, par.isValid))
 
             if not par.isValid:
                 print("  -> {}_{}".format(par.name, name))
@@ -182,12 +181,10 @@ if __name__ in '__main__':
     if not quiet:
         plotCV.nxdraw(model)
         plotCV.plot_model(
-            model, True,
-            save=True, figsize=(11, 8),
-            save_dir='Initial_figs/'
+            model, True, save=True, figsize=(11, 8), save_dir="Initial_figs/"
         )
     if not to_fit:
-      exit()
+        exit()
 
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
     #  MCMC Chain sampler, handled by emcee.                      #
@@ -197,10 +194,9 @@ if __name__ in '__main__':
     # How many parameters do I have to deal with?
     npars = len(model.dynasty_par_vals)
 
-    print("\n\nThe MCMC has {:d} variables and {:d} walkers".format(
-        npars, nwalkers))
-    print("(It should have at least 2*npars, {:d} walkers)".format(2*npars))
-    if nwalkers < 2*npars:
+    print("\n\nThe MCMC has {:d} variables and {:d} walkers".format(npars, nwalkers))
+    print("(It should have at least 2*npars, {:d} walkers)".format(2 * npars))
+    if nwalkers < 2 * npars:
         exit()
 
     # p_0 is the initial position vector of the MCMC walker
@@ -216,27 +212,27 @@ if __name__ in '__main__':
     if comp_scat:
         # scatter factors. p0_scatter_1 will be multiplied by these:
         scat_fract = {
-            'ln_ampin_gp': 5.0,
-            'ln_ampout_gp': 5.0,
-            'tau_gp': 5.0,
-            'q':      1,
-            'rwd':    1,
-            'dphi':   0.2,
-            'dFlux':  1,
-            'sFlux':  1,
-            'wdFlux': 1,
-            'rsFlux': 1,
-            'rdisc':  1,
-            'ulimb':  1e-6,
-            'scale':  1,
-            'fis':    1,
-            'dexp':   1,
-            'phi0':   1,
-            'az':     1,
-            'exp1':   1,
-            'exp2':   1,
-            'yaw':    1,
-            'tilt':   1,
+            "ln_ampin_gp": 5.0,
+            "ln_ampout_gp": 5.0,
+            "tau_gp": 5.0,
+            "q": 1,
+            "rwd": 1,
+            "dphi": 0.2,
+            "dFlux": 1,
+            "sFlux": 1,
+            "wdFlux": 1,
+            "rsFlux": 1,
+            "rdisc": 1,
+            "ulimb": 1e-6,
+            "scale": 1,
+            "fis": 1,
+            "dexp": 1,
+            "phi0": 1,
+            "az": 1,
+            "exp1": 1,
+            "exp2": 1,
+            "yaw": 1,
+            "tilt": 1,
         }
 
         for par_i, name in enumerate(model.dynasty_par_names):
@@ -244,14 +240,14 @@ if __name__ in '__main__':
             key, _ = extract_par_and_key(name)
 
             # Skip the GP params
-            if key.startswith('ln'):
+            if key.startswith("ln"):
                 continue
 
             # Multiply it by the relevant factor
             p0_scatter_1[par_i] *= scat_fract[key]
 
         # Create another array for second burn-in
-        p0_scatter_2 = p0_scatter_1*(scatter_2/scatter_1)
+        p0_scatter_2 = p0_scatter_1 * (scatter_2 / scatter_1)
 
     # Initialise the sampler. If we're using parallel tempering, do that.
     # Otherwise, don't.
@@ -259,22 +255,27 @@ if __name__ in '__main__':
     if use_pt:
         mp.set_start_method("forkserver")
         pool = mp.get_context("spawn").Pool(nthreads)
-        print("MCMC using parallel tempering at {} levels, for {} total walkers.".format(ntemps, nwalkers*ntemps))
+        print(
+            "MCMC using parallel tempering at {} levels, for {} total walkers.".format(
+                ntemps, nwalkers * ntemps
+            )
+        )
 
         # Create the initial ball of walker positions
         p_0 = utils.initialise_walkers_pt(
-            p_0, p0_scatter_1, nwalkers,
-            ntemps,
-            ln_prior, model
+            p_0, p0_scatter_1, nwalkers, ntemps, ln_prior, model
         )
 
         # Create the sampler
         sampler = ptemcee.sampler.Sampler(
-            nwalkers, npars,
-            ln_like, ln_prob,
+            nwalkers,
+            npars,
+            ln_like,
+            ln_prob,
             loglargs=(model,),
             logpargs=(model,),
-            ntemps=ntemps, pool=pool,
+            ntemps=ntemps,
+            pool=pool,
         )
 
     else:
@@ -282,17 +283,11 @@ if __name__ in '__main__':
         pool = mp.get_context("spawn").Pool(nthreads)
 
         # Create the initial ball of walker positions
-        p_0 = utils.initialise_walkers(
-            p_0, p0_scatter_1, nwalkers,
-            ln_prior, model
-        )
+        p_0 = utils.initialise_walkers(p_0, p0_scatter_1, nwalkers, ln_prior, model)
 
         # Create the sampler
         sampler = emcee.EnsembleSampler(
-            nwalkers, npars,
-            ln_prob,
-            args=(model,),
-            pool=pool
+            nwalkers, npars, ln_prob, args=(model,), pool=pool
         )
 
     # Run the burnin phase
@@ -310,17 +305,12 @@ if __name__ in '__main__':
             p_0 = pos[np.unravel_index(prob.argmax(), prob.shape)]
             # Create the initial ball of walker positions
             p_0 = utils.initialise_walkers_pt(
-                p_0, p0_scatter_2, nwalkers,
-                ntemps,
-                ln_prior, model
+                p_0, p0_scatter_2, nwalkers, ntemps, ln_prior, model
             )
         else:
             p_0 = pos[np.argmax(prob)]
             # And scatter the walker ball about that position
-            p_0 = utils.initialise_walkers(
-                p_0, p0_scatter_2, nwalkers,
-                ln_prior, model
-            )
+            p_0 = utils.initialise_walkers(p_0, p0_scatter_2, nwalkers, ln_prior, model)
 
         # Run that burn-in
         pos, prob, state = utils.run_burnin(sampler, p_0, nburn)
@@ -331,13 +321,12 @@ if __name__ in '__main__':
     print("Starting the main MCMC chain. Probably going to take a while!")
 
     # Get the column keys. Otherwise, we can't parse the results!
-    col_names = "walker_no " + ' '.join(model.dynasty_par_names) + ' ln_prob'
+    col_names = "walker_no " + " ".join(model.dynasty_par_names) + " ln_prob"
 
     if use_pt:
         # Run production stage of parallel tempered mcmc
         sampler = utils.run_ptmcmc_save(
-            sampler, pos, nprod,
-            "chain_prod.txt", col_names=col_names
+            sampler, pos, nprod, "chain_prod.txt", col_names=col_names
         )
 
         # get chain for zero temp walker. Higher temp walkers DONT sample the
@@ -347,8 +336,7 @@ if __name__ in '__main__':
     else:
         # Run production stage of non-parallel tempered mcmc
         sampler = utils.run_mcmc_save(
-            sampler, pos, nprod, state,
-            "chain_prod.txt", col_names=col_names
+            sampler, pos, nprod, state, "chain_prod.txt", col_names=col_names
         )
 
         # lnprob is in sampler.ln(probability) and is shape (nwalkers, nsteps)
@@ -357,4 +345,4 @@ if __name__ in '__main__':
         # Collect results from all walkers
         chain = utils.flatchain(sampler.chain, npars, thin=10)
 
-    plotCV.fit_summary('chain_prod.txt', input_fname, destination=dest, automated=True)
+    plotCV.fit_summary("chain_prod.txt", input_fname, destination=dest, automated=True)
