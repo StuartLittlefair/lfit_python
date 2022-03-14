@@ -1,17 +1,19 @@
 import argparse
 import os
 from functools import partial
+from multiprocessing import Pool
 
 import numpy as np
 import seaborn as sns
 from astropy import constants as const
 from astropy import units
 from astropy.table import Table
-from astropy.utils.console import ProgressBar as PB
 from scipy import interpolate as interp
 from scipy.optimize import brentq
+from tqdm import tqdm
 from trm import roche
-from mcmc_utils import readchain_dask, readflatchain, flatchain
+
+from mcmc_utils import flatchain, readchain_dask, readflatchain
 
 
 def read_wood_file(filename):
@@ -222,9 +224,10 @@ def solve(input_data, baseDir):
 
 
 if __name__ == "__main__":
-    import pandas as pd
-    from mcmc_utils import thumbPlot
     import matplotlib.pyplot as plt
+    import pandas as pd
+
+    from mcmc_utils import thumbPlot
 
     sns.set()
     parser = argparse.ArgumentParser(
@@ -254,7 +257,7 @@ if __name__ == "__main__":
         "--dir",
         "-d",
         help="directory with WD models",
-        default="/home/php18jfw/Github/lfit/params/",
+        default=None,
     )
     args = parser.parse_args()
     fname = args.file
@@ -317,12 +320,14 @@ if __name__ == "__main__":
     print("Getting solutions for each step of the MCMC chain...")
     psolve = partial(solve, baseDir=baseDir)
     data = zip(qVals, dphiVals, rwVals, twdVals, pVals)
-    solvedParams = PB.map(psolve, data, multiprocess=True)
+    with Pool(processes=args.nthreads) as pool:
+        solvedParams = []
+        for result in tqdm(pool.imap(psolve, data), total=len(qVals)):
+            solvedParams.append(result)
 
     print("Writing out results...")
     # loop over these results and put all the solutions in our results table
-    bar = PB(solvedParams)
-    for thisResult in bar:
+    for thisResult in tqdm(solvedParams):
         if thisResult is not None:
             results.add_row(thisResult)
 
