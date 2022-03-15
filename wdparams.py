@@ -1,30 +1,34 @@
 import multiprocessing as mp
 import os
+from enum import Enum
+import copy
 
-# import warnings
-
-import ptemcee
+import configobj
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import emcee
 import scipy.interpolate as interp
 from astropy.stats import sigma_clipped_stats
 
 from mcmc_utils import (
     flatchain,
-    initialise_walkers_pt,
+    initialise_walkers,
     readchain,
     readflatchain,
     run_burnin,
-    run_ptmcmc_save,
+    run_mcmc_save,
     thumbPlot,
 )
 from model import Param
 
+# import warnings
+
+
 # Location of data tables
 ROOT, _ = os.path.split(__file__)
 
-# Define helper functions for the MCMC fit
+
 def ln_prior(vect, model):
     # first we update the model to use the pars suggested by the MCMC chain
     for i in range(model.npars):
@@ -44,6 +48,10 @@ def ln_prior(vect, model):
     param = model.plax
     lnp += param.prior.ln_prob(param.currVal)
 
+    # enforce +ve parallax
+    if model.plax.currVal <= 0:
+        return -np.inf
+
     # reddening, cannot exceed galactic value (should estimate from line of sight)
     # https://irsa.ipac.caltech.edu/applications/DUST/
     param = model.ebv
@@ -55,39 +63,16 @@ def ln_likelihood(vect, model):
     # first we update the model to use the pars suggested by the MCMC chain
     for i in range(model.npars):
         model[i] = vect[i]
-
-    errs = []
-    for obs in model.obs_fluxes:
-        errs.append(obs.err)
-    errs = np.array(errs)
-
-    chisq = model.chisq()
-
-    return -0.5 * (np.sum(np.log(2.0 * np.pi * errs ** 2)) + chisq)
+    return -0.5 * model.chisq()
 
 
 def ln_prob(vect, model):
-    # first we update the model to use the pars suggested by the MCMC chain
-    for i in range(model.npars):
-        model[i] = vect[i]
-
     lnp = ln_prior(vect, model)
     if np.isfinite(lnp):
-        return lnp + ln_likelihood(vect, model)
-    else:
-        return lnp
-
-
-def parseInput(file):
-    """ reads in a file of key = value entries and returns a dictionary"""
-    # Reads in input file and splits it into lines
-    blob = np.loadtxt(file, dtype="str", delimiter="\n")
-    input_dict = {}
-    for line in blob:
-        # Each line is then split at the equals sign
-        k, v = line.split("=")
-        input_dict[k.strip()] = v.strip()
-    return input_dict
+        lnp += ln_likelihood(vect, model)
+    if np.isnan(lnp):
+        lnp = -np.inf
+    return lnp
 
 
 def sdss2kg5(g, r):
@@ -102,18 +87,196 @@ def sdssmag2flux(mag):
     return 3631e3 * np.power(10, -0.4 * mag)
 
 
-class wdModel:
-    """wd model
-    can be passed to MCMC routines for calculating model and chisq, and prior prob
+class PhotometricSystem(Enum):
+    SDSS = "SDSS"
+    HCAM = "HCAM"
+    UCAM_SDSS = "UCAM_SDSS"
+    UCAM_SUPER = "UCAM_SUPER"
+    USPEC = "USPEC"
 
-    also behaves like a list, of the current values of all parameters
+    @property
+    def bergeron_table(self):
+        """
+        Name of correct table for Bergeron mags
+        """
+        if self.name == "SDSS":
+            return os.path.join(ROOT, "Bergeron/Table_DA_sdss")
+        else:
+            return os.path.join(ROOT, "Bergeron/Table_DA")
+
+    def color_correction_data(self, band):
+        """
+        Information needed for correction from Bergeron table to this band
+
+        Parameters
+        ----------
+        band: str
+            e.g u, g, r, i, z
+
+        Returns
+        -------
+        table: str
+            Path to color correction tables
+        column: str
+            Name of column to read from table for correction
+        """
+        if self.name == "USPEC":
+            table = os.path.join(
+                ROOT,
+                "Bergeron/color_correction_tables/color_corrections_HCAM-GTC-super_minus_tnt_uspec.csv",
+            )
+            column = band
+        elif self.name == "SDSS" or self.name == "HCAM":
+            table = None
+            column = None
+        else:
+            table = os.path.join(
+                ROOT,
+                "Bergeron/color_correction_tables/color_corrections_HCAM-GTC-super_minus_ntt_ucam.csv",
+            )
+            column = f"{band}_s" if "SUPER" in self.name else band
+        return table, column
+
+    @classmethod
+    def from_telescope_band(self, telescope, band_name):
+        """
+        Get a photometric system from a combination of telescope and band_name
+        """
+        if telescope == "hcam":
+            return PhotometricSystem.HCAM
+        elif telescope == "ucam":
+            return (
+                PhotometricSystem.UCAM_SUPER
+                if "_s" in band_name
+                else PhotometricSystem.UCAM_SDSS
+            )
+        elif telescope == "uspec":
+            return PhotometricSystem.USPEC
+        elif telescope == "sdss":
+            return PhotometricSystem.SDSS
+        else:
+            raise ValueError(f"unrecognised system: {telescope, band_name}")
+
+    def central_wavelength(self, band):
+        super_lambda_c = {
+            "u": 352.6,
+            "g": 473.2,
+            "r": 619.9,
+            "i": 771.1,
+            "z": 915.6,
+        }
+        lambda_c = {
+            "u": 355.7,
+            "g": 482.5,
+            "r": 626.1,
+            "i": 767.2,
+            "z": 909.7,
+            "kg5": 507.5,
+        }
+        lambda_c_dict = (
+            super_lambda_c if self.name in ["HCAM", "UCAM_SUPER"] else lambda_c
+        )
+        return lambda_c_dict[band]
+
+
+class Flux(object):
+    BANDS = ["u", "g", "r", "i", "z"]
+    # Multiply E(B-V) by these numbers to get extinction in each band
+    EXTINCTION_COEFFS = {
+        "u": 5.155,
+        "g": 3.793,
+        "r": 2.751,
+        "i": 2.086,
+        "z": 1.479,
+        "kg5": 3.5,
+    }
+
+    def __init__(self, val, err, photometric_system, band, syserr=0.03):
+        """
+        Representation of an observed WD flux
+
+        Parameters
+        ----------
+        val, err: float
+            Observed value and error
+        photometric_system: PhotometricSystem
+            The system this flux is observed in e.g SDSS or HCAM
+        band: str
+            Name of filter, e.g 'u', 'g' etc.
+
+            Do not use values like 'g_s'  here, that is taken
+            care of in the photometric system
+        syserr: float
+            Additional systematic error added to account for calibration
+            issues.
+        """
+        self.flux = val
+        self.err = np.sqrt(err ** 2 + (val * syserr) ** 2)
+
+        # This is the actual band observed with.
+        self.photometric_system = photometric_system
+        self.band = band
+        self.mag = 2.5 * np.log10(3631e3 / self.flux)
+        self.magerr = 2.5 * 0.434 * (self.err / self.flux)
+
+        # Create an interpolater for the color corrections
+        correction_table_name, column = photometric_system.color_correction_data(
+            self.band
+        )
+        if correction_table_name is not None:
+            correction_table = pd.read_csv(correction_table_name)
+            self.correction_func = interp.LinearNDInterpolator(
+                correction_table[["Teff", "logg"]], correction_table[column]
+            )
+        else:
+            self.correction_func = None
+
+        # Create an interpolator for the Bergeron table
+        DA = pd.read_csv(
+            photometric_system.bergeron_table,
+            delim_whitespace=True,
+            skiprows=0,
+            header=1,
+        )
+        self.bergeron_func = interp.LinearNDInterpolator(
+            DA[["Teff", "log_g"]], DA[band]
+        )
+
+    def __repr__(self):
+        return "Flux(val={:.3f}, err={:.3f}, photometric_system={}, band={})".format(
+            self.flux, self.err, self.photometric_system, self.band
+        )
+
+    @property
+    def extinction_coefficient(self):
+        return self.EXTINCTION_COEFFS[self.band]
+
+    @property
+    def central_wavelength(self):
+        return self.photometric_system.central_wavelength[self.band]
+
+
+class WDModel:
+    """
+    Model for calculating WD Fluxes
+
+    Can be passed to MCMC routines for calculating model and chisq, and prior prob
+
+    This class also behaves like a list, of the current values of all parameters
     this enables it to be seamlessly used with emcee
 
-    Note that parallax should be provided in MILLIarcseconds."""
+    Note that parallax should be provided in MILLIarcseconds.
+
+    Parameters
+    -----------
+    teff, logg, plax, ebv: `mcmc_utils.Param`
+        Fittable parameters.
+    fluxes: list(Flux)
+        A list of observed fluxes.
+    """
 
     # arguments are Param objects (see mcmc_utils)
-    def __init__(self, teff, logg, plax, ebv, fluxes, debug=False):
-        self.DEBUG = debug
+    def __init__(self, teff, logg, plax, ebv, fluxes):
 
         self.teff = teff
         self.logg = logg
@@ -124,30 +287,7 @@ class wdModel:
         self.variables = [self.teff, self.logg, self.plax, self.ebv]
 
         # Observed data
-        self.obs_fluxes = fluxes
-
-        # Teff, logg to model SDSS magnitudes tables
-        table_loc = os.path.join(ROOT, "Bergeron/Table_DA_sdss")
-        print(
-            "--->> I am using the WD model atmosphere table found here: {} <<---".format(
-                table_loc
-            )
-        )
-        self.DA = pd.read_csv(table_loc, delim_whitespace=True, skiprows=0, header=1)
-        self.loggs = np.unique(self.DA["log_g"])
-        self.teffs = np.unique(self.DA["Teff"])
-        self.nlogg = len(self.loggs)
-        self.nteff = len(self.teffs)
-
-        # Extinction coefficient dictionary
-        self.extinction_coefficients = {
-            "u_s": 5.155,
-            "g_s": 3.793,
-            "r_s": 2.751,
-            "i_s": 2.086,
-            "z_s": 1.479,
-            "kg5": 3.5,
-        }
+        self.obs_fluxes = copy.copy(fluxes)
 
     # these routines are needed so object will behave like a list
     def __getitem__(self, ind):
@@ -172,339 +312,56 @@ class wdModel:
     @property
     def dist(self):
         if self.plax.currVal <= 0.0:
-            if self.DEBUG:
-                print("Warning! Parallax, {} <= 0.0".format(self.plax.currVal))
             return np.inf
         else:
             return 1000.0 / self.plax.currVal
 
-    def __str__(self):
-        return "<wdModel with teff {:.3f} || logg {:.3f} || plax {:.3f} || ebv {:.3f} || Debugging {}>".format(
-            self.teff.currVal,
-            self.logg.currVal,
-            self.plax.currVal,
-            self.ebv.currVal,
-            self.DEBUG,
+    def __repr__(self):
+        return "WDModel(teff={:.1f}, logg={:.2f}, plax={:.3f}, ebv={:.1f})".format(
+            self.teff.currVal, self.logg.currVal, self.plax.currVal, self.ebv.currVal,
         )
 
-    def gen_absolute_mags(self):
+    @property
+    def apparent_mags(self):
         """
-        Take my Teff and logg, and interpolate a model absolute magnitude corresponding to each of my observations.
-        Returns a magnitude observed in Super SDSS, with HCAM, on the GTC.
+        Calculate apparent magnitudes for each of my observed fluxes
         """
+        mags = []
         t, g = self.teff.currVal, self.logg.currVal
-
-        abs_mags = []
-        for obs in self.obs_fluxes:
-            if self.DEBUG:
-                print(
-                    "\n Interpolating Bergeron model magnitude, with observing band (HCAM, Super) {}".format(
-                        obs.band
-                    )
-                )
-            band = obs.band
-
-            # Get the Bergeron magnitude for this Teff, logg in this band on the GTC/HCAM
-            if band == "kg5":
-                if self.DEBUG:
-                    print(
-                        "This is a kg5 band, so I will infer the model magnitude from g and r"
-                    )
-                # KG5 mags must be inferred
-                gmags = np.array(self.DA["g_s"])
-                rmags = np.array(self.DA["r_s"])
-
-                z = sdss2kg5_vect(gmags, rmags)
-                z = z.reshape((self.nlogg, self.nteff))
-
+        # Distance modulus
+        dmod = -5.0 * np.log10(self.plax.currVal / 100)
+        for flux in self.obs_fluxes:
+            abs_mag = flux.bergeron_func(t, g)
+            # correction from magnitude in bergeron table to observed system
+            if flux.correction_func is None:
+                correction = 0
             else:
-                z = np.array(self.DA[band])
-                z = z.reshape((self.nlogg, self.nteff))
+                correction = flux.correction_func(t, g)
+            # correction is Bergeron System - Observed System
+            # correct to OBSERVED system
+            abs_mag -= correction
+            # apply distance modulus
+            mag = abs_mag + dmod
 
-            # cubic bivariate spline interpolation on <z>
-            func = interp.RectBivariateSpline(self.loggs, self.teffs, z, kx=3, ky=3)
-            mag = func(g, t)[0, 0]
+            # apply exinction
+            extinction = self.ebv.currVal * flux.extinction_coefficient
+            mag += extinction
+            mags.append(mag)
 
-            abs_mags.append(mag)
-
-            if self.DEBUG:
-                print(
-                    "Interpolated a magnitude of {:.3f} from Bergeron table".format(
-                        func(g, t)[0, 0]
-                    )
-                )
-                print(
-                    "After applying color corrections, the magnitude is {:.3f}".format(
-                        mag
-                    )
-                )
-                print("\n------------------------------------\n")
-
-        return np.array(abs_mags)
-
-    def gen_apparent_mags(self):
-        """Apply distance modulus and extinction to my generated magnitudes.
-        Observed above the atmosphere, from earth, in super SDSS, with HCAM, on the GTC.
-        """
-        # Get absolute magnitudes
-        abs_mags = self.gen_absolute_mags()
-
-        # Apply distance modulus
-        d = self.dist
-        dmod = 5.0 * np.log10(d / 10.0)
-
-        if self.DEBUG:
-            print("Model holds parallax = {:.3f}".format(self.plax.currVal))
-            print("            distance = {:.3f}".format(d))
-            print("    Distance modulus = {:.3f}".format(dmod))
-        mags = abs_mags + dmod
-
-        # Apply extinction coefficients. At the same time, collect errors
-        for i, obs in enumerate(self.obs_fluxes):
-            band = obs.band
-            ex = self.extinction_coefficients[band]
-            ex *= self.ebv.currVal
-
-            if self.DEBUG:
-                print("Band {}: Extinction: {:.3f}".format(band, ex))
-
-            mags[i] += ex
-
-        if self.DEBUG:
-            print("Got apparent magnitudes.")
-            for obs, mag in zip(self.obs_fluxes, mags):
-                band = obs.band
-                print(" {}: {:.3f}".format(band, mag))
-
-        if self.DEBUG:
-            print("\n------------------------------------\n")
-
-        return mags
+        return np.array(mags)
 
     def chisq(self):
-        """Set internal teff and logg, calculate the model WD fluxes for that,
-        and compute chisq from the obervations"""
-        mags = self.gen_apparent_mags()
-        flux_errs = np.zeros_like(mags)
-        fluxes = sdssmag2flux(mags)
+        """Calculate Chisq"""
 
-        # collect errors
-        for i, obs in enumerate(self.obs_fluxes):
-            flux_errs[i] = obs.err
-
-        # Collect observed GTC/HCAM magnitudes.
-        teff, logg = self.teff.currVal, self.logg.currVal
-        obs_mags = np.array([obs.bergeron_mag(teff, logg) for obs in self.obs_fluxes])
-        # Convert to fluxes
-        obs_fluxes = sdssmag2flux(obs_mags)
-
-        # Chisquared
-        chisq = np.power(((fluxes - obs_fluxes) / flux_errs), 2)
+        mags = self.apparent_mags
+        predicted_fluxes = sdssmag2flux(mags)
+        observed_fluxes = np.array([f.flux for f in self.obs_fluxes])
+        errors = np.array([f.err for f in self.obs_fluxes])
+        # Chi-squared
+        chisq = np.power(((predicted_fluxes - observed_fluxes) / errors), 2)
         chisq = np.sum(chisq)
 
         return chisq
-
-
-class Flux(object):
-    BANDS = ["u", "g", "r", "i", "z"]
-
-    LAMBDAS = {
-        "u": 355.7,
-        "g": 482.5,
-        "r": 626.1,
-        "i": 767.2,
-        "z": 909.7,
-        "kg5": 507.5,
-        "u_s": 352.6,
-        "g_s": 473.2,
-        "r_s": 619.9,
-        "i_s": 771.1,
-        "z_s": 915.6,
-        "us": 352.6,
-        "gs": 473.2,
-        "rs": 619.9,
-        "is": 771.1,
-        "zs": 915.6,
-    }
-
-    def __init__(self, val, err, band, syserr=0.03, debug=False):
-        self.DEBUG = debug
-
-        self.flux = val
-        self.err = np.sqrt(err ** 2 + (val * syserr) ** 2)
-
-        # This is the actual band observed with.
-        self.orig_band = band
-
-        self.cent_lambda = self.LAMBDAS[band]
-
-        self.mag = 2.5 * np.log10(3631e3 / self.flux)
-        self.magerr = 2.5 * 0.434 * (self.err / self.flux)
-
-        ## Get the correction I need from the user
-        # Valid telescopes, and their instruments
-        instruments = {
-            "ntt": ["ucam"],
-            "gtc": ["hcam"],
-            "wht": ["hcam", "ucam"],
-            "tnt": ["uspec"],
-            "none": [""],
-        }
-        filters = {
-            "ucam": ["u", "g", "r", "i", "z", "u_s", "g_s", "r_s", "i_s", "z_s"],
-            "hcam": ["u", "g", "r", "i", "z", "u_s", "g_s", "r_s", "i_s", "z_s"],
-            "uspec": ["u", "g", "r", "i", "z"],
-        }
-
-        if "y" in input("Apply correction? y/n: ").lower():
-            self.correct_me = True
-            print(
-                "\nWhat telescope was band {} observed with? {}".format(
-                    band, instruments.keys()
-                )
-            )
-            tel = input("> ")
-            while tel not in instruments.keys():
-                print("\nThat telescope is not supported! ")
-                tel = input("> ")
-            if tel == "none":
-                print("Not performing a color correction on this filter")
-                self.correct_me = False
-                return
-
-            print(
-                "What instrument was band {} observed with? {}".format(
-                    band, instruments[tel]
-                )
-            )
-            inst = input("> ")
-            while inst not in instruments[tel]:
-                inst = input("That is not a valid instrument for this telescope!\n> ")
-
-            print(
-                "\nWhat filter was used for this observation? Labelled as {}".format(
-                    band
-                )
-            )
-            print("Options: {}".format(filters[inst]))
-            filt = input("> ")
-            while filt not in filters[inst]:
-                print("That is not available on that instrument!")
-                filt = input("Enter a filter: ")
-
-            print(
-                "This is a 'super' filter, so I need to do some colour corrections. Using the column {0}, which is the magnitude in (HCAM/GTC/super filter - {0})".format(
-                    filt
-                )
-            )
-
-            # Save the correction table for this band here
-            correction_table_fname = "color_corrections_HCAM-GTC-super_minus_{}_{}.csv".format(
-                tel, inst
-            )
-            script_loc = os.path.split(__file__)[0]
-            correction_table_fname = os.path.join(
-                script_loc, "color_correction_tables", correction_table_fname
-            )
-            print("Table is stored at {}".format(correction_table_fname))
-
-            # Create an interpolater for the color corrections
-            correction_table = pd.read_csv(correction_table_fname)
-
-            # Model table teffs
-            teffs = np.unique(correction_table["Teff"])
-            loggs = np.unique(correction_table["logg"])
-
-            # Color Correction table contains regular - super color, sorted by Teff, then logg
-            corrections = np.array(correction_table[filt])
-            corrections = corrections.reshape(len(teffs), len(loggs))
-
-            self.orig_band = filt
-            self.correction_func = interp.RectBivariateSpline(
-                teffs, loggs, corrections, kx=3, ky=3
-            )
-        else:
-            self.correct_me = False
-
-        # This is the HCAM-equivalent band
-        if "_s" in self.orig_band:
-            self.band = self.orig_band
-        else:
-            self.band = self.orig_band + "_s"
-        try:
-            LOGFILE.write("Created a flux observation with these characteristics:\n")
-            LOGFILE.write(
-                "Observed Flux: {:.3f}+/-{:.3f}\n".format(self.flux, self.err)
-            )
-            LOGFILE.write(
-                "My band has a central wavelength of {:.2f}\n".format(self.cent_lambda)
-            )
-            LOGFILE.write("\n")
-            LOGFILE.write(
-                "Apply correction to HiPERCAM/GTC/Super filters: {}\n".format(
-                    self.correct_me
-                )
-            )
-            LOGFILE.write("Telescope: {}\n".format(tel))
-            LOGFILE.write("Instrument: {}\n".format(inst))
-            LOGFILE.write("Filter: {}\n".format(filt))
-            LOGFILE.write(
-                "to make the correction, I'll read off the filter from the table found here: {}\n".format(
-                    correction_table_fname
-                )
-            )
-            LOGFILE.write("\n-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\n\n")
-        except:
-            pass
-        print("Finished setting up this flux!\n\n")
-
-    def __str__(self):
-        return "Flux object with band {} (HCAM equivalent: {}), flux {:.5f}, magnitude {:.3f}. I{} need to be color corrected to HCAM/GTC, super SDSS!".format(
-            self.orig_band,
-            self.band,
-            self.flux,
-            self.mag,
-            "" if self.correct_me else " DON'T",
-        )
-
-    def color_correct_GTC_minus_obs(self, teff, logg):
-        correction = 0.0
-
-        # Interpolate the correction for this teff, logg
-        if self.DEBUG:
-            print(
-                "\nInterpolating color correction for band {} T: {:.0f} || logg: {:.3f}".format(
-                    self.band, teff, logg
-                )
-            )
-
-        if self.correct_me:
-            correction = self.correction_func(teff, logg)[0, 0]
-        else:
-            correction = 0.0
-
-        if self.DEBUG:
-            print(
-                "Got a correction of {:.3f} mags for {}".format(correction, self.band)
-            )
-            print(" (I have a natively observed magnitude of {:.6f})".format(self.mag))
-
-        return correction
-
-    def bergeron_mag(self, teff, logg):
-        """Returns the calculated magnitude of this WD, as if it was observed
-        with HiPERCAM on the GTC"""
-        corr = self.color_correct_GTC_minus_obs(teff, logg)
-        corrmag = self.mag + corr
-
-        if self.DEBUG:
-            print(
-                "Band {} || Magnitude: {:.6f} || Correction: {:.5f} || GTC/HCAM magnitude: {:.6f}".format(
-                    self.band, self.mag, corr, corrmag
-                )
-            )
-
-        return corrmag
 
 
 def plotColors(model, fname="colorplot.pdf"):
@@ -696,31 +553,14 @@ def plotColors(model, fname="colorplot.pdf"):
 
 
 def plotFluxes(model, fname="fluxplot.pdf"):
-    """Plot the colors, and the theoretical WD cooling tracks"""
-    print("\n\n-----------------------------------------------")
-    print("Creating flux plots...")
-    print("model is:")
-    print(model)
-
-    # Get modelled WD fluxes for this T, G.
-    # Includes distance modulus and interstellar reddening.
-    # Flux as seen through HCAM/GTC/Super
-    model_mags = model.gen_apparent_mags()
+    """
+    Plot observed fluxes vs model fluxes
+    """
+    model_mags = model.apparent_mags
     model_flx = sdssmag2flux(model_mags)
     # Central wavelengths for the bands
-    lambdas = np.array([obs.cent_lambda for obs in model.obs_fluxes])
-
-    print("Modelled magnitudes:")
-    for obs, m, f in zip(model.obs_fluxes, model_mags, model_flx):
-        band = obs.orig_band
-        print("Band {:>4s}: Mag: {:> 7.3f}  || Flux: {:<.3f}".format(band, m, f))
-
-    # Grab the observed magnitudes, and convert them to HCAM/GTC fluxes -- NOT their native flux!
-    # Includes distance and interstellar reddenning
-    teff, logg = model.teff.currVal, model.logg.currVal
-    obs_mags = np.array([obs.bergeron_mag(teff, logg) for obs in model.obs_fluxes])
-
-    obs_flx = sdssmag2flux(obs_mags)
+    lambdas = np.array([obs.central_wavelength for obs in model.obs_fluxes])
+    obs_flx = [obs.flux for obs in model.obs_fluxes]
     obs_flx_err = [obs.err for obs in model.obs_fluxes]
 
     # Do the actual plotting
@@ -751,17 +591,13 @@ def plotFluxes(model, fname="fluxplot.pdf"):
         linewidth=1,
         capsize=None,
     )
-    # ax.set_title("Observed and modelled fluxes")
     ax.set_xlabel("Wavelength, nm")
     ax.set_ylabel("Flux, mJy")
     ax.legend()
 
     plt.tight_layout()
     plt.savefig(fname)
-    plt.show()
-
-    print("Done!")
-    print("-----------------------------------------------\n")
+    plt.close("all")
 
 
 if __name__ == "__main__":
@@ -772,32 +608,10 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Fit WD Fluxes")
     parser.add_argument("file", action="store", help="input file")
-    parser.add_argument(
-        "--summarise",
-        dest="summarise",
-        action="store_true",
-        help="Summarise existing chain file without running a new fit.",
-    )
-    parser.add_argument(
-        "--no-chain",
-        dest="nochain",
-        action="store_true",
-        help="No chain file is being used",
-    )
-    parser.add_argument(
-        "--debug", dest="debug", action="store_true", help="Enable debugging."
-    )
-
     args = parser.parse_args()
 
     # Use parseInput function to read data from input file
-    input_dict = parseInput(args.file)
-    summarise = args.summarise
-    if summarise:
-        print("I will NOT run a fit, but just re-create the output figures!")
-    nochain = args.nochain
-    debug = args.debug
-    print(debug)
+    input_dict = configobj.ConfigObj(args.file)
 
     # Read information about mcmc, priors, neclipses, sys err
     nburn = int(input_dict["nburn"])
@@ -813,19 +627,24 @@ if __name__ == "__main__":
     logg = Param.fromString("logg", input_dict["logg"])
     plax = Param.fromString("plax", input_dict["plax"])
     ebv = Param.fromString("ebv", input_dict["ebv"])
-
     syserr = float(input_dict["syserr"])
-    if not nochain:
-        chain_file = input_dict["chain"]
+    chain_file = input_dict.get("chain", None)
     flat = int(input_dict["flat"])
+
+    # Logging
+    LOGFILE.write("Fitting White Dwarf fluxes to model cooling tracks...\n")
+    LOGFILE.write("Running fit from the following input file:\n")
+    LOGFILE.write("#################################\n\n")
+    LOGFILE.write(open(args.file, "r").read())
+    LOGFILE.write("#################################\n\n")
+    LOGFILE.write("Setting up fluxes...\n\n")
 
     # # # # # # # # # # # #
     # Load in chain file  #
     # # # # # # # # # # # #
-    if nochain:
+    if chain_file is None:
         colKeys = []
-        fchain = []
-        filters = []
+        fluxes = []
     else:
         print("Reading in the chain file,", chain_file)
         if flat:
@@ -840,67 +659,47 @@ if __name__ == "__main__":
                 colKeys = line.strip().split()[1:]
             chain = readchain(chain_file)
             print(
-                "The chain has the {} walkers, {} steps, and {} pars.".format(
-                    *chain.shape
-                )
+                "The chain has {} walkers, {} steps, and {} pars.".format(*chain.shape)
             )
             fchain = flatchain(chain, thin=thin)
         print("Done!")
 
-    # Extract the fluxes from the chain file, and create a list of Fux objects from that
-    chain_bands = [
-        key for key in colKeys if "wdflux" in key.lower()
-    ]  # and 'kg5' not in key.lower()]
-    print("I found the following bands in the chain file:")
-    for band in chain_bands:
-        print("--> {}".format(band))
-    print("\n\n\n")
+        # Extract the fluxes from the chain file, and create a list of Fux objects from that
+        chain_bands = [
+            key.lower().replace("wdflux_", "")
+            for key in colKeys
+            if "wdflux" in key.lower()
+        ]
+        print("I found the following bands in the chain file:")
+        systems = input_dict["photometric_systems"]
+        for band in chain_bands:
+            print("\t{} ({})".format(band, systems[band]))
+        print("\n\n\n")
 
-    # Logging
-    LOGFILE.write("Fitting White Dwarf fluxes to model cooling tracks...\n")
-    LOGFILE.write("~=~=~= Horrid code written by J. Wild, 2019 =~=~=~\n\n\n")
-    LOGFILE.write("Running fit from the following input file:\n")
-    LOGFILE.write("#################################\n\n")
-    LOGFILE.write(open(args.file, "r").read())
-    LOGFILE.write("#################################\n\n")
-    LOGFILE.write("Setting up fluxes...\n\n")
-
-    fluxes = []
-    for band in chain_bands:
-        print("Doing band {}".format(band))
-
-        # TODO: Fix this.
-        if "kg5" in band.lower():
-            print("KG5 BANDS ARE CURRENTLY UNUSED!!! SKIPPING")
-            input("> ")
-        else:
-            index = colKeys.index(band)
-            mean, _, std = sigma_clipped_stats(fchain[:, index])
-
-            flx = Flux(
-                mean,
-                std,
-                band.lower().replace("wdflux_", ""),
-                syserr=syserr,
-                debug=debug,
-            )
-            print(
-                "Band {} at chain file index {}\nFlux: {:.5f}+/-{:.5f}\nLabel applied in code: {}\n------------------------\n\n".format(
-                    band, index, mean, std, flx.orig_band
-                )
-            )
-            fluxes.append(flx)
+        fluxes = []
+        for band in chain_bands:
+            # TODO: Add KG5 fluxes.
+            if band == "kg5":
+                LOGFILE.write("KG5 BANDS ARE CURRENTLY UNUSED. SKIPPING")
+                print("KG5 BANDS ARE CURRENTLY UNUSED. SKIPPING")
+                continue
+            else:
+                index = colKeys.index(f"wdFlux_{band}")
+                system = PhotometricSystem(systems[band])
+                mean, _, std = sigma_clipped_stats(fchain[:, index])
+                flx = Flux(mean, std, system, band, syserr=syserr)
+                print(f"{band} = {flx}")
+                LOGFILE.write(f"{band} = {flx}")
+                fluxes.append(flx)
 
     while True:
-        print(
-            "Would you like to add another flux? I currently have {}".format(
-                [obs.orig_band for obs in fluxes]
-            )
-        )
+        print("Would you like to add another flux?")
         cont = input("y/n: ")
         if cont.lower() == "y":
             print("Enter a band:")
             band = input("> ")
+            print("Enter a photometric system:")
+            system = input("> ")
             print("Enter a Flux, in mJy")
             flx = input("> ")
             print("Enter an error on flux, mJy")
@@ -908,98 +707,27 @@ if __name__ == "__main__":
 
             flx = float(flx)
             fle = float(fle)
+            system = PhotometricSystem(system)
 
-            flux = Flux(flx, fle, band, syserr=syserr, debug=debug)
+            flux = Flux(flx, fle, system, band, syserr=syserr)
             fluxes.append(flux)
         else:
             print("Done!")
             break
 
     # Create the model object
-    myModel = wdModel(teff, logg, plax, ebv, fluxes, debug=debug)
+    myModel = WDModel(teff, logg, plax, ebv, fluxes)
     npars = myModel.npars
-
-    mags = myModel.gen_apparent_mags()
-    chisq = myModel.chisq()
-    print(
-        "\n\n\nFor a Teff, logg = {:.0f}, {:.3f}".format(
-            myModel.teff.currVal, myModel.logg.currVal
-        )
-    )
-    print("I generated these magnitudes: {}".format(mags))
-    print("This corresponds to the fluxes: {}".format(sdssmag2flux(mags)))
-    print("My chisq is {:.3f}".format(chisq))
-    print("I'm using the filters:")
-    for obs in myModel.obs_fluxes:
-        print("{:>4s}: Flux {:.3f}+/-{:.3f}".format(obs.orig_band, obs.flux, obs.err))
-
-    # Just summarise a previous chain, then stop
-    if summarise:
-        chain = readchain("chain_wd.txt")
-        nameList = ["Teff", "log g", "Parallax", "E(B-V)"]
-
-        likes = chain[:, :, -1]
-
-        # Plot the mean likelihood evolution
-        likes = np.mean(likes, axis=0)
-        steps = np.arange(len(likes))
-        std = np.std(likes)
-
-        # Make the likelihood plot
-        fig, ax = plt.subplots(figsize=(11, 8))
-        ax.fill_between(steps, likes - std, likes + std, color="red", alpha=0.4)
-        ax.plot(steps, likes, color="green")
-
-        ax.set_xlabel("Step")
-        ax.set_ylabel("ln_like")
-
-        plt.tight_layout()
-        plt.savefig("likelihoods.png")
-        plt.show()
-
-        # Flatten the chain for the thumbplot. Strip off the ln_prob, too
-        flat = flatchain(chain[:, :, :-1])
-        bestPars = []
-        for i in range(npars):
-            par = flat[:, i]
-            lolim, best, uplim = np.percentile(par, [16, 50, 84])
-            myModel[i] = best
-
-            print("%s = %f +%f -%f" % (nameList[i], best, uplim - best, best - lolim))
-            bestPars.append(best)
-
-        print("Creating corner plots...")
-        fig = thumbPlot(flat, nameList)
-        fig.savefig("cornerPlot.pdf")
-        fig.show()
-
-        toFit = False
 
     if toFit:
         guessP = np.array(myModel)
         nameList = ["Teff", "log_g", "Parallax", "E(B-V)"]
-        # p0 = emcee.utils.sample_ball(guessP, scatter*guessP, size=nwalkers)
-        # sampler = emcee.EnsembleSampler(
-        #     nwalkers,
-        #     npars,
-        #     ln_prob,
-        #     args=(myModel,),
-        #     threads=nthread
-        # )
 
-        mp.set_start_method("forkserver")
+        # mp.set_start_method("spawn")
         pool = mp.Pool()
-        ntemps = 10
-        p0 = initialise_walkers_pt(guessP, scatter, nwalkers, ntemps, ln_prior, myModel)
-        sampler = ptemcee.sampler.Sampler(
-            nwalkers,
-            npars,
-            ln_likelihood,
-            ln_prior,
-            ntemps=ntemps,
-            loglargs=(myModel,),
-            logpargs=(myModel,),
-            pool=pool,
+        p0 = initialise_walkers(guessP, scatter, nwalkers, ln_prior, myModel)
+        sampler = emcee.EnsembleSampler(
+            nwalkers, npars, ln_prob, args=(myModel,), pool=pool,
         )
 
         # burnIn
@@ -1008,57 +736,54 @@ if __name__ == "__main__":
         # production
         sampler.reset()
         col_names = "walker_no " + " ".join(nameList) + " ln_prob"
-        sampler = run_ptmcmc_save(
-            sampler, pos, nprod, "chain_wd.txt", col_names=col_names
+        sampler = run_mcmc_save(
+            sampler, pos, nprod, state, "chain_wd.txt", col_names=col_names
         )
-        chain = []
-        for i in range(ntemps):
-            chain.append(sampler.flatchain[0, i::ntemps, ...])
-        chain = np.array(chain)
-        print(chain.shape)
+        # Collect results from all walkers
+        fchain = flatchain(sampler.chain, npars, thin=thin)
 
         # Plot the likelihoods
-        likes = chain[:, :, -1]
+        likes = chain[..., -1]
 
         # Plot the mean likelihood evolution
-        likes = np.mean(likes, axis=0)
-        steps = np.arange(likes.shape[0])
+        like_mu = np.mean(likes, axis=0)
+        like_std = np.std(likes, axis=0)
+        steps = np.arange(likes.shape[1])
         std = np.std(likes)
 
         # Make the likelihood plot
         fig, ax = plt.subplots(figsize=(11, 8))
-        ax.fill_between(steps, likes - std, likes + std, color="red", alpha=0.4)
-        ax.plot(steps, likes, color="green")
+        ax.fill_between(
+            steps, like_mu - like_std, like_mu + like_std, color="red", alpha=0.4
+        )
+        ax.plot(steps, like_mu, color="green")
 
         ax.set_xlabel("Step")
         ax.set_ylabel("ln_like")
 
         plt.tight_layout()
-        plt.savefig("likelihoods.png")
-        plt.show()
+        plt.savefig("wdparams_likelihoods.pdf")
+        plt.close("all")
 
         bestPars = []
-        print(chain.shape)
+        print(fchain.shape)
         for i in range(npars):
-            par = chain[:, :, i]
+            par = fchain[:, i]
             lolim, best, uplim = np.percentile(par, [16, 50, 84])
             myModel[i] = best
 
             print("%s = %f +%f -%f" % (nameList[i], best, uplim - best, best - lolim))
             bestPars.append(best)
         print("Creating corner plots...")
-        fig = thumbPlot(chain[0], nameList)
-        fig.savefig("cornerPlot.pdf")
-        fig.show()
+        fig = thumbPlot(fchain, nameList)
+        fig.savefig("wdparams_cornerPlot.pdf")
+        plt.close("all")
     else:
         bestPars = [par for par in myModel]
 
     print("Done!")
     print("Chisq = {:.3f}".format(myModel.chisq()))
-
     # Plot measured and model colors and fluxes
-    print("Model: {}".format(myModel))
-    plotColors(myModel)
     plotFluxes(myModel)
-
+    print("Model: {}".format(myModel))
     LOGFILE.close()
