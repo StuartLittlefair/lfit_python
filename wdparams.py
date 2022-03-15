@@ -723,7 +723,7 @@ if __name__ == "__main__":
         fchain = flatchain(sampler.chain, npars, thin=thin)
 
         # Plot the likelihoods
-        likes = chain[..., -1]
+        likes = sampler.chain[..., -1]
 
         # Plot the mean likelihood evolution
         like_mu = np.mean(likes, axis=0)
