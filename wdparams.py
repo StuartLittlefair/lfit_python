@@ -669,6 +669,8 @@ if __name__ == "__main__":
                     msg = f"No photometric system for {band}, skipping"
                     LOGFILE.write(msg + "\n")
                     print(msg)
+                    continue
+
                 system = PhotometricSystem(systems[band])
                 mean, _, std = sigma_clipped_stats(fchain[:, index])
                 flx = Flux(mean, std, system, band, syserr=syserr)
