@@ -653,7 +653,7 @@ if __name__ == "__main__":
         print("I found the following bands in the chain file:")
         systems = input_dict["photometric_systems"]
         for band in chain_bands:
-            print("\t{} ({})".format(band, systems[band]))
+            print("\t{} ({})".format(band, systems.get(band, None)))
         print("\n\n\n")
 
         fluxes = []
@@ -665,6 +665,10 @@ if __name__ == "__main__":
                 continue
             else:
                 index = colKeys.index(f"wdFlux_{band}")
+                if band not in systems:
+                    msg = f"No photometric system for {band}, skipping"
+                    LOGFILE.write(msg + "\n")
+                    print(msg)
                 system = PhotometricSystem(systems[band])
                 mean, _, std = sigma_clipped_stats(fchain[:, index])
                 flx = Flux(mean, std, system, band, syserr=syserr)
