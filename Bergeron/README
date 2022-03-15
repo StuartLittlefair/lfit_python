@@ -1,0 +1,7 @@
+Table_DA contains the Bergeron WD cooling models in the HiPERCAM Super SDSS photometric system.
+
+The color_correction_tables contains the difference between these magnitudes and those
+in the ULTRACAM or ULTRASPEC natural systems. ULTRACAM contains entries for both the original
+and the super SDSS-like systems.
+
+The separate table Table_DA_SDSS contains WD magnitudes in the SDSS u'g'r'i'z' system.
