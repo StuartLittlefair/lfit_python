@@ -137,26 +137,6 @@ class PhotometricSystem(Enum):
             column = f"{band}_s" if "SUPER" in self.name else band
         return table, column
 
-    @classmethod
-    def from_telescope_band(self, telescope, band_name):
-        """
-        Get a photometric system from a combination of telescope and band_name
-        """
-        if telescope == "hcam":
-            return PhotometricSystem.HCAM
-        elif telescope == "ucam":
-            return (
-                PhotometricSystem.UCAM_SUPER
-                if "_s" in band_name
-                else PhotometricSystem.UCAM_SDSS
-            )
-        elif telescope == "uspec":
-            return PhotometricSystem.USPEC
-        elif telescope == "sdss":
-            return PhotometricSystem.SDSS
-        else:
-            raise ValueError(f"unrecognised system: {telescope, band_name}")
-
     def central_wavelength(self, band):
         super_lambda_c = {
             "u": 352.6,
@@ -253,7 +233,7 @@ class Flux(object):
 
     @property
     def central_wavelength(self):
-        return self.photometric_system.central_wavelength[self.band]
+        return self.photometric_system.central_wavelength(self.band)
 
 
 class WDModel:
@@ -570,7 +550,7 @@ def plotFluxes(model, fname="fluxplot.pdf"):
         model_flx,
         xerr=None,
         yerr=None,
-        fmt="o",
+        fmt="P",
         ls="none",
         color="darkred",
         label="Modelled apparent flux",
@@ -724,7 +704,7 @@ if __name__ == "__main__":
         nameList = ["Teff", "log_g", "Parallax", "E(B-V)"]
 
         # mp.set_start_method("spawn")
-        pool = mp.Pool()
+        pool = mp.Pool(nthread)
         p0 = initialise_walkers(guessP, scatter, nwalkers, ln_prior, myModel)
         sampler = emcee.EnsembleSampler(
             nwalkers, npars, ln_prob, args=(myModel,), pool=pool,
