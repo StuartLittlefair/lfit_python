@@ -739,7 +739,7 @@ if __name__ == "__main__":
         ax.plot(steps, like_mu, color="green")
 
         ax.set_xlabel("Step")
-        ax.set_ylabel("ln_like")
+        ax.set_ylabel("ln_prob")
 
         plt.tight_layout()
         plt.savefig("wdparams_likelihoods.pdf")
