@@ -162,13 +162,14 @@ class PhotometricSystem(Enum):
 class Flux(object):
     BANDS = ["u", "g", "r", "i", "z"]
     # Multiply E(B-V) by these numbers to get extinction in each band
+    # from Schlafly & Finkbeiner (2011) @ R_V = 3.1
     EXTINCTION_COEFFS = {
-        "u": 5.155,
-        "g": 3.793,
-        "r": 2.751,
-        "i": 2.086,
-        "z": 1.479,
-        "kg5": 3.5,
+        "u": 4.239,
+        "g": 3.303,
+        "r": 2.285,
+        "i": 1.698,
+        "z": 1.263,
+        "kg5": 2.751,
     }
 
     def __init__(self, val, err, photometric_system, band, syserr=0.03):
