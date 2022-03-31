@@ -1,9 +1,9 @@
-'''
+"""
 Subclasses from the `model` module, that actually comprise the tree
 structure of the model fed to emcee. The `trunk` is an LCModel or GPLCModel
 node, with child Bands, that have XEclipse leaves to evaluate the CV lightcurve
 fit to the data. Data is stored in the Lightcurve class.
-'''
+"""
 import os
 
 import configobj
@@ -19,16 +19,17 @@ BIG = 9e99
 
 
 class Lightcurve:
-    '''This object keeps track of the observational data.
-    Can be generated from a file, with Lightcurve.from_calib(file).'''
+    """This object keeps track of the observational data.
+    Can be generated from a file, with Lightcurve.from_calib(file)."""
+
     def __init__(self, name, x, y, ye, w=None):
-        '''Here, hold this.'''
+        """Here, hold this."""
         self.name = name
 
         self.fname = None
 
         if w is None:
-            w = np.mean(np.diff(x))*np.ones_like(x)/2.
+            w = np.mean(np.diff(x)) * np.ones_like(x) / 2.0
 
         self.x = x
         self.y = y
@@ -41,19 +42,22 @@ class Lightcurve:
 
     @classmethod
     def from_calib(cls, fname, name=None):
-        '''Read in a calib file, of the format;
+        """Read in a calib file, of the format;
         phase flux error
 
         and treat lines with # as commented out.
-        '''
-        delimiters = ' ,|'
+        """
+        delimiters = " ,|"
         for delimiter in delimiters:
             try:
-                data = np.loadtxt(fname, delimiter=delimiter, comments='#')
+                data = np.loadtxt(fname, delimiter=delimiter, comments="#")
                 break
             except ValueError:
-                print("Couldn't split the calib file with '{}', trying next delimiter...".format(
-                    delimiter))
+                print(
+                    "Couldn't split the calib file with '{}', trying next delimiter...".format(
+                        delimiter
+                    )
+                )
         phase, flux, error = data.T
 
         # Filter out nans.
@@ -63,7 +67,7 @@ class Lightcurve:
         flux = flux[mask]
         error = error[mask]
 
-        width = np.mean(np.diff(phase))*np.ones_like(phase)/2.
+        width = np.mean(np.diff(phase)) * np.ones_like(phase) / 2.0
 
         # Set the name of this eclipse as the filename of the data file.
         if name is None:
@@ -74,7 +78,7 @@ class Lightcurve:
         return lc
 
     def trim(self, lo, hi):
-        '''Trim the data, so that all points are in the x range lo > xi > hi'''
+        """Trim the data, so that all points are in the x range lo > xi > hi"""
         xt = self.x
 
         mask = (xt > lo) & (xt < hi)
@@ -87,7 +91,7 @@ class Lightcurve:
 
 # Subclasses.
 class SimpleEclipse(Node):
-    '''Subclass of Node, specifically for storing a single eclipse.
+    """Subclass of Node, specifically for storing a single eclipse.
     Uses the simple BS model.
     Lightcurve data is stored on this level.
 
@@ -104,13 +108,10 @@ class SimpleEclipse(Node):
         The parent of this node.
       children; list(Node), or Node:
         The children of this node. Single Node is also accepted
-    '''
+    """
 
     # Define this subclasses parameters
-    node_par_names = (
-        'dFlux', 'sFlux', 'rdisc',
-        'scale', 'az', 'fis', 'dexp', 'phi0'
-    )
+    node_par_names = ("dFlux", "sFlux", "rdisc", "scale", "az", "fis", "dexp", "phi0")
 
     def __init__(self, lightcurve, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -129,11 +130,13 @@ class SimpleEclipse(Node):
         # Create the CV object
         self.cv = lfit.CV(self.cv_parlist)
 
-        self.log('SimpleEclipse.__init__', "Successfully ran the SimpleEclipse initialiser.")
+        self.log(
+            "SimpleEclipse.__init__", "Successfully ran the SimpleEclipse initialiser."
+        )
 
     def calcFlux(self):
-        '''Fetch the CV parameter vector, and generate it's model lightcurve'''
-        self.log('SimpleEclipse.calcFlux', "Doing calcFlux")
+        """Fetch the CV parameter vector, and generate it's model lightcurve"""
+        self.log("SimpleEclipse.calcFlux", "Doing calcFlux")
 
         # Get the model CV lightcurve across our data.
         try:
@@ -145,55 +148,64 @@ class SimpleEclipse(Node):
             self.log("SimpleEclipse.calcFlux", msg)
             flx = np.nan
 
-        self.log('SimpleEclipse.calcFlux', "Computed a lightcurve flux: \n{}\n\n\n".format(flx))
+        self.log(
+            "SimpleEclipse.calcFlux",
+            "Computed a lightcurve flux: \n{}\n\n\n".format(flx),
+        )
         return flx
 
     def calcComponents(self):
-        '''Return a list of the component fluxes as well as the total
+        """Return a list of the component fluxes as well as the total
         returns:
           (tot_flx, wdFlux, sFlux, rsFlux, dFlux)
-        '''
+        """
         flx = self.cv.calcFlux(self.cv_parlist, self.lc.x, self.lc.w)
         return flx, self.cv.ywd, self.cv.ys, self.cv.yrs, self.cv.yd
 
     def chisq(self):
-        '''Return the chisq of this eclipse, given current params.'''
-        self.log('SimpleEclipse.chisq', "Doing chisq")
+        """Return the chisq of this eclipse, given current params."""
+        self.log("SimpleEclipse.chisq", "Doing chisq")
         flx = self.calcFlux()
 
         # If the model gets any nans, return inf
         if np.any(np.isnan(flx)):
             if self.DEBUG:
-                print("Node returned some ({}/{} data) nans.".format(
-                    np.sum(np.isnan(flx)),
-                    flx.shape[0]
-                ))
+                print(
+                    "Node returned some ({}/{} data) nans.".format(
+                        np.sum(np.isnan(flx)), flx.shape[0]
+                    )
+                )
 
-            self.log('SimpleEclipse.chisq', "I computed a flux that contains nans. Returning an inf chisq.")
+            self.log(
+                "SimpleEclipse.chisq",
+                "I computed a flux that contains nans. Returning an inf chisq.",
+            )
             return BIG
 
         # Calculate the chisq of this model.
-        chisq = ((self.lc.y - flx) / self.lc.ye)**2
+        chisq = ((self.lc.y - flx) / self.lc.ye) ** 2
         chisq = np.sum(chisq)
 
-        self.log('SimpleEclipse.chisq', "Computed a chisq of {}".format(chisq))
+        self.log("SimpleEclipse.chisq", "Computed a chisq of {}".format(chisq))
         return chisq
 
     def ln_like(self):
-        '''Calculate the chisq of this eclipse, against the data stored in its
+        """Calculate the chisq of this eclipse, against the data stored in its
         lightcurve object.
 
-        If plot is True, also plot the data in a figure.'''
+        If plot is True, also plot the data in a figure."""
 
         self.log("SimpleEclipse.ln_like", "Returning an ln_like that is (-0.5 * chisq)")
 
         chisq = self.chisq()
 
-        self.log("SimpleEclipse.ln_like", "Returning a ln_like of {}".format(-0.5*chisq))
+        self.log(
+            "SimpleEclipse.ln_like", "Returning a ln_like of {}".format(-0.5 * chisq)
+        )
         return -0.5 * chisq
 
     def ln_prior(self, verbose=False, *args, **kwargs):
-        '''At the eclipse level, three constrains must be validated for each
+        """At the eclipse level, three constrains must be validated for each
         leaf of the tree.
 
         - Is the disc large enough to precess? We can't handle superhumping!
@@ -203,8 +215,10 @@ class SimpleEclipse(Node):
 
         If other constraints on the level of the individual eclipse are
         necessary, they should go in here.
-        '''
-        self.log("SimpleEclipse.ln_prior", "Checking that the values construct a valid CV!")
+        """
+        self.log(
+            "SimpleEclipse.ln_prior", "Checking that the values construct a valid CV!"
+        )
 
         # Before we start, I'm going to collect the necessary parameters. By
         # only calling this once, we save a little effort.
@@ -219,7 +233,7 @@ class SimpleEclipse(Node):
         rdisc_max_a = 0.46
 
         # get the location of the L1 point from q
-        q = ancestor_param_dict['q'].currVal
+        q = ancestor_param_dict["q"].currVal
         try:
             xl1 = roche.xl1(q)
         except AssertionError:
@@ -228,7 +242,7 @@ class SimpleEclipse(Node):
             return -np.inf
 
         # Get the rdisc, scaled to the Roche Radius
-        rdisc = ancestor_param_dict['rdisc'].currVal
+        rdisc = ancestor_param_dict["rdisc"].currVal
         rdisc_a = rdisc * xl1
 
         if verbose:
@@ -236,9 +250,14 @@ class SimpleEclipse(Node):
 
         if rdisc_a > rdisc_max_a:
             if verbose:
-                msg = "The disc radius of {} is large enough to precess! Value: {:.3f}".format(self.name, rdisc)
+                msg = "The disc radius of {} is large enough to precess! Value: {:.3f}".format(
+                    self.name, rdisc
+                )
                 print(msg)
-            self.log("SimpleEclipse.ln_prior", "The disc radius is too large. Returning ln_prior = -np.inf")
+            self.log(
+                "SimpleEclipse.ln_prior",
+                "The disc radius is too large. Returning ln_prior = -np.inf",
+            )
             return -np.inf
 
         ##############################################
@@ -254,25 +273,31 @@ class SimpleEclipse(Node):
         ##############################################
 
         # Get the WD radius.
-        rwd = ancestor_param_dict['rwd'].currVal
+        rwd = ancestor_param_dict["rwd"].currVal
 
         # Enforce the BS scale being within these limits
-        rmax = rwd * 3.
-        rmin = rwd / 3.
+        rmax = rwd * 3.0
+        rmin = rwd / 3.0
 
-        scale = ancestor_param_dict['scale'].currVal
+        scale = ancestor_param_dict["scale"].currVal
         if verbose:
             print("Scale: {:.4f} || Limits: {:.4f} -> {:.4f}".format(scale, rmin, rmax))
 
         if scale > rmax or scale < rmin:
             if verbose:
-                print("Leaf {} has a BS scale that lies outside valid range!".format(self.name))
+                print(
+                    "Leaf {} has a BS scale that lies outside valid range!".format(
+                        self.name
+                    )
+                )
                 print("Rwd: {:.3f}".format(rwd))
                 print("Scale: {:.3f}".format(scale))
                 print("Range: {:.3f} - {:.3f}".format(rmin, rmax))
 
-            self.log("SimpleEclipse.ln_prior",
-                     "The BS is too large to be accurately modelled. Returning ln_prior = -np.inf")
+            self.log(
+                "SimpleEclipse.ln_prior",
+                "The BS is too large to be accurately modelled. Returning ln_prior = -np.inf",
+            )
 
             return -np.inf
 
@@ -283,7 +308,7 @@ class SimpleEclipse(Node):
         slope = 80.0
         try:
             # q, rdisc_a were previously retrieved
-            az = ancestor_param_dict['az'].currVal
+            az = ancestor_param_dict["az"].currVal
 
             # If the stream does not intersect the disc, this throws an error
             x, y, _, _ = roche.bspot(q, rdisc_a)
@@ -300,23 +325,34 @@ class SimpleEclipse(Node):
             tangent = alpha + 90
 
             # Calculate the min and max azimuthes, using the tangent and slope
-            minaz = max(0, tangent-slope)
-            maxaz = min(178, tangent+slope)
+            minaz = max(0, tangent - slope)
+            maxaz = min(178, tangent + slope)
 
             if az < minaz or az > maxaz:
-                self.log("SimpleEclipse.ln_prior", "Azimuth is out of range. Returning ln_prior = -np.inf")
+                self.log(
+                    "SimpleEclipse.ln_prior",
+                    "Azimuth is out of range. Returning ln_prior = -np.inf",
+                )
                 return -np.inf
 
         except Exception as err:
             if verbose:
                 print(err)
-                print("The mass stream of leaf {} does not intersect the disc!".format(self.name))
+                print(
+                    "The mass stream of leaf {} does not intersect the disc!".format(
+                        self.name
+                    )
+                )
 
-            self.log("SimpleEclipse.ln_prior",
-                     "The mass stream does not intersect the disc, returning ln_prior = -np.inf")
+            self.log(
+                "SimpleEclipse.ln_prior",
+                "The mass stream does not intersect the disc, returning ln_prior = -np.inf",
+            )
             return -np.inf
 
-        self.log("SimpleEclipse.ln_prior", "Passed validity checks at {}.".format(self.name))
+        self.log(
+            "SimpleEclipse.ln_prior", "Passed validity checks at {}.".format(self.name)
+        )
 
         # If we pass all that, then calculate the ln_prior normally
         lnp = super().ln_prior(verbose=verbose, *args, **kwargs)
@@ -327,15 +363,27 @@ class SimpleEclipse(Node):
     @property
     def cv_parnames(self):
         names = [
-            'wdFlux', 'dFlux', 'sFlux', 'rsFlux', 'q', 'dphi',
-            'rdisc', 'ulimb', 'rwd', 'scale', 'az', 'fis', 'dexp', 'phi0'
+            "wdFlux",
+            "dFlux",
+            "sFlux",
+            "rsFlux",
+            "q",
+            "dphi",
+            "rdisc",
+            "ulimb",
+            "rwd",
+            "scale",
+            "az",
+            "fis",
+            "dexp",
+            "phi0",
         ]
 
         return names
 
     @property
     def cv_parlist(self):
-        '''Construct the parameter list needed by the CV'''
+        """Construct the parameter list needed by the CV"""
 
         par_name_list = self.cv_parnames
 
@@ -350,13 +398,16 @@ class SimpleEclipse(Node):
             print("}")
             raise error
 
-        self.log("SimpleEclipse.cv_parlist", "Constructed a cv_parlist of:\n{}".format(parlist))
+        self.log(
+            "SimpleEclipse.cv_parlist",
+            "Constructed a cv_parlist of:\n{}".format(parlist),
+        )
 
         return parlist
 
 
 class ComplexEclipse(SimpleEclipse):
-    '''Subclass of Node, specifically for storing a single eclipse.
+    """Subclass of Node, specifically for storing a single eclipse.
     Uses the complex BS model.
     Lightcurve data is stored on this level.
 
@@ -373,26 +424,51 @@ class ComplexEclipse(SimpleEclipse):
         The parent of this node.
       children; list(Node), or Node:
         The children of this node. Single Node is also accepted
-    '''
+    """
+
     node_par_names = (
-        'dFlux', 'sFlux', 'rdisc',
-        'scale', 'az', 'fis', 'dexp', 'phi0',
-        'exp1', 'exp2', 'yaw', 'tilt'
+        "dFlux",
+        "sFlux",
+        "rdisc",
+        "scale",
+        "az",
+        "fis",
+        "dexp",
+        "phi0",
+        "exp1",
+        "exp2",
+        "yaw",
+        "tilt",
     )
 
     @property
     def cv_parnames(self):
         names = [
-            'wdFlux', 'dFlux', 'sFlux', 'rsFlux', 'q', 'dphi',
-            'rdisc', 'ulimb', 'rwd', 'scale', 'az', 'fis', 'dexp', 'phi0',
-            'exp1', 'exp2', 'tilt', 'yaw'
+            "wdFlux",
+            "dFlux",
+            "sFlux",
+            "rsFlux",
+            "q",
+            "dphi",
+            "rdisc",
+            "ulimb",
+            "rwd",
+            "scale",
+            "az",
+            "fis",
+            "dexp",
+            "phi0",
+            "exp1",
+            "exp2",
+            "tilt",
+            "yaw",
         ]
 
         return names
 
 
 class Band(Node):
-    '''Subclass of Node, specific to observation bands. Contains the eclipse
+    """Subclass of Node, specific to observation bands. Contains the eclipse
     objects taken in this band.
 
     Inputs:
@@ -406,10 +482,10 @@ class Band(Node):
         The parent of this node.
       children; list(Node), or Node:
         The children of this node. Single Node is also accepted
-    '''
+    """
 
     # What kind of parameters are we storing here?
-    node_par_names = ('wdFlux', 'rsFlux', 'ulimb')
+    node_par_names = ("wdFlux", "rsFlux", "ulimb")
 
     @property
     def eclipses(self):
@@ -417,7 +493,7 @@ class Band(Node):
 
 
 class LCModel(Node):
-    '''Top layer Node class. Contains Bands, which contain Eclipses.
+    """Top layer Node class. Contains Bands, which contain Eclipses.
     Inputs:
     -------
       label; str:
@@ -429,31 +505,33 @@ class LCModel(Node):
         The parent of this node.
       children; list(Node), or Node:
         The children of this node. Single Node is also accepted
-    '''
+    """
 
     # Set the parameter names for this layer
-    node_par_names = ('q', 'dphi', 'rwd')
+    node_par_names = ("q", "dphi", "rwd")
 
     @property
     def eclipses(self):
         return list(self.search_node_type("Eclipse"))
 
     def ln_prior(self, verbose=False):
-        '''Before we calculate the ln_prior of myself or my children, I check
+        """Before we calculate the ln_prior of myself or my children, I check
         that my parameters are valid. I check that dphi is not too large for
         the current value of q.
 
         If other constraints on the core parameters become necessary, they
         should go here. If these tests fail, -np.inf is immediately returned.
-        '''
-        self.log('LCModel.ln_prior', "Checking global parameters for validity.")
+        """
+        self.log("LCModel.ln_prior", "Checking global parameters for validity.")
         lnp = 0.0
 
         # Check that dphi is within limits
         tol = 1e-6
 
-        dphi = getattr(self, 'dphi').currVal
-        q = getattr(self, 'q').currVal
+        dphi = getattr(self, "dphi").currVal
+        q = getattr(self, "q").currVal
+        if q <= 0:
+            return -np.inf
 
         try:
             # Get the value of dphi that we WOULD have at an
@@ -470,30 +548,35 @@ class LCModel(Node):
                     msg.format(self.name, q, dphi, maxphi, tol)
 
                     print(msg)
-                self.log('LCModel.ln_prior', "dphi is out of range. Returning ln_prior = -np.inf")
+                self.log(
+                    "LCModel.ln_prior",
+                    "dphi is out of range. Returning ln_prior = -np.inf",
+                )
                 return -np.inf
 
         except Exception as error:
-            print(error)
             # If we get here, then roche couldn't find a dphi for this q.
             # That's bad!
             if verbose:
                 msg = "Failed to calculate a value of dphi at node {} || Exception: {}"
                 print(msg.format(self.name, repr(error)))
-            self.log('LCModel.ln_prior', "Failed to calculate a value of dphi. Returning ln_prior = -np.inf")
+            self.log(
+                "LCModel.ln_prior",
+                "Failed to calculate a value of dphi. Returning ln_prior = -np.inf",
+            )
             return -np.inf
 
-        self.log('LCModel.ln_prior', "Passed parameter value validity checks.")
+        self.log("LCModel.ln_prior", "Passed parameter value validity checks.")
 
         # Then, if we pass this, move on to the 'normal' ln_prior calculation.
         lnp += super().ln_prior(verbose=verbose)
 
-        self.log('LCModel.ln_prior', "Returning a ln_prior of {}".format(lnp))
+        self.log("LCModel.ln_prior", "Returning a ln_prior of {}".format(lnp))
         return lnp
 
 
 class GPLCModel(LCModel):
-    '''This is a subclass of the LCModel class. It uses the Gaussian Process.
+    """This is a subclass of the LCModel class. It uses the Gaussian Process.
 
     This version will, rather than evaluating via chisq, evaluate the
     likelihood of the model by calculating the residuals between the model
@@ -508,11 +591,11 @@ class GPLCModel(LCModel):
     ln_ampout_gp:
       The additional amplitude of the covariance matrix, when the WD
       is visible
-    '''
+    """
 
     # Add the GP params
     node_par_names = LCModel.node_par_names
-    node_par_names += ('ln_ampin_gp', 'ln_ampout_gp', 'tau_gp')
+    node_par_names += ("ln_ampin_gp", "ln_ampout_gp", "tau_gp")
 
 
 class SimpleGPEclipse(SimpleEclipse):
@@ -528,23 +611,23 @@ class SimpleGPEclipse(SimpleEclipse):
     _dist_cp = 9e99
 
     def calcChangepoints(self):
-        '''Caclulate the WD ingress and egresses, i.e. where we want to switch
+        """Caclulate the WD ingress and egresses, i.e. where we want to switch
         on or off the extra GP amplitude.
 
         Requires an eclipse object, since this is specific to a given phase
         range.
-        '''
+        """
 
-        self.log('SimpleGPEclipse.calcChangepoints', "Calculating GP changepoints")
+        self.log("SimpleGPEclipse.calcChangepoints", "Calculating GP changepoints")
 
         # Also get object for dphi, q and rwd as this is required to determine
         # changepoints
         pardict = self.ancestor_param_dict
 
-        dphi = pardict['dphi']
-        q = pardict['q']
-        rwd = pardict['rwd']
-        phi0 = pardict['phi0']
+        dphi = pardict["dphi"]
+        q = pardict["q"]
+        rwd = pardict["rwd"]
+        phi0 = pardict["phi0"]
 
         # Have they changed significantly?
         # If not, dont bother recalculating dist_cp
@@ -555,8 +638,10 @@ class SimpleGPEclipse(SimpleEclipse):
         # Check to see if our model parameters have changed enough to
         # significantly change the location of the changepoints.
         if (dphi_change > 1.2) or (q_change > 1.2) or (rwd_change > 1.2):
-            self.log('SimpleGPEclipse.calcChangepoints',
-                     "The GP changepoint locations have chnged significantly enough to warrant a recalculation...")
+            self.log(
+                "SimpleGPEclipse.calcChangepoints",
+                "The GP changepoint locations have chnged significantly enough to warrant a recalculation...",
+            )
 
             # Calculate inclination
             inc = roche.findi(q.currVal, dphi.currVal)
@@ -568,7 +653,7 @@ class SimpleGPEclipse(SimpleEclipse):
             dpwd = phi4 - phi3
 
             # Distance from changepoints to mideclipse
-            dist_cp = (dphi.currVal+dpwd)/2.
+            dist_cp = (dphi.currVal + dpwd) / 2.0
 
             # save these values for speed
             self._dist_cp = dist_cp
@@ -576,7 +661,7 @@ class SimpleGPEclipse(SimpleEclipse):
             self._olddphi = dphi.currVal
             self._oldrwd = rwd.currVal
         else:
-            self.log('SimpleGPEclipse.calcChangepoints', "Using old values of dist_cp")
+            self.log("SimpleGPEclipse.calcChangepoints", "Using old values of dist_cp")
             # Use the old values
             dist_cp = self._dist_cp
 
@@ -584,21 +669,24 @@ class SimpleGPEclipse(SimpleEclipse):
         min_ecl = int(np.floor(self.lc.x.min()))
         max_ecl = int(np.ceil(self.lc.x.max()))
 
-        eclipses = [e for e in range(min_ecl, max_ecl+1)
-                    if np.logical_and(e > self.lc.x.min(),
-                                      e < 1+self.lc.x.max()
-                                      )
-                    ]
+        eclipses = [
+            e
+            for e in range(min_ecl, max_ecl + 1)
+            if np.logical_and(e > self.lc.x.min(), e < 1 + self.lc.x.max())
+        ]
 
         changepoints = []
         for e in eclipses:
             # When did the last eclipse end?
-            egress = (e-1) + dist_cp + phi0.currVal
+            egress = (e - 1) + dist_cp + phi0.currVal
             # When does this eclipse start?
             ingress = e - dist_cp + phi0.currVal
             changepoints.append([egress, ingress])
 
-        self.log('SimpleGPEclipse.calcChangepoints', "Computed GP changepoints as:\n{}".format(changepoints))
+        self.log(
+            "SimpleGPEclipse.calcChangepoints",
+            "Computed GP changepoints as:\n{}".format(changepoints),
+        )
         return changepoints
 
     def create_GP(self):
@@ -610,15 +698,15 @@ class SimpleGPEclipse(SimpleEclipse):
 
         Requires an Eclipse object to create the GP for. """
 
-        self.log('SimpleGPEclipse.create_GP', "Creating a new GP")
+        self.log("SimpleGPEclipse.create_GP", "Creating a new GP")
 
         # Get objects for ln_ampin_gp, ln_ampout_gp, tau_gp and find the exponential
         # of their current values
         pardict = self.ancestor_param_dict
 
-        ln_ampin = pardict['ln_ampin_gp']
-        ln_ampout = pardict['ln_ampout_gp']
-        tau = pardict['tau_gp']
+        ln_ampin = pardict["ln_ampin_gp"]
+        ln_ampout = pardict["ln_ampout_gp"]
+        tau = pardict["tau_gp"]
 
         ampin_gp = np.exp(ln_ampin.currVal)
         ampout_gp = np.exp(ln_ampout.currVal)
@@ -633,26 +721,20 @@ class SimpleGPEclipse(SimpleEclipse):
 
         # We need to make a fairly complex kernel.
         # Global flicker
-        self.log('SimpleGPEclipse.create_GP', "Constructing a new kernel")
-        kernel = ampin_gp * george.kernels.Matern32Kernel(tau_gp**2)
+        self.log("SimpleGPEclipse.create_GP", "Constructing a new kernel")
+        kernel = ampin_gp * george.kernels.Matern32Kernel(tau_gp ** 2)
         # inter-eclipse flicker
         for gap in changepoints:
-            kernel += ampout_gp * george.kernels.Matern32Kernel(
-                tau_gp**2,
-                block=gap
-            )
+            kernel += ampout_gp * george.kernels.Matern32Kernel(tau_gp ** 2, block=gap)
 
         # Use that kernel to make a GP object
-        georgeGP = george.GP(
-            kernel,
-            solver=george.HODLRSolver
-        )
+        georgeGP = george.GP(kernel, solver=george.HODLRSolver)
 
-        self.log('SimpleGPEclipse.create_GP', "Successfully created a new GP!")
+        self.log("SimpleGPEclipse.create_GP", "Successfully created a new GP!")
         return georgeGP
 
     def ln_like(self):
-        '''The GP sits at the top of the tree. It replaces the LCModel
+        """The GP sits at the top of the tree. It replaces the LCModel
         class. When the evaluate function is called, this class should
         hijack it, calculate the residuals of all the eclipses in the tree,
         and find the likelihood of each of those residuals given the current GP
@@ -669,9 +751,9 @@ class SimpleGPEclipse(SimpleEclipse):
             The parent of this node.
         children; list(Node), or Node:
             The children of this node. Single Node is also accepted
-        '''
+        """
 
-        self.log('SimpleGPEclipse.ln_like', "Computing ln_like for a GP")
+        self.log("SimpleGPEclipse.ln_like", "Computing ln_like for a GP")
 
         # For each eclipse, I want to know the log likelihood of its residuals
         gp_ln_like = 0.0
@@ -682,7 +764,7 @@ class SimpleGPEclipse(SimpleEclipse):
         if np.any(np.isinf(residuals)) or np.any(np.isnan(residuals)):
             if self.DEBUG:
                 msg = "GP ln_like computed inf or nan residuals for the model. Returning -np.inf for the likelihood."
-                self.log('SimpleGPEclipse.ln_like', msg)
+                self.log("SimpleGPEclipse.ln_like", msg)
             return -np.inf
 
         # Create the GP of this eclipse
@@ -695,7 +777,10 @@ class SimpleGPEclipse(SimpleEclipse):
         gp_ln_like = gp.log_likelihood(residuals, quiet=True)
 
         if self.DEBUG:
-            self.log('SimpleGPEclipse.ln_like', "GP computed a ln_like of {}".format(gp_ln_like))
+            self.log(
+                "SimpleGPEclipse.ln_like",
+                "GP computed a ln_like of {}".format(gp_ln_like),
+            )
 
         return gp_ln_like
 
@@ -707,15 +792,31 @@ class ComplexGPEclipse(SimpleGPEclipse):
     @property
     def cv_parnames(self):
         names = [
-            'wdFlux', 'dFlux', 'sFlux', 'rsFlux', 'q', 'dphi',
-            'rdisc', 'ulimb', 'rwd', 'scale', 'az', 'fis', 'dexp', 'phi0',
-            'exp1', 'exp2', 'tilt', 'yaw'
+            "wdFlux",
+            "dFlux",
+            "sFlux",
+            "rsFlux",
+            "q",
+            "dphi",
+            "rdisc",
+            "ulimb",
+            "rwd",
+            "scale",
+            "az",
+            "fis",
+            "dexp",
+            "phi0",
+            "exp1",
+            "exp2",
+            "tilt",
+            "yaw",
         ]
 
         return names
 
+
 def construct_model(input_file, debug=False, nodata=False):
-    '''Takes an input filename, and parses it into a model tree.
+    """Takes an input filename, and parses it into a model tree.
 
     Inputs:
     -------
@@ -728,18 +829,18 @@ def construct_model(input_file, debug=False, nodata=False):
     Output:
     -------
       model root node
-    '''
+    """
 
     input_dict = configobj.ConfigObj(input_file)
 
     # Do we use the complex model? Do we use the GP?
-    is_complex = bool(int(input_dict['complex']))
-    use_gp = bool(int(input_dict['useGP']))
+    is_complex = bool(int(input_dict["complex"]))
+    use_gp = bool(int(input_dict["useGP"]))
 
     # neclipses no longer strictly necessary, but can be used to limit the
     # maximum number of fitted eclipses
     try:
-        neclipses = int(input_dict['neclipses'])
+        neclipses = int(input_dict["neclipses"])
     except KeyError:
         # Read in all the available eclipses
         neclipses = 9999
@@ -758,8 +859,9 @@ def construct_model(input_file, debug=False, nodata=False):
     # Start by creating the overall Node. Gather the parameters:
     if use_gp:
         core_par_names = GPLCModel.node_par_names
-        core_pars = [Param.fromString(name, input_dict[name])
-                     for name in core_par_names]
+        core_pars = [
+            Param.fromString(name, input_dict[name]) for name in core_par_names
+        ]
         if debug:
             print("Using the GP!")
             print("Core params:")
@@ -767,11 +869,12 @@ def construct_model(input_file, debug=False, nodata=False):
                 print("  -> par: {:<10s}  --  value: {:.3f}".format(par, val.currVal))
 
         # and make the model object with no children
-        model = GPLCModel('core', core_pars, DEBUG=debug)
+        model = GPLCModel("core", core_pars, DEBUG=debug)
     else:
         core_par_names = LCModel.node_par_names
-        core_pars = [Param.fromString(name, input_dict[name])
-                     for name in core_par_names]
+        core_pars = [
+            Param.fromString(name, input_dict[name]) for name in core_par_names
+        ]
 
         if debug:
             print("Not using the GP!")
@@ -780,7 +883,7 @@ def construct_model(input_file, debug=False, nodata=False):
                 print("  -> par: {:<10s}  --  value: {:.3f}".format(par, val.currVal))
 
         # and make the model object with no children
-        model = LCModel('core', core_pars, DEBUG=debug)
+        model = LCModel("core", core_pars, DEBUG=debug)
 
     # # # # # # # # # # # # # # # # #
     # # # Now do the band names # # #
@@ -816,7 +919,7 @@ def construct_model(input_file, debug=False, nodata=False):
     # Collect that order here.
     defined_bands = []
     defined_eclipses = []
-    with open(input_file, 'r') as input_file_obj:
+    with open(input_file, "r") as input_file_obj:
         for line in input_file_obj:
             line = line.strip().split()
 
@@ -874,8 +977,8 @@ def construct_model(input_file, debug=False, nodata=False):
     # # Finally, get the eclipses # #
     # # # # # # # # # # # # # # # # #
 
-    lo = float(input_dict['phi_start'])
-    hi = float(input_dict['phi_end'])
+    lo = float(input_dict["phi_start"])
+    hi = float(input_dict["phi_end"])
 
     for label in defined_eclipses[:neclipses]:
         # Get the list of parameters, and their priors
@@ -892,21 +995,17 @@ def construct_model(input_file, debug=False, nodata=False):
             y = np.zeros_like(x)
             yerr = np.ones_like(y)
 
-            lc = Lightcurve(
-                "Dummy_Data_{}".format(label),
-                x, y, yerr
-            )
+            lc = Lightcurve("Dummy_Data_{}".format(label), x, y, yerr)
 
         else:
             # Get the observational data
-            lc_fname = input_dict['file_{}'.format(label)]
+            lc_fname = input_dict["file_{}".format(label)]
             lc = Lightcurve.from_calib(lc_fname)
             lc.trim(lo, hi)
 
-
         # Get the band object that this eclipse belongs to
-        my_band_label = input_dict['band_{}'.format(label)]
-        my_band = model.search_Node('Band', my_band_label)
+        my_band_label = input_dict["band_{}".format(label)]
+        my_band = model.search_Node("Band", my_band_label)
 
         if debug:
             print("\nThe eclipse labelled {}:".format(label))
@@ -914,7 +1013,9 @@ def construct_model(input_file, debug=False, nodata=False):
             print("  -> Band: {}".format(my_band.name))
             print("Band params:")
             for par in params:
-                print("  -> Par: {:>10s}  --- value: {:.3f}".format(par.name, par.currVal))
+                print(
+                    "  -> Par: {:>10s}  --- value: {:.3f}".format(par.name, par.currVal)
+                )
 
         if use_gp:
             if is_complex:
