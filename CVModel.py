@@ -58,7 +58,11 @@ class Lightcurve:
                         delimiter
                     )
                 )
-        phase, flux, error = data.T
+        try:
+            phase, flux, error = data.T
+        except ValueError:
+            # we probably have a Tseries style file
+            phase, _, flux, error, bmask = data.T
 
         # Filter out nans.
         mask = np.where(np.isnan(flux) == 0)
@@ -696,7 +700,7 @@ class SimpleGPEclipse(SimpleEclipse):
         works out the location of any changepoints present, constructs a single
         (mixed) kernel and uses this kernel to create GPs
 
-        Requires an Eclipse object to create the GP for. """
+        Requires an Eclipse object to create the GP for."""
 
         self.log("SimpleGPEclipse.create_GP", "Creating a new GP")
 
@@ -722,10 +726,10 @@ class SimpleGPEclipse(SimpleEclipse):
         # We need to make a fairly complex kernel.
         # Global flicker
         self.log("SimpleGPEclipse.create_GP", "Constructing a new kernel")
-        kernel = ampin_gp * george.kernels.Matern32Kernel(tau_gp ** 2)
+        kernel = ampin_gp * george.kernels.Matern32Kernel(tau_gp**2)
         # inter-eclipse flicker
         for gap in changepoints:
-            kernel += ampout_gp * george.kernels.Matern32Kernel(tau_gp ** 2, block=gap)
+            kernel += ampout_gp * george.kernels.Matern32Kernel(tau_gp**2, block=gap)
 
         # Use that kernel to make a GP object
         georgeGP = george.GP(kernel, solver=george.HODLRSolver)
