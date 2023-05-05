@@ -4,7 +4,8 @@ import configobj
 import numpy as np
 from bokeh.layouts import Spacer, column, gridplot, row
 from bokeh.models import ColumnDataSource, Span, Band
-from bokeh.models.widgets import Dropdown, Panel, Slider, Tabs, markups
+from bokeh.models.widgets import Dropdown, Slider, Tabs, markups
+from bokeh.models.widgets.panels import Panel
 from bokeh.models.widgets.buttons import Button, Toggle
 from bokeh.plotting import curdoc, figure
 from pandas import DataFrame
