@@ -31,6 +31,7 @@ except:
     print("Failed to import ptemcee! Disabling parallel tempering.")
     noPT = True
 
+
 # I need to wrap the model's ln_like, ln_prior, and ln_prob functions
 # in order to pickle them :(
 def ln_prior(param_vector, model):
@@ -55,14 +56,15 @@ def ln_like(param_vector, model):
 
 
 if __name__ in "__main__":
-
     # Set up the parser.
     parser = argparse.ArgumentParser(
         description="""Execute an MCMC fit to a dataset."""
     )
 
     parser.add_argument(
-        "input", help="The filename for the MCMC parameters' input file.", type=str,
+        "input",
+        help="The filename for the MCMC parameters' input file.",
+        type=str,
     )
     parser.add_argument(
         "--notify",
@@ -272,8 +274,8 @@ if __name__ in "__main__":
             npars,
             ln_like,
             ln_prob,
-            loglargs=(model,),
-            logpargs=(model,),
+            logl_args=(model,),
+            logp_args=(model,),
             ntemps=ntemps,
             pool=pool,
         )
