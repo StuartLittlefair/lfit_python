@@ -18,18 +18,18 @@ from mcmc_utils import flatchain, readchain_dask, readflatchain
 
 def read_wood_file(filename):
     """The Wood 1995 thick H layer models (CO)
-        returns temp and radius in K and solar units"""
+    returns temp and radius in K and solar units"""
     x, y = np.loadtxt(filename, usecols=(5, 6)).T
-    temp = 10 ** y * units.K
-    radius = 10 ** x * units.R_sun / const.R_sun.to(units.cm).value
+    temp = 10**y * units.K
+    radius = 10**x * units.R_sun / const.R_sun.to(units.cm).value
     # must reverse so temp increases...
     return temp[::-1], radius[::-1]
 
 
 def read_panei_file(filename):
     x, y = np.loadtxt(filename, usecols=(1, 2)).T
-    temp = 10 ** y * units.K
-    radius = 10 ** x * units.R_sun / const.R_sun.to(units.cm).value
+    temp = 10**y * units.K
+    radius = 10**x * units.R_sun / const.R_sun.to(units.cm).value
     temp, mass, radius = np.loadtxt(filename).T
     temp = 1000 * temp * units.K
     mass = mass * units.M_sun
@@ -70,9 +70,9 @@ def panei_mr(targetTemp, baseDir):
 
 def wood_mr(targetTemp, baseDir):
     """given a target temp, returns a function giving
-        radius as a function of mass.
+    radius as a function of mass.
 
-        function is derived from cubic interpolation of wood models"""
+    function is derived from cubic interpolation of wood models"""
     files = [
         "Wood95/co040.2.04dt1",
         "Wood95/co050.2.04dt1",
@@ -87,7 +87,7 @@ def wood_mr(targetTemp, baseDir):
     for file in files:
         temp, rad = read_wood_file(os.path.join(baseDir, file))
         # linear interpolation to find radius at this mass, temp
-        r.append(np.interp(targetTemp.value, temp, rad))
+        r.append(np.interp(targetTemp.value, temp.value, rad))
 
     # fix units
     r = np.array(r) * units.R_sun
@@ -106,11 +106,11 @@ def geoFunc(mtest, scaled_mass, rw_a):
 
 def find_wdmass(wdtemp, scaled_mass, rw_a, baseDir, model="hamada"):
     """for a given white dwarf mass we have two estimates of the white dwarf radius:
-        one from WD theoretical models, and one from the scaled_mass (which gives a)
-        and rw_a - this is the geometric mass.
+    one from WD theoretical models, and one from the scaled_mass (which gives a)
+    and rw_a - this is the geometric mass.
 
-        this routine finds the white dwarf mass where these estimates agree, if
-        one exists."""
+    this routine finds the white dwarf mass where these estimates agree, if
+    one exists."""
     assert model in ["hamada", "wood", "panei"], "Model %s not recognised" % model
     limits = {"hamada": [0.14, 1.44], "wood": [0.4, 1.0], "panei": [0.4, 1.2]}
 
@@ -161,7 +161,7 @@ def solve(input_data, baseDir):
 
     # Kepler's law gives a quantity related to wd mass and separation, a
     # scaled_mass = a**3/M_wd. I call this the scaled mass.
-    scaled_mass = const.G * (1 + q) * p ** 2 / 4.0 / np.pi ** 2
+    scaled_mass = const.G * (1 + q) * p**2 / 4.0 / np.pi**2
 
     # convert white dwarf radius to units of separation, rw/a
     xl1_a = roche.xl1(q)
