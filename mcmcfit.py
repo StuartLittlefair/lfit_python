@@ -276,7 +276,7 @@ if __name__ in "__main__":
             ln_prob,
             logl_args=(model,),
             logp_args=(model,),
-            ntemps=ntemps,
+            betas=ntemps,
             pool=pool,
         )
 
