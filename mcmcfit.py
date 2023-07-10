@@ -274,9 +274,10 @@ if __name__ in "__main__":
             npars,
             ln_like,
             ln_prob,
-            logl_args=(model,),
-            logp_args=(model,),
-            betas=ntemps,
+            loglargs=(model,),
+            logpargs=(model,),
+            ntemps=ntemps,
+            pool=pool,
         )
 
     else:
