@@ -277,7 +277,6 @@ if __name__ in "__main__":
             logl_args=(model,),
             logp_args=(model,),
             betas=ntemps,
-            pool=pool,
         )
 
     else:
