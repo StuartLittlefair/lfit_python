@@ -3,9 +3,8 @@ from os import getcwd
 import configobj
 import numpy as np
 from bokeh.layouts import Spacer, column, gridplot, row
-from bokeh.models import ColumnDataSource, Span, Band
-from bokeh.models.widgets import Dropdown, Slider, Tabs, markups
-from bokeh.models.widgets.panels import Panel
+from bokeh.models import ColumnDataSource, Span, Band, Tabs, TabPanel
+from bokeh.models.widgets import Dropdown, Slider, markups
 from bokeh.models.widgets.buttons import Button, Toggle
 from bokeh.plotting import curdoc, figure
 from pandas import DataFrame
@@ -255,8 +254,8 @@ class Watcher:
         title_text = "{} --- Band: {}".format(fname, band_name)
         self.lc_plot = figure(
             title=title_text,
-            plot_height=500,
-            plot_width=1200,
+            height=500,
+            width=1200,
             toolbar_location="above",
             y_axis_location="left",
             x_axis_location=None,
@@ -269,8 +268,8 @@ class Watcher:
 
         # also plot residuals
         self.lc_res_plot = figure(
-            plot_height=250,
-            plot_width=1200,
+            height=250,
+            width=1200,
             toolbar_location=None,
             y_axis_location="left",
             x_range=self.lc_plot.x_range,
@@ -373,7 +372,7 @@ class Watcher:
             ]
         )
 
-        self.inspector_tab = Panel(child=inspector_layout, title="Lightcurve Inspector")
+        self.inspector_tab = TabPanel(child=inspector_layout, title="Lightcurve Inspector")
         print("Constructed the Lightcurve Inspector tab!")
 
     def init_data_storage(self):
