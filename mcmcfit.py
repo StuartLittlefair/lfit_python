@@ -334,7 +334,7 @@ if __name__ in "__main__":
         # get chain for zero temp walker. Higher temp walkers DONT sample the
         # right landscape!
         # chain shape = (ntemps,nwalkers*nsteps,ndim)
-        chain = sampler.flatchain[0, ...]
+        # chain = sampler.flatchain[0, ...]
     else:
         # Run production stage of non-parallel tempered mcmc
         sampler = utils.run_mcmc_save(
@@ -345,6 +345,6 @@ if __name__ in "__main__":
         # sampler.chain has shape (nwalkers, nsteps, npars)
 
         # Collect results from all walkers
-        chain = utils.flatchain(sampler.chain, npars, thin=10)
+        # chain = utils.flatchain(sampler.chain, npars, thin=10)
 
     plotCV.fit_summary("chain_prod.txt", input_fname, destination=dest, automated=True)

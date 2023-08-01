@@ -218,11 +218,10 @@ def run_mcmc_save(
             startPos,
             iterations=nSteps,
             rstate0=rState,
-            store=True,
+            store=False,
             skip_initial_state_check=True,
             **kwargs
         ):
-
             iStep += 1
             if progress:
                 bar.update()
@@ -240,9 +239,8 @@ def run_mcmc_save(
                     )
     except TypeError:
         for pos, prob, state in sampler.sample(
-            startPos, iterations=nSteps, rstate0=rState, storechain=True, **kwargs
+            startPos, iterations=nSteps, rstate0=rState, storechain=False, **kwargs
         ):
-
             iStep += 1
             if progress:
                 bar.update()
@@ -281,7 +279,7 @@ def run_ptmcmc_save(
     ## TODO: Impliment this with kwrgs manipulation, currently it is dumb.
     try:
         for pos, prob, like in sampler.sample(
-            startPos, iterations=nSteps, store=True, **kwargs
+            startPos, iterations=nSteps, store=False, **kwargs
         ):
             iStep += 1
             if progress:
@@ -420,7 +418,6 @@ def GR_diagnostic(sampler_chain):
     R_hats = np.zeros((ndim))
     samples = sampler_chain[:, :, :].reshape(-1, ndim)
     for i in range(ndim):  # iterate over parameters
-
         # Define variables
         chains = sampler_chain[:, :, i]
 
@@ -461,7 +458,7 @@ def rebin(xbins, x, y, e=None, weighted=True, errors_from_rms=False):
         if weighted:
             if e is None:
                 raise Exception("Cannot compute weighted mean without errors")
-            weights = 1.0 / bin_e_vals ** 2
+            weights = 1.0 / bin_e_vals**2
             xbin.append(np.sum(weights * bin_x_vals) / np.sum(weights))
             ybin.append(np.sum(weights * bin_y_vals) / np.sum(weights))
             if errors_from_rms:
@@ -474,7 +471,7 @@ def rebin(xbins, x, y, e=None, weighted=True, errors_from_rms=False):
             if errors_from_rms:
                 ebin.append(np.std(bin_y_vals))
             else:
-                ebin.append(np.sqrt(np.sum(bin_e_vals ** 2)) / len(bin_e_vals))
+                ebin.append(np.sqrt(np.sum(bin_e_vals**2)) / len(bin_e_vals))
     xbin = np.array(xbin)
     ybin = np.array(ybin)
     ebin = np.array(ebin)
