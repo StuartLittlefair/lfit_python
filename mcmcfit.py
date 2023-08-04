@@ -44,7 +44,7 @@ def ln_prior(param_vector, model):
 def ln_prob(param_vector, model):
     model.dynasty_par_vals = param_vector
     val = model.ln_prob()
-
+    
     return val
 
 
@@ -53,6 +53,92 @@ def ln_like(param_vector, model):
     val = model.ln_like()
 
     return val
+
+
+def run_pt():
+    print(
+        "MCMC using parallel tempering at {} levels, for {} total walkers.".format(
+            ntemps, nwalkers * ntemps
+        )
+    )
+
+    # Create the initial ball of walker positions
+    p_0 = utils.initialise_walkers_pt(
+        p_0, p0_scatter_1, nwalkers, ntemps, ln_prior, model
+    )
+
+    # Create the sampler
+    sampler = ptemcee.sampler.Sampler(
+        nwalkers,
+        npars,
+        ln_like,
+        ln_prob,
+        loglargs=(model,),
+        logpargs=(model,),
+        ntemps=ntemps,
+        pool=pool,
+    )
+
+    # Run the burnin phase
+    print("\n\nExecuting the burn-in phase...")
+    pos, prob, state = utils.run_burnin(sampler, p_0, nburn)
+
+    # Do we want to do that again?
+    if double_burnin:
+        # If we wanted to run a second burn-in phase, then do. Scatter the
+        # position about the first burn
+        print("Executing the second burn-in phase")
+        p_0 = pos[np.unravel_index(prob.argmax(), prob.shape)]
+        p_0 = utils.initialise_walkers_pt(
+            p_0, p0_scatter_2, nwalkers, ntemps, ln_prior, model
+        )     
+
+    # Now, reset the sampler. We'll use the result of the burn-in phase to
+    # re-initialise it.
+    sampler.reset()
+    print("Starting the main MCMC chain. Probably going to take a while!")
+
+    # Get the column keys. Otherwise, we can't parse the results!
+    col_names = "walker_no " + " ".join(model.dynasty_par_names) + " ln_prob"
+
+    # Run production stage of parallel tempered mcmc
+    sampler = utils.run_ptmcmc_save(
+        sampler, pos, nprod, "chain_prod.txt", col_names=col_names
+    )
+
+
+def run(nwalkers, npars, ln_prob, ln_prior, p_0, model, pool):
+    # Create the initial ball of walker positions
+    p_0 = utils.initialise_walkers(p_0, p0_scatter_1, nwalkers, ln_prior, model)
+    # Create the sampler
+    sampler = emcee.EnsembleSampler(
+        nwalkers, npars, ln_prob, args=(model,), pool=pool
+    )
+    # Run the burnin phase
+    print("\n\nExecuting the burn-in phase...")
+    pos, prob, state = utils.run_burnin(sampler, p_0, nburn)
+    # Do we want to do that again?
+    if double_burnin:
+        # If we wanted to run a second burn-in phase, then do. Scatter the
+        # position about the first burn
+        print("Executing the second burn-in phase")
+        p_0 = pos[np.argmax(prob)]
+        p_0 = utils.initialise_walkers(p_0, p0_scatter_2, nwalkers, ln_prior, model)
+
+        # Run that burn-in
+        pos, prob, state = utils.run_burnin(sampler, p_0, nburn)
+
+    # Now, reset the sampler. We'll use the result of the burn-in phase to
+    # re-initialise it.
+    sampler.reset()
+    print("Starting the main MCMC chain. Probably going to take a while!")
+
+    # Get the column keys. Otherwise, we can't parse the results!
+    col_names = "walker_no " + " ".join(model.dynasty_par_names) + " ln_prob"
+    # Run production stage of non-parallel tempered mcmc
+    sampler = utils.run_mcmc_save(
+        sampler, pos, nprod, state, "chain_prod.txt", col_names=col_names
+    )
 
 
 if __name__ in "__main__":
@@ -253,98 +339,17 @@ if __name__ in "__main__":
 
     # Initialise the sampler. If we're using parallel tempering, do that.
     # Otherwise, don't.
-
-    if use_pt:
-        mp.set_start_method("forkserver")
-        pool = mp.get_context("spawn").Pool(nthreads)
-        print(
-            "MCMC using parallel tempering at {} levels, for {} total walkers.".format(
-                ntemps, nwalkers * ntemps
-            )
-        )
-
-        # Create the initial ball of walker positions
-        p_0 = utils.initialise_walkers_pt(
-            p_0, p0_scatter_1, nwalkers, ntemps, ln_prior, model
-        )
-
-        # Create the sampler
-        sampler = ptemcee.sampler.Sampler(
-            nwalkers,
-            npars,
-            ln_like,
-            ln_prob,
-            loglargs=(model,),
-            logpargs=(model,),
-            ntemps=ntemps,
-            pool=pool,
-        )
-
-    else:
-        mp.set_start_method("forkserver")
-        pool = mp.get_context("spawn").Pool(nthreads)
-
-        # Create the initial ball of walker positions
-        p_0 = utils.initialise_walkers(p_0, p0_scatter_1, nwalkers, ln_prior, model)
-
-        # Create the sampler
-        sampler = emcee.EnsembleSampler(
-            nwalkers, npars, ln_prob, args=(model,), pool=pool
-        )
-
-    # Run the burnin phase
-    print("\n\nExecuting the burn-in phase...")
-    pos, prob, state = utils.run_burnin(sampler, p_0, nburn)
-
-    # Do we want to do that again?
-    if double_burnin:
-        # If we wanted to run a second burn-in phase, then do. Scatter the
-        # position about the first burn
-        print("Executing the second burn-in phase")
-
-        # Get the Get the most likely step of the first burn-in
+    #mp.set_start_method("forkserver")
+    with mp.get_context("spawn").Pool(nthreads) as pool:
         if use_pt:
-            p_0 = pos[np.unravel_index(prob.argmax(), prob.shape)]
-            # Create the initial ball of walker positions
-            p_0 = utils.initialise_walkers_pt(
-                p_0, p0_scatter_2, nwalkers, ntemps, ln_prior, model
-            )
+            run_pt(nwalkers, npars, ln_prob, ln_prior, p_0, model, pool)
         else:
-            p_0 = pos[np.argmax(prob)]
-            # And scatter the walker ball about that position
-            p_0 = utils.initialise_walkers(p_0, p0_scatter_2, nwalkers, ln_prior, model)
-
-        # Run that burn-in
-        pos, prob, state = utils.run_burnin(sampler, p_0, nburn)
-
-    # Now, reset the sampler. We'll use the result of the burn-in phase to
-    # re-initialise it.
-    sampler.reset()
-    print("Starting the main MCMC chain. Probably going to take a while!")
-
-    # Get the column keys. Otherwise, we can't parse the results!
-    col_names = "walker_no " + " ".join(model.dynasty_par_names) + " ln_prob"
-
-    if use_pt:
-        # Run production stage of parallel tempered mcmc
-        sampler = utils.run_ptmcmc_save(
-            sampler, pos, nprod, "chain_prod.txt", col_names=col_names
-        )
-
-        # get chain for zero temp walker. Higher temp walkers DONT sample the
-        # right landscape!
-        # chain shape = (ntemps,nwalkers*nsteps,ndim)
-        # chain = sampler.flatchain[0, ...]
-    else:
-        # Run production stage of non-parallel tempered mcmc
-        sampler = utils.run_mcmc_save(
-            sampler, pos, nprod, state, "chain_prod.txt", col_names=col_names
-        )
-
-        # lnprob is in sampler.ln(probability) and is shape (nwalkers, nsteps)
-        # sampler.chain has shape (nwalkers, nsteps, npars)
-
-        # Collect results from all walkers
-        # chain = utils.flatchain(sampler.chain, npars, thin=10)
-
+            #run(nwalkers, npars, ln_prob, ln_prior, p_0, model, pool)
+            backend = emcee.backends.HDFBackend('chain.h5')
+            p_0 = utils.initialise_walkers(p_0, p0_scatter_1, nwalkers, ln_prior, model)
+            sampler = emcee.EnsembleSampler(
+                nwalkers, npars, ln_prob, args=(model,), pool=pool, backend=backend
+            )
+            for sample in sampler.sample(p_0, iterations=nprod+nburn, progress=True):
+                continue
     plotCV.fit_summary("chain_prod.txt", input_fname, destination=dest, automated=True)
