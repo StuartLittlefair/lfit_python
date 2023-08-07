@@ -3,9 +3,10 @@ Update an existing mcmcfit input file using the results of a
 previous chain.
 """
 import argparse
-
+import emcee
+import h5py
 import pandas as pd
-
+import numpy as np
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -23,13 +24,21 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     print("Reading in the chain")
-    df = pd.read_csv(args.chain_file, delim_whitespace=True)
-    nwalkers = df["walker_no"].max() + 1
-    df["step"] = df.index // nwalkers
-    df = df.loc[df.step % args.thin == 0]
+    try:
+        df = pd.read_csv(args.chain_file, delim_whitespace=True)
+        nwalkers = df["walker_no"].max() + 1
+        df["step"] = df.index // nwalkers
+        df = df.loc[df.step % args.thin == 0]
+        # get median from df
+        results = df.quantile(0.5)
 
-    # get median from df
-    results = df.quantile(0.5)
+    except UnicodeDecodeError:
+        reader = emcee.backends.HDFBackend(args.chain_file)
+        samples = reader.get_chain(discard=0, flat=True, thin=args.thin)
+        with h5py.File(args.chain_file, "r") as f:
+            names = list(f["mcmc"].attrs["var_names"])
+        results = pd.Series(np.median(samples, axis=0), index=names)
+
     # strip "core" from core params
     results.index = [entry.replace("_core", "") for entry in results.index]
 

@@ -4,8 +4,6 @@ Requires the input file, and data files defined in that.
 Supplied at the command line, via:
 
     python3 mcmcfit.py mcmc_input.dat
-
-Can also notify the user of a completed chain with the --notify flag.
 """
 
 import argparse
@@ -14,6 +12,7 @@ import os
 from pprintpp import pprint
 from shutil import rmtree
 from sys import exit
+import h5py
 
 import configobj
 import emcee
@@ -44,7 +43,7 @@ def ln_prior(param_vector, model):
 def ln_prob(param_vector, model):
     model.dynasty_par_vals = param_vector
     val = model.ln_prob()
-    
+
     return val
 
 
@@ -91,7 +90,7 @@ def run_pt():
         p_0 = pos[np.unravel_index(prob.argmax(), prob.shape)]
         p_0 = utils.initialise_walkers_pt(
             p_0, p0_scatter_2, nwalkers, ntemps, ln_prior, model
-        )     
+        )
 
     # Now, reset the sampler. We'll use the result of the burn-in phase to
     # re-initialise it.
@@ -107,38 +106,53 @@ def run_pt():
     )
 
 
-def run(nwalkers, npars, ln_prob, ln_prior, p_0, model, pool):
-    # Create the initial ball of walker positions
-    p_0 = utils.initialise_walkers(p_0, p0_scatter_1, nwalkers, ln_prior, model)
+def run(nwalkers, npars, ln_prob, ln_prior, p_0, model, pool, extend=False):
+    backend = emcee.backends.HDFBackend("chain_prod.h5")
+    if not extend:
+        # reset backend, overwriting existing chain if needs be
+        backend.reset(nwalkers, npars)
+        # use the initial guess as the starting point
+        p_0 = utils.initialise_walkers(p_0, p0_scatter_1, nwalkers, ln_prior, model)
+    else:
+        # extend the exisisting chain, using it's state as starting point
+        p0 = None
+
     # Create the sampler
     sampler = emcee.EnsembleSampler(
-        nwalkers, npars, ln_prob, args=(model,), pool=pool
+        nwalkers,
+        npars,
+        ln_prob,
+        args=(model,),
+        pool=pool,
+        backend=backend,
+        moves=[
+            (emcee.moves.DEMove(), 0.7),
+            (emcee.moves.DESnookerMove(), 0.3),
+        ],
     )
+    sampler.run_mcmc(p_0, nburn, progress=True)
+
     # Run the burnin phase
     print("\n\nExecuting the burn-in phase...")
-    pos, prob, state = utils.run_burnin(sampler, p_0, nburn)
+    state = sampler.run_mcmc(p_0, nburn, store=False, progress=True)
+
     # Do we want to do that again?
     if double_burnin:
         # If we wanted to run a second burn-in phase, then do. Scatter the
         # position about the first burn
         print("Executing the second burn-in phase")
-        p_0 = pos[np.argmax(prob)]
+        p_0 = state.coords[np.argmax(state.log_prob)]
         p_0 = utils.initialise_walkers(p_0, p0_scatter_2, nwalkers, ln_prior, model)
 
         # Run that burn-in
-        pos, prob, state = utils.run_burnin(sampler, p_0, nburn)
+        state = sampler.run_mcmc(p_0, nburn, store=False, progress=True)
 
     # Now, reset the sampler. We'll use the result of the burn-in phase to
     # re-initialise it.
     sampler.reset()
     print("Starting the main MCMC chain. Probably going to take a while!")
-
-    # Get the column keys. Otherwise, we can't parse the results!
-    col_names = "walker_no " + " ".join(model.dynasty_par_names) + " ln_prob"
-    # Run production stage of non-parallel tempered mcmc
-    sampler = utils.run_mcmc_save(
-        sampler, pos, nprod, state, "chain_prod.txt", col_names=col_names
-    )
+    sampler.run_mcmc(state, nprod, store=True, progress=True)
+    return sampler
 
 
 if __name__ in "__main__":
@@ -152,12 +166,7 @@ if __name__ in "__main__":
         help="The filename for the MCMC parameters' input file.",
         type=str,
     )
-    parser.add_argument(
-        "--notify",
-        help="The script will email a summary results of the MCMC to this address",
-        type=str,
-        default="",
-    )
+
     parser.add_argument(
         "--debug", help="Enable the debugging flag in the model", action="store_true"
     )
@@ -166,36 +175,18 @@ if __name__ in "__main__":
         "--quiet", help="Do not plot the initial conditions", action="store_true"
     )
 
+    parser.add_argument(
+        "-e", "--extend", help="extend a previous chain", action="store_true"
+    )
+
     args = parser.parse_args()
     input_fname = args.input
-    dest = args.notify
     debug = args.debug
     quiet = args.quiet
 
     if debug:
         if os.path.isdir("DEBUGGING"):
             rmtree("DEBUGGING")
-
-    # I want to pre-check that the details have been supplied.
-    if dest != "":
-        location = __file__.split("/")[:-1] + ["email_details.json"]
-        details_loc = "/".join(location)
-        if not os.path.isfile(details_loc):
-            print("Couldn't find the file {}! Creating it now.")
-            with open(details_loc, "w") as f:
-                s = '{\n  "user": "Bot email address",\n  "pass": "Bot email password"\n}'
-                f.write(s)
-
-        # Check that the details file has been filled in.
-        # If it hasn't, ask the user to get it done.
-        with open(details_loc, "r") as f:
-            details = f.read()
-        if "Bot email address" in details:
-            print("The model will continue for now, but there are no")
-            print("email credentials supplied and the code will fail")
-            print("when it tries to send it.")
-            print("Don't panic, just complete the JSON file here:")
-            print("{}".format(details_loc))
 
     # Build the model from the input file
     model = construct_model(input_fname, debug)
@@ -337,19 +328,16 @@ if __name__ in "__main__":
         # Create another array for second burn-in
         p0_scatter_2 = p0_scatter_1 * (scatter_2 / scatter_1)
 
-    # Initialise the sampler. If we're using parallel tempering, do that.
-    # Otherwise, don't.
-    #mp.set_start_method("forkserver")
+    # Run MCMC
     with mp.get_context("spawn").Pool(nthreads) as pool:
         if use_pt:
             run_pt(nwalkers, npars, ln_prob, ln_prior, p_0, model, pool)
+            plotCV.fit_summary("chain_prod.txt", input_fname, automated=True)
         else:
-            #run(nwalkers, npars, ln_prob, ln_prior, p_0, model, pool)
-            backend = emcee.backends.HDFBackend('chain.h5')
-            p_0 = utils.initialise_walkers(p_0, p0_scatter_1, nwalkers, ln_prior, model)
-            sampler = emcee.EnsembleSampler(
-                nwalkers, npars, ln_prob, args=(model,), pool=pool, backend=backend
+            sampler = run(
+                nwalkers, npars, ln_prob, ln_prior, p_0, model, pool, args.extend
             )
-            for sample in sampler.sample(p_0, iterations=nprod+nburn, progress=True):
-                continue
-    plotCV.fit_summary("chain_prod.txt", input_fname, destination=dest, automated=True)
+            # add parnames to chain file
+            with h5py.File("chain_prod.h5", "r+") as f:
+                f["mcmc"].attrs["var_names"] = model.dynasty_par_names
+            plotCV.fit_summary("chain_prod.h5", input_fname, automated=True)
