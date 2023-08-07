@@ -116,6 +116,7 @@ def run(nwalkers, npars, ln_prob, ln_prior, p_0, model, pool, extend=False):
     else:
         # extend the exisisting chain, using it's state as starting point
         p0 = backend.get_last_sample()
+        print(p0.coords.shape)
 
     # Create the sampler
     sampler = emcee.EnsembleSampler(
