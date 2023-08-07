@@ -115,7 +115,7 @@ def run(nwalkers, npars, ln_prob, ln_prior, p_0, model, pool, extend=False):
         p_0 = utils.initialise_walkers(p_0, p0_scatter_1, nwalkers, ln_prior, model)
     else:
         # extend the exisisting chain, using it's state as starting point
-        p0 = None
+        p0 = backend.get_last_sample()
 
     # Create the sampler
     sampler = emcee.EnsembleSampler(
