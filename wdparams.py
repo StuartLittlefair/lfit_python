@@ -11,11 +11,10 @@ import emcee
 import scipy.interpolate as interp
 from astropy.stats import sigma_clipped_stats
 
+from utils import read_chain
 from mcmc_utils import (
     flatchain,
     initialise_walkers,
-    readchain,
-    readflatchain,
     run_burnin,
     run_mcmc_save,
     thumbPlot,
@@ -192,7 +191,7 @@ class Flux(object):
             issues.
         """
         self.flux = val
-        self.err = np.sqrt(err ** 2 + (val * syserr) ** 2)
+        self.err = np.sqrt(err**2 + (val * syserr) ** 2)
 
         # This is the actual band observed with.
         self.photometric_system = photometric_system
@@ -258,7 +257,6 @@ class WDModel:
 
     # arguments are Param objects (see mcmc_utils)
     def __init__(self, teff, logg, plax, ebv, fluxes):
-
         self.teff = teff
         self.logg = logg
         self.plax = plax
@@ -299,7 +297,10 @@ class WDModel:
 
     def __repr__(self):
         return "WDModel(teff={:.1f}, logg={:.2f}, plax={:.3f}, ebv={:.1f})".format(
-            self.teff.currVal, self.logg.currVal, self.plax.currVal, self.ebv.currVal,
+            self.teff.currVal,
+            self.logg.currVal,
+            self.plax.currVal,
+            self.ebv.currVal,
         )
 
     @property
@@ -356,8 +357,8 @@ def plotColors(model, fname="colorplot.pdf"):
     flux_r = [obs for obs in model.obs_fluxes if "r" in obs.band][0]
     print("Observations:\n    {}\n    {}\n    {}".format(flux_u, flux_g, flux_r))
 
-    obs_ug_err = np.sqrt((flux_u.magerr ** 2) + (flux_g.magerr ** 2))
-    obs_gr_err = np.sqrt((flux_g.magerr ** 2) + (flux_r.magerr ** 2))
+    obs_ug_err = np.sqrt((flux_u.magerr**2) + (flux_g.magerr**2))
+    obs_gr_err = np.sqrt((flux_g.magerr**2) + (flux_r.magerr**2))
 
     # Correct magnitudes to the Bergeron frame
     t, g = model.teff.currVal, model.logg.currVal
@@ -610,7 +611,6 @@ if __name__ == "__main__":
     ebv = Param.fromString("ebv", input_dict["ebv"])
     syserr = float(input_dict["syserr"])
     chain_file = input_dict.get("chain", None)
-    flat = int(input_dict["flat"])
 
     # Logging
     LOGFILE.write("Fitting White Dwarf fluxes to model cooling tracks...\n")
@@ -628,21 +628,7 @@ if __name__ == "__main__":
         fluxes = []
     else:
         print("Reading in the chain file,", chain_file)
-        if flat:
-            with open(chain_file, "r") as f:
-                colKeys = f.readline().strip().split()[1:]
-            fchain = readflatchain(chain_file)
-        else:
-            with open(chain_file, "r") as f:
-                line = f.readline()
-                while line[0] == "#":
-                    line = f.readline()
-                colKeys = line.strip().split()[1:]
-            chain = readchain(chain_file)
-            print(
-                "The chain has {} walkers, {} steps, and {} pars.".format(*chain.shape)
-            )
-            fchain = flatchain(chain, thin=thin)
+        colKeys, chain = read_chain(chain_file)
         print("Done!")
 
         # Extract the fluxes from the chain file, and create a list of Fux objects from that
@@ -714,7 +700,11 @@ if __name__ == "__main__":
         pool = mp.Pool(nthread)
         p0 = initialise_walkers(guessP, scatter, nwalkers, ln_prior, myModel)
         sampler = emcee.EnsembleSampler(
-            nwalkers, npars, ln_prob, args=(myModel,), pool=pool,
+            nwalkers,
+            npars,
+            ln_prob,
+            args=(myModel,),
+            pool=pool,
         )
 
         # burnIn

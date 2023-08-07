@@ -3,7 +3,6 @@ Plotting routines to accompany mcmcfit.py
 """
 
 import argparse
-import h5py
 import os
 import warnings
 
@@ -14,9 +13,9 @@ import pandas as pd
 import numpy as np
 from random import choice
 
+from utils import read_chain
 import mcmc_utils as utils
 from CVModel import construct_model
-import emcee
 
 
 def nxdraw(model):
@@ -342,20 +341,7 @@ def fit_summary(
 
     # Read in the data
     print("Reading in the data...")
-    try:
-        df = pd.read_csv(chain_fname, delim_whitespace=True)
-        colKeys = list(df.columns.values)[1:-1]
-    except UnicodeDecodeError:
-        reader = emcee.backends.HDFBackend(chain_fname, read_only=True)
-        samples = reader.get_chain(discard=0, flat=True, thin=1)
-        nwalkers, npars = reader.shape
-        nsamples = samples.size // npars // nwalkers
-        with h5py.File(chain_fname, "r") as f:
-            colKeys = list(f["mcmc"].attrs["var_names"])
-        df = pd.DataFrame(samples, columns=colKeys)
-        df["ln_prob"] = reader.get_log_prob(discard=0, flat=True, thin=1)
-        nsamples = samples.size // npars // nwalkers
-        df["walker_no"] = np.array(list(range(nwalkers)) * nsamples)
+    colKeys, df = read_chain(chain_fname)
 
     print("Done!\nData shape: {}".format(df.shape))
     print(

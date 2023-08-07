@@ -13,7 +13,9 @@ from scipy.optimize import brentq
 from tqdm import tqdm
 from trm import roche
 
-from mcmc_utils import flatchain, readchain_dask, readflatchain
+from mcmc_utils import flatchain, readchain_dask
+import emcee
+import h5py
 
 
 def read_wood_file(filename):
@@ -244,14 +246,14 @@ if __name__ == "__main__":
         "--thin", "-t", type=int, help="amount to thin MCMC chain by", default=1
     )
     parser.add_argument(
-        "--nthreads", "-n", type=int, help="number of threads to run", default=6
+        "--skip",
+        "-s",
+        type=int,
+        help="number of steps to skip in MCMC chain",
+        default=1,
     )
     parser.add_argument(
-        "--flat",
-        "-f",
-        type=int,
-        help="Factor of thinning if flattened chain used",
-        default=0,
+        "--nthreads", "-n", type=int, help="number of threads to run", default=6
     )
     parser.add_argument(
         "--dir",
@@ -263,7 +265,7 @@ if __name__ == "__main__":
     fname = args.file
     thin = args.thin
     nthreads = args.nthreads
-    flat = args.flat
+    skip = args.skip
     baseDir = args.dir
 
     if baseDir is None:
@@ -272,20 +274,21 @@ if __name__ == "__main__":
     print("baseDir (must contain WD model directories): {}".format(baseDir))
 
     print("Reading chain file...")
-    if flat > 0:
-        # Input chain already thinned but may require additional thinning
-        fchain = readflatchain(fname)
-        nobjects = (flat * len(fchain)) / thin
-        fchain = fchain[:nobjects]
-    else:
+    try:
         chain = readchain_dask(fname)
         nwalkers, nsteps, npars = chain.shape
-        fchain = flatchain(chain, npars, thin=thin)
+        fchain = flatchain(chain, npars, nskip=skip, thin=thin)
+        # grab param names from the file
+        with open(fname, "r") as chain_file:
+            nameList = chain_file.readline().strip().split(" ")[1:]
+    except:
+        reader = emcee.backends.HDFBackend(fname, read_only=True)
+        fchain = reader.get_chain(discard=skip, thin=thin, flat=True)
+        nwalkers, npars = reader.shape
+        with h5py.File(fname, "r") as chain_file:
+            nameList = list(chain_file["mcmc"].attrs["var_names"])
     print("Done!")
 
-    # grab param names from the file
-    with open(fname, "r") as chain_file:
-        nameList = chain_file.readline().strip().split(" ")[1:]
     # we need q, dphi, rw from the chain
     qVals = fchain[:, nameList.index("q_core")]
     dphiVals = fchain[:, nameList.index("dphi_core")]
