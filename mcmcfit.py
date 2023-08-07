@@ -115,8 +115,7 @@ def run(nwalkers, npars, ln_prob, ln_prior, p_0, model, pool, extend=False):
         p_0 = utils.initialise_walkers(p_0, p0_scatter_1, nwalkers, ln_prior, model)
     else:
         # extend the exisisting chain, using it's state as starting point
-        p0 = backend.get_last_sample()
-        print(p0.coords.shape)
+        p_0 = None
 
     # Create the sampler
     sampler = emcee.EnsembleSampler(
@@ -131,7 +130,6 @@ def run(nwalkers, npars, ln_prob, ln_prior, p_0, model, pool, extend=False):
             (emcee.moves.DESnookerMove(), 0.3),
         ],
     )
-    sampler.run_mcmc(p_0, nburn, progress=True)
 
     # Run the burnin phase
     print("\n\nExecuting the burn-in phase...")
