@@ -659,7 +659,7 @@ if __name__ == "__main__":
                     continue
 
                 system = PhotometricSystem(systems[band])
-                mean, _, std = sigma_clipped_stats(fchain[:, index])
+                mean, _, std = sigma_clipped_stats(chain[:, index])
                 flx = Flux(mean, std, system, band, syserr=syserr)
                 print(f"{band} = {flx}")
                 LOGFILE.write(f"{band} = {flx}")
