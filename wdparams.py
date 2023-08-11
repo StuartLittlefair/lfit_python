@@ -651,7 +651,7 @@ if __name__ == "__main__":
                 print("KG5 BANDS ARE CURRENTLY UNUSED. SKIPPING")
                 continue
             else:
-                index = colKeys.index(f"wdFlux_{band}")
+                key = f"wdFlux_{band}"
                 if band not in systems:
                     msg = f"No photometric system for {band}, skipping"
                     LOGFILE.write(msg + "\n")
@@ -659,7 +659,7 @@ if __name__ == "__main__":
                     continue
 
                 system = PhotometricSystem(systems[band])
-                mean, _, std = sigma_clipped_stats(chain[:, index])
+                mean, _, std = sigma_clipped_stats(chain[key])
                 flx = Flux(mean, std, system, band, syserr=syserr)
                 print(f"{band} = {flx}")
                 LOGFILE.write(f"{band} = {flx}")
