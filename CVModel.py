@@ -470,6 +470,34 @@ class ComplexEclipse(SimpleEclipse):
 
         return names
 
+    def ln_prior(self, verbose=False, *args, **kwargs):
+        """Constraints on the prior for a single eclipse are handled here."""
+
+        self.log(
+            "ComplexEclipse.ln_prior", "Checking that the values construct a valid CV!"
+        )
+
+        # Before we start, I'm going to collect the necessary parameters. By
+        # only calling this once, we save a little effort.
+        ancestor_param_dict = self.ancestor_param_dict
+
+        ##############################################
+        # ~~~~ Is the bright spot max sensible? ~~~~ #
+        ##############################################
+        # The location of the bright spot max is     #
+        # (in units of scale lengths) given by       #
+        #     pow(exp1/exp2, 1/exp2)                 #
+        exp1 = ancestor_param_dict["exp1"].currVal
+        exp2 = ancestor_param_dict["exp2"].currVal
+        bs_max = pow(exp1 / exp2, 1 / exp2)
+        if bs_max > 5:
+            msg = "The bright spot max is more than 5 scale lengths from impact region, returning ln_prior = -np.inf"
+            self.log("ComplexEclipse.ln_prior", msg)
+            return -np.inf
+
+        # we're OK - check the params in common with simpleeclispes
+        return SimpleEclipse.ln_prior(self, verbose=verbose, *args, **kwargs)
+
 
 class Band(Node):
     """Subclass of Node, specific to observation bands. Contains the eclipse
