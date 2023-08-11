@@ -218,7 +218,7 @@ def run_mcmc_save(
             startPos,
             iterations=nSteps,
             rstate0=rState,
-            store=False,
+            store=True,
             skip_initial_state_check=True,
             **kwargs
         ):
