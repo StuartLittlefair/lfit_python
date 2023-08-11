@@ -106,7 +106,9 @@ def run_pt():
     )
 
 
-def run(nwalkers, npars, ln_prob, ln_prior, p_0, model, pool, extend=False):
+def run(
+    nwalkers, npars, ln_prob, ln_prior, p_0, model, pool, alt_moves=False, extend=False
+):
     backend = emcee.backends.HDFBackend("chain_prod.h5")
     if not extend:
         # reset backend, overwriting existing chain if needs be
@@ -118,17 +120,18 @@ def run(nwalkers, npars, ln_prob, ln_prior, p_0, model, pool, extend=False):
         p_0 = None
 
     # Create the sampler
-    sampler = emcee.EnsembleSampler(
-        nwalkers,
-        npars,
-        ln_prob,
-        args=(model,),
-        pool=pool,
-        backend=backend,
-        moves=[
+    if alt_moves:
+        # use the differential evolution moves
+        moves = [
             (emcee.moves.DEMove(), 0.7),
             (emcee.moves.DESnookerMove(), 0.3),
-        ],
+        ]
+    else:
+        # used the default Goodman & Weare stretch move
+        moves = None
+
+    sampler = emcee.EnsembleSampler(
+        nwalkers, npars, ln_prob, args=(model,), pool=pool, backend=backend, moves=moves
     )
 
     # Run the burnin phase
@@ -176,6 +179,13 @@ if __name__ in "__main__":
 
     parser.add_argument(
         "-e", "--extend", help="extend a previous chain", action="store_true"
+    )
+
+    parser.add_argument(
+        "-a",
+        "--alt_moves",
+        help="use alternative (differential evolution) moves",
+        action="store_true",
     )
 
     args = parser.parse_args()
@@ -253,6 +263,8 @@ if __name__ in "__main__":
 
         # Calculate ln_prior verbosely, for the user's benefit
         model.ln_prior(verbose=True)
+        print("If all params are valid; they may lead to invalid combinations.")
+        print("Check the ln_prior methods of SimpleEclipse and ComplexEclipse")
         exit()
 
     # If we're not running the fit, plot our stuff.
@@ -334,7 +346,15 @@ if __name__ in "__main__":
             plotCV.fit_summary("chain_prod.txt", input_fname, automated=True)
         else:
             sampler = run(
-                nwalkers, npars, ln_prob, ln_prior, p_0, model, pool, args.extend
+                nwalkers,
+                npars,
+                ln_prob,
+                ln_prior,
+                p_0,
+                model,
+                pool,
+                args.alt_moves,
+                args.extend,
             )
             # add parnames to chain file
             with h5py.File("chain_prod.h5", "r+") as f:
