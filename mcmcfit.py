@@ -153,7 +153,7 @@ def run(
         sampler.reset()
     else:
         # start from chain position
-        state = None
+        state = backend.get_last_sample()
 
     print("Starting the main MCMC chain. Probably going to take a while!")
     sampler.run_mcmc(state, nprod, store=True, progress=True)
