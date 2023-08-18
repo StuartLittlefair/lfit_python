@@ -113,11 +113,6 @@ def run(
     if not extend:
         # reset backend, overwriting existing chain if needs be
         backend.reset(nwalkers, npars)
-        # use the initial guess as the starting point
-        p_0 = utils.initialise_walkers(p_0, p0_scatter_1, nwalkers, ln_prior, model)
-    else:
-        # extend the exisisting chain, using it's state as starting point
-        p_0 = None
 
     # Create the sampler
     if alt_moves:
@@ -134,24 +129,32 @@ def run(
         nwalkers, npars, ln_prob, args=(model,), pool=pool, backend=backend, moves=moves
     )
 
-    # Run the burnin phase
-    print("\n\nExecuting the burn-in phase...")
-    state = sampler.run_mcmc(p_0, nburn, store=False, progress=True)
+    if not extend:
+        # use the initial guess as the starting point
+        p_0 = utils.initialise_walkers(p_0, p0_scatter_1, nwalkers, ln_prior, model)
 
-    # Do we want to do that again?
-    if double_burnin:
-        # If we wanted to run a second burn-in phase, then do. Scatter the
-        # position about the first burn
-        print("Executing the second burn-in phase")
-        p_0 = state.coords[np.argmax(state.log_prob)]
-        p_0 = utils.initialise_walkers(p_0, p0_scatter_2, nwalkers, ln_prior, model)
-
-        # Run that burn-in
+        # Run the burnin phase
+        print("\n\nExecuting the burn-in phase...")
         state = sampler.run_mcmc(p_0, nburn, store=False, progress=True)
 
-    # Now, reset the sampler. We'll use the result of the burn-in phase to
-    # re-initialise it.
-    sampler.reset()
+        # Do we want to do that again?
+        if double_burnin:
+            # If we wanted to run a second burn-in phase, then do. Scatter the
+            # position about the first burn
+            print("Executing the second burn-in phase")
+            p_0 = state.coords[np.argmax(state.log_prob)]
+            p_0 = utils.initialise_walkers(p_0, p0_scatter_2, nwalkers, ln_prior, model)
+
+            # Run that burn-in
+            state = sampler.run_mcmc(p_0, nburn, store=False, progress=True)
+
+        # Now, reset the sampler. We'll use the result of the burn-in phase to
+        # re-initialise it.
+        sampler.reset()
+    else:
+        # start from chain position
+        state = None
+
     print("Starting the main MCMC chain. Probably going to take a while!")
     sampler.run_mcmc(state, nprod, store=True, progress=True)
     return sampler
