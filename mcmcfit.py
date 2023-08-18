@@ -151,13 +151,20 @@ def run(
         # Now, reset the sampler. We'll use the result of the burn-in phase to
         # re-initialise it.
         sampler.reset()
+        skip_initial_state_check = False
     else:
         # start from chain position
-        state = backend.get_last_sample()
         state = None
+        skip_initial_state_check = True
 
     print("Starting the main MCMC chain. Probably going to take a while!")
-    sampler.run_mcmc(state, nprod, store=True, progress=True)
+    sampler.run_mcmc(
+        state,
+        nprod,
+        store=True,
+        progress=True,
+        skip_initial_state_check=skip_initial_state_check,
+    )
     return sampler
 
 
