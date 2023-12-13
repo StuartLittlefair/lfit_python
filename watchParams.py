@@ -31,8 +31,8 @@ def parseInput(file):
 
 class Watcher:
     """This class will initialise a bokeh page, with some useful lfit MCMC chain supervision tools.
-        - Ability to plot a live chain file's evolution over time
-        - Interactive lightcurve model, with input sliders or the ability to grab the last step's mean
+    - Ability to plot a live chain file's evolution over time
+    - Interactive lightcurve model, with input sliders or the ability to grab the last step's mean
     """
 
     # Set the initial values of q, rwd, and dphi. These will be used to
@@ -161,7 +161,6 @@ class Watcher:
                 title=title,
                 start=param[1],
                 end=param[2],
-                value_throttled=param[0],
                 value=param[0],
                 step=(param[2] - param[1]) / 400,
                 width=200,
@@ -182,7 +181,6 @@ class Watcher:
                 title=title,
                 start=param[1],
                 end=param[2],
-                value_throttled=param[0],
                 value=param[0],
                 step=(param[2] - param[1]) / 200,
                 width=200,
@@ -203,7 +201,6 @@ class Watcher:
                 title=title,
                 start=param[1],
                 end=param[2],
-                value_throttled=param[0],
                 value=param[0],
                 step=(param[2] - param[1]) / 200,
                 width=200,
@@ -329,7 +326,9 @@ class Watcher:
         self.like_label = markups.Div(width=1000)
 
         self.console_logs = markups.Div(
-            text="Model errors will go here!", width=1000, height=30,
+            text="Model errors will go here!",
+            width=1000,
+            height=30,
         )
 
         # Arrange the tab layout
@@ -372,7 +371,9 @@ class Watcher:
             ]
         )
 
-        self.inspector_tab = TabPanel(child=inspector_layout, title="Lightcurve Inspector")
+        self.inspector_tab = TabPanel(
+            child=inspector_layout, title="Lightcurve Inspector"
+        )
         print("Constructed the Lightcurve Inspector tab!")
 
     def init_data_storage(self):
@@ -413,8 +414,10 @@ class Watcher:
         header += " We're using <b>{:,d}</b> walkers,".format(self.nWalkers)
 
         if bool(int(self.mcmc_input_dict["usePT"])):
-            header += " with parallel tempering sampling <b>{:,d}</b> temperatures,".format(
-                int(self.mcmc_input_dict["ntemps"])
+            header += (
+                " with parallel tempering sampling <b>{:,d}</b> temperatures,".format(
+                    int(self.mcmc_input_dict["ntemps"])
+                )
             )
 
         header += " and running on <b>{:,d}</b> cores.</br>".format(
@@ -462,7 +465,6 @@ class Watcher:
 
         with open("mcmc_input.dat", "w") as f:
             for line in mcmc_file:
-
                 if not line.startswith("#"):
                     splitted = line.strip().split(" ")
 
@@ -485,20 +487,20 @@ class Watcher:
 
     def parse_mcmc_input(self):
         """Parse the mcmc input dict, and store the following:
-            - self.complex: bool
-                Is the model using the simple or complex BS
-            - self.GP: bool
-                Is the model using the gaussian process?
-            - self.nWalkers: int
-                How many walkers are expected to be in the chain?
-            - self.necl: int
-                How many eclipses are we using?
-            - self.parDict: dict
-                Storage for the variables, including priors and initial guesses.
-            - self.nBurn: int
-                The number of burn-in steps.
-            - self.nProd: int
-                The number of product steps.
+        - self.complex: bool
+            Is the model using the simple or complex BS
+        - self.GP: bool
+            Is the model using the gaussian process?
+        - self.nWalkers: int
+            How many walkers are expected to be in the chain?
+        - self.necl: int
+            How many eclipses are we using?
+        - self.parDict: dict
+            Storage for the variables, including priors and initial guesses.
+        - self.nBurn: int
+            The number of burn-in steps.
+        - self.nProd: int
+            The number of product steps.
         """
         print("Parsing the mcmc_input file, '{}'...".format(self.mcmc_fname))
         self.mcmc_input_dict = parseInput(self.mcmc_fname)
@@ -591,7 +593,6 @@ class Watcher:
             for slider in all_sliders:
                 if slider.name == par_name:
                     print("Found that slider! Setting value to {}".format(param[0]))
-                    # slider.value_throttled = param[0]
                     slider.value = param[0]
                     slider.start = param[1]
                     slider.end = param[2]
@@ -611,7 +612,7 @@ class Watcher:
             )
         )
         chisq = self.lc_obs.data["res"] / self.lc_obs.data["err"]
-        chisq = np.sum(chisq ** 2)
+        chisq = np.sum(chisq**2)
 
         print("Chisq = {}".format(chisq))
         print("Updating header")
@@ -627,7 +628,7 @@ class Watcher:
             self.recalc_GP_model("")
 
     def update_complex(self, new):
-        """Handler for toggling the complex button. This should just enable/disable the complex sliders """
+        """Handler for toggling the complex button. This should just enable/disable the complex sliders"""
 
         print("Toggling the complex model...")
         print("The complex variable was {}".format("on" if self.complex else "off"))
@@ -896,7 +897,7 @@ class Watcher:
         works out the location of any changepoints present, constructs a single
         (mixed) kernel and uses this kernel to create GPs
 
-        Requires an Eclipse object to create the GP for. """
+        Requires an Eclipse object to create the GP for."""
 
         # Get objects for ln_ampin_gp, ln_ampout_gp, tau_gp and find the exponential
         # of their current values
@@ -921,10 +922,10 @@ class Watcher:
 
         # We need to make a fairly complex kernel.
         # Global flicker
-        kernel = ampin_gp * g.kernels.Matern32Kernel(tau_gp ** 2)
+        kernel = ampin_gp * g.kernels.Matern32Kernel(tau_gp**2)
         # inter-eclipse flicker
         for gap in changepoints:
-            kernel += ampout_gp * g.kernels.Matern32Kernel(tau_gp ** 2, block=gap)
+            kernel += ampout_gp * g.kernels.Matern32Kernel(tau_gp**2, block=gap)
 
         # Use that kernel to make a GP object
         georgeGP = g.GP(kernel, solver=g.HODLRSolver)
