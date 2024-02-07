@@ -70,6 +70,27 @@ def panei_mr(targetTemp, baseDir):
     return f2
 
 
+def panei_he_mr(targetTemp, baseDir):
+    """given a target temp, returns a function giving
+    radius as a function of mass.
+    function is derived from cubic interpolation of Panei models"""
+    assert np.all(
+        (targetTemp >= 4000.0 * units.K) & (targetTemp < 20000.0 * units.K)
+    ), "Model invalid at temps less than 4000 or greater than 45,000 K"
+
+    # read panei model grid in
+    teffs, masses, radii = read_panei_file(
+        os.path.join(baseDir, "Panei/othercores/04He-MR-H.dat")
+    )
+
+    # this function interpolates to give radius as function of temp, mass
+    func = interp.SmoothBivariateSpline(teffs, masses, radii)
+
+    # this function specifies the target temp to give just radius as fn of mass
+    f2 = lambda x: func(targetTemp, x)[0]
+    return f2
+
+
 def wood_mr(targetTemp, baseDir):
     """given a target temp, returns a function giving
     radius as a function of mass.
@@ -113,8 +134,15 @@ def find_wdmass(wdtemp, scaled_mass, rw_a, baseDir, model="hamada"):
 
     this routine finds the white dwarf mass where these estimates agree, if
     one exists."""
-    assert model in ["hamada", "wood", "panei"], "Model %s not recognised" % model
-    limits = {"hamada": [0.14, 1.44], "wood": [0.4, 1.0], "panei": [0.4, 1.2]}
+    assert model in ["hamada", "wood", "panei", "panei_he"], (
+        "Model %s not recognised" % model
+    )
+    limits = {
+        "hamada": [0.14, 1.44],
+        "wood": [0.4, 1.0],
+        "panei": [0.4, 1.2],
+        "panei_he": [0.24, 0.505],
+    }
 
     mlo, mhi = limits[model]
 
@@ -122,6 +150,8 @@ def find_wdmass(wdtemp, scaled_mass, rw_a, baseDir, model="hamada"):
         rwdFunc = hamada_mr(baseDir)
     elif model == "wood":
         rwdFunc = wood_mr(wdtemp, baseDir)
+    elif model == "panei_he":
+        rwdFunc = panei_he_mr(wdtemp, baseDir)
     else:
         rwdFunc = panei_mr(wdtemp, baseDir)
 
@@ -158,7 +188,7 @@ def logg(m, r):
     return np.log10(G * m / (r * r))
 
 
-def solve(input_data, baseDir):
+def solve(input_data, baseDir, helium=False):
     q, dphi, rw, twd, p = input_data
 
     # Kepler's law gives a quantity related to wd mass and separation, a
@@ -170,25 +200,33 @@ def solve(input_data, baseDir):
     rw_a = rw * xl1_a
 
     solved = True
-    try:
-        # try wood models
-        mw = find_wdmass(twd, scaled_mass, rw_a, baseDir, model="wood")
-    except FileNotFoundError:
-        raise
-    except Exception:
-        # try panei models (usually for masses above 1 Msun)
+    if helium:
         try:
-            mw = find_wdmass(twd, scaled_mass, rw_a, baseDir, model="panei")
+            # try helium models
+            mw = find_wdmass(twd, scaled_mass, rw_a, baseDir, model="panei_he")
+        except:
+            raise
+            solved = False
+    else:
+        try:
+            # try wood models
+            mw = find_wdmass(twd, scaled_mass, rw_a, baseDir, model="wood")
         except FileNotFoundError:
             raise
         except Exception:
-            # try hamada models (for masses less than 0.4 or more than 1.2 Msun)
+            # try panei models (usually for masses above 1 Msun)
             try:
-                mw = find_wdmass(twd, scaled_mass, rw_a, baseDir, model="hamada")
+                mw = find_wdmass(twd, scaled_mass, rw_a, baseDir, model="panei")
             except FileNotFoundError:
                 raise
             except Exception:
-                solved = False
+                # try hamada models (for masses less than 0.4 or more than 1.2 Msun)
+                try:
+                    mw = find_wdmass(twd, scaled_mass, rw_a, baseDir, model="hamada")
+                except FileNotFoundError:
+                    raise
+                except Exception:
+                    solved = False
 
     # do nothing if none of the models yielded a solution
     # otherwise,
@@ -244,6 +282,12 @@ if __name__ == "__main__":
     parser.add_argument("e_p", action="store", type=float, help="error on period")
     parser.add_argument(
         "--thin", "-t", type=int, help="amount to thin MCMC chain by", default=1
+    )
+    parser.add_argument(
+        "--helium",
+        "-e",
+        action="store_true",
+        help="use helium core models for WDs",
     )
     parser.add_argument(
         "--skip",
@@ -321,7 +365,7 @@ if __name__ == "__main__":
     getval = lambda el: getattr(el, "value", el)
 
     print("Getting solutions for each step of the MCMC chain...")
-    psolve = partial(solve, baseDir=baseDir)
+    psolve = partial(solve, baseDir=baseDir, helium=args.helium)
     data = zip(qVals, dphiVals, rwVals, twdVals, pVals)
     with Pool(processes=args.nthreads) as pool:
         solvedParams = []
