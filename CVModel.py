@@ -4,6 +4,7 @@ structure of the model fed to emcee. The `trunk` is an LCModel or GPLCModel
 node, with child Bands, that have XEclipse leaves to evaluate the CV lightcurve
 fit to the data. Data is stored in the Lightcurve class.
 """
+
 import os
 
 import configobj
@@ -273,14 +274,18 @@ class SimpleEclipse(Node):
         # concentrated to make sense, or so large    #
         # that our approximation of a smooth disc is #
         # no longer a good idea.                     #
-        #                                            #
+        #
+        # We'll also check the BS scale is less than #
+        # 1/20th, since otherwise the bright spot    #
+        # might extend more than one separation from #
+        # the spot position.                         #
         ##############################################
 
         # Get the WD radius.
         rwd = ancestor_param_dict["rwd"].currVal
 
         # Enforce the BS scale being within these limits
-        rmax = rwd * 3.0
+        rmax = min(1 / 20, rwd * 3.0)
         rmin = rwd / 3.0
 
         scale = ancestor_param_dict["scale"].currVal
@@ -309,7 +314,7 @@ class SimpleEclipse(Node):
         # ~~~~~ Does the stream miss the disc? ~~~~~ #
         ##############################################
 
-        slope = 80.0
+        azimuth_slop = 45.0
         try:
             # q, rdisc_a were previously retrieved
             az = ancestor_param_dict["az"].currVal
@@ -328,9 +333,9 @@ class SimpleEclipse(Node):
             # Disc tangent
             tangent = alpha + 90
 
-            # Calculate the min and max azimuthes, using the tangent and slope
-            minaz = max(0, tangent - slope)
-            maxaz = min(178, tangent + slope)
+            # Calculate the min and max azimuths, using the tangent and slop
+            minaz = max(0, tangent - azimuth_slop)
+            maxaz = min(178, tangent + azimuth_slop)
 
             if az < minaz or az > maxaz:
                 self.log(
