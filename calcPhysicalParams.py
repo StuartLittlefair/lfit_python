@@ -204,8 +204,9 @@ def solve(input_data, baseDir, helium=False):
         try:
             # try helium models
             mw = find_wdmass(twd, scaled_mass, rw_a, baseDir, model="panei_he")
-        except:
+        except FileNotFoundError:
             raise
+        except Exception:
             solved = False
     else:
         try:
