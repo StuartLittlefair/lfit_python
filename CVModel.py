@@ -269,7 +269,7 @@ class SimpleEclipse(Node):
         # ~~~~~ Is the BS scale physically OK? ~~~~~ #
         ##############################################
         # We're gonna check to see if the BS scle is #
-        # in the range rwd/3 < (BS scale) < rwd*3.   #
+        # in the range rwd/4 < (BS scale) < rwd*3.   #
         # If it isn't, then it's either too          #
         # concentrated to make sense, or so large    #
         # that our approximation of a smooth disc is #
@@ -286,7 +286,7 @@ class SimpleEclipse(Node):
 
         # Enforce the BS scale being within these limits
         rmax = min(1 / 20, rwd * 3.0)
-        rmin = rwd / 3.0
+        rmin = rwd / 4.0
 
         scale = ancestor_param_dict["scale"].currVal
         if verbose:
@@ -338,6 +338,12 @@ class SimpleEclipse(Node):
             maxaz = min(178, tangent + azimuth_slop)
 
             if az < minaz or az > maxaz:
+                if verbose:
+                    print(
+                        "Leaf {} has an azimuth out of tolerance! Az: {:.3f}, min: {:.3f}, max: {:.3f}".format(
+                            self.name, az, minaz, maxaz
+                        )
+                    )
                 self.log(
                     "SimpleEclipse.ln_prior",
                     "Azimuth is out of range. Returning ln_prior = -np.inf",
