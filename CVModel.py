@@ -276,7 +276,7 @@ class SimpleEclipse(Node):
         # no longer a good idea.                     #
         #
         # We'll also check the BS scale is less than #
-        # 1/20th, since otherwise the bright spot    #
+        # 1/10th, since otherwise the bright spot    #
         # might extend more than one separation from #
         # the spot position.                         #
         ##############################################
@@ -285,7 +285,7 @@ class SimpleEclipse(Node):
         rwd = ancestor_param_dict["rwd"].currVal
 
         # Enforce the BS scale being within these limits
-        rmax = min(1 / 20, rwd * 3.0)
+        rmax = min(1 / 10, rwd * 4.0)
         rmin = rwd / 4.0
 
         scale = ancestor_param_dict["scale"].currVal
