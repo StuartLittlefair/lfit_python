@@ -1,17 +1,16 @@
+import copy
 import multiprocessing as mp
 import os
 from enum import Enum
-import copy
 
 import configobj
+import emcee
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import emcee
 import scipy.interpolate as interp
 from astropy.stats import sigma_clipped_stats
 
-from utils import read_chain
 from mcmc_utils import (
     flatchain,
     initialise_walkers,
@@ -20,6 +19,7 @@ from mcmc_utils import (
     thumbPlot,
 )
 from model import Param
+from utils import read_chain
 
 # import warnings
 
@@ -602,6 +602,7 @@ if __name__ == "__main__":
     nwalkers = int(input_dict["nwalkers"])
     scatter = float(input_dict["scatter"])
     thin = int(input_dict["thin"])
+    skip = int(input_dict.get("skip", 0))
     toFit = int(input_dict["fit"])
 
     # Grab the variables
@@ -659,6 +660,8 @@ if __name__ == "__main__":
                     continue
 
                 system = PhotometricSystem(systems[band])
+                # skip and thin the chain if requested
+                chain[key] = chain[key][skip::thin]
                 mean, _, std = sigma_clipped_stats(chain[key])
                 flx = Flux(mean, std, system, band, syserr=syserr)
                 print(f"{band} = {flx}")
