@@ -5,17 +5,17 @@ Plotting routines to accompany mcmcfit.py
 import argparse
 import os
 import warnings
+from random import choice
 
 import configobj
 import matplotlib.pyplot as plt
 import networkx as nx
-import pandas as pd
 import numpy as np
-from random import choice
+import pandas as pd
 
-from utils import read_chain
 import mcmc_utils as utils
 from CVModel import construct_model
+from utils import read_chain
 
 
 def nxdraw(model):
@@ -136,7 +136,7 @@ def plot_eclipse(
     # print("This model has a chisq of {:.3f}".format(ecl_node.chisq()))
 
     # Start the plotting area
-    fig, axs = plt.subplots(2, sharex=True, figsize=figsize)
+    fig, axs = plt.subplots(2, sharex=True, figsize=figsize, height_ratios=(2, 1))
 
     # Plot the data first. Also do errors
     axs[0].errorbar(
