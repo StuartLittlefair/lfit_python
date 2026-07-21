@@ -136,6 +136,7 @@ def plot_eclipse(
     # print("This model has a chisq of {:.3f}".format(ecl_node.chisq()))
 
     # Start the plotting area
+    plt.style.use("MNRAS_Style")
     fig, axs = plt.subplots(2, sharex=True, figsize=figsize, height_ratios=(2, 1))
 
     # Plot the data first. Also do errors
@@ -155,7 +156,7 @@ def plot_eclipse(
     axs[0].plot(ecl_node.lc.x, BS_flx, color="darkblue", label="BS")
     axs[0].plot(ecl_node.lc.x, disc_flx, color="brown", label="Disc")
     axs[0].plot(ecl_node.lc.x, flx, color="red")
-    axs[0].legend()
+    axs[0].legend(fontsize="x-large")
 
     # Plot the errorbars
     axs[1].errorbar(
@@ -175,11 +176,15 @@ def plot_eclipse(
     title_text = "{} --- chisq: {:.1f} --- ln_prob: {:.1f}".format(
         ecl_node.lc.name, ecl_node.chisq(), ecl_node.ln_prob()
     )
-    axs[0].set_title(title_text)
-    axs[0].set_ylabel("Flux, mJy")
+    # axs[0].set_title(title_text)
+    axs[0].set_ylabel("Flux (mJy)", fontsize="x-large")
+    axs[1].set_xlabel("Orbital Phase", fontsize="x-large")
+    axs[1].set_ylabel("Residual Flux (mJy)", fontsize="x-large")
 
-    axs[1].set_xlabel("Phase")
-    axs[1].set_ylabel("Residual Flux, mJy")
+    # increase the size of the tick labels
+    for ax in axs:
+        ax.tick_params(axis='both', which='major', labelsize="x-large")
+        ax.tick_params(axis='both', which='minor', labelsize="large")
 
     # Arrange the figure on the page, and show it
     plt.tight_layout()
