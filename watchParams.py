@@ -1,19 +1,19 @@
 from os import getcwd
 
 import configobj
+import george as g
 import numpy as np
 from bokeh.layouts import Spacer, column, gridplot, row
-from bokeh.models import ColumnDataSource, Span, Band, Tabs, TabPanel
+from bokeh.models import Band, ColumnDataSource, Span, TabPanel, Tabs
 from bokeh.models.widgets import Dropdown, Slider, markups
 from bokeh.models.widgets.buttons import Button, Toggle
 from bokeh.plotting import curdoc, figure
 from pandas import DataFrame
 
-import george as g
 from CVModel import construct_model
 
 try:
-    from lfit import CV
+    from lfit_rust import CV
 
     print("Successfully imported CV class from lfit!")
     from trm import roche
@@ -969,6 +969,6 @@ if __name__ in "__main__":
     print("  bokeh serve --show watchParams.py")
     print("Stopping!")
 else:
-    mc_fname = "mcmc_input.dat"
+    mc_fname = "mcmc_input_r.dat"
 
     watcher = Watcher(mcmc_input=mc_fname)

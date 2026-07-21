@@ -9,105 +9,57 @@ Supplied at the command line, via:
 import argparse
 import multiprocessing as mp
 import os
-from pprintpp import pprint
 from shutil import rmtree
 from sys import exit
-import h5py
 
 import configobj
 import emcee
+import h5py
 import numpy as np
+from pprintpp import pprint
 
 import mcmc_utils as utils
 import plot_lc_model as plotCV
 from CVModel import construct_model, extract_par_and_key
 
-try:
-    import ptemcee
-
-    noPT = False
-except:
-    print("Failed to import ptemcee! Disabling parallel tempering.")
-    noPT = True
-
 
 # I need to wrap the model's ln_like, ln_prior, and ln_prob functions
 # in order to pickle them :(
-def ln_prior(param_vector, model):
+def ln_prior(param_vector, input_fname):
+    model = construct_model(input_fname)
     model.dynasty_par_vals = param_vector
     val = model.ln_prior()
 
     return val
 
 
-def ln_prob(param_vector, model):
+def ln_prob(param_vector, input_fname):
+    model = construct_model(input_fname)
     model.dynasty_par_vals = param_vector
     val = model.ln_prob()
 
     return val
 
 
-def ln_like(param_vector, model):
+def ln_like(param_vector, input_fname):
+    model = construct_model(input_fname)
     model.dynasty_par_vals = param_vector
     val = model.ln_like()
 
     return val
 
 
-def run_pt():
-    print(
-        "MCMC using parallel tempering at {} levels, for {} total walkers.".format(
-            ntemps, nwalkers * ntemps
-        )
-    )
-
-    # Create the initial ball of walker positions
-    p_0 = utils.initialise_walkers_pt(
-        p_0, p0_scatter_1, nwalkers, ntemps, ln_prior, model
-    )
-
-    # Create the sampler
-    sampler = ptemcee.sampler.Sampler(
-        nwalkers,
-        npars,
-        ln_like,
-        ln_prob,
-        loglargs=(model,),
-        logpargs=(model,),
-        ntemps=ntemps,
-        pool=pool,
-    )
-
-    # Run the burnin phase
-    print("\n\nExecuting the burn-in phase...")
-    pos, prob, state = utils.run_burnin(sampler, p_0, nburn)
-
-    # Do we want to do that again?
-    if double_burnin:
-        # If we wanted to run a second burn-in phase, then do. Scatter the
-        # position about the first burn
-        print("Executing the second burn-in phase")
-        p_0 = pos[np.unravel_index(prob.argmax(), prob.shape)]
-        p_0 = utils.initialise_walkers_pt(
-            p_0, p0_scatter_2, nwalkers, ntemps, ln_prior, model
-        )
-
-    # Now, reset the sampler. We'll use the result of the burn-in phase to
-    # re-initialise it.
-    sampler.reset()
-    print("Starting the main MCMC chain. Probably going to take a while!")
-
-    # Get the column keys. Otherwise, we can't parse the results!
-    col_names = "walker_no " + " ".join(model.dynasty_par_names) + " ln_prob"
-
-    # Run production stage of parallel tempered mcmc
-    sampler = utils.run_ptmcmc_save(
-        sampler, pos, nprod, "chain_prod.txt", col_names=col_names
-    )
-
-
 def run(
-    nwalkers, npars, ln_prob, ln_prior, p_0, model, pool, alt_moves=False, extend=False
+    nwalkers,
+    npars,
+    ln_prob,
+    ln_prior,
+    p_0,
+    input_fname,
+    model,
+    pool,
+    alt_moves=False,
+    extend=False,
 ):
     backend = emcee.backends.HDFBackend("chain_prod.h5")
     if not extend:
@@ -126,12 +78,20 @@ def run(
         moves = None
 
     sampler = emcee.EnsembleSampler(
-        nwalkers, npars, ln_prob, args=(model,), pool=pool, backend=backend, moves=moves
+        nwalkers,
+        npars,
+        ln_prob,
+        args=(input_fname,),
+        pool=pool,
+        backend=backend,
+        moves=moves,
     )
 
     if not extend:
         # use the initial guess as the starting point
-        p_0 = utils.initialise_walkers(p_0, p0_scatter_1, nwalkers, ln_prior, model)
+        p_0 = utils.initialise_walkers(
+            p_0, p0_scatter_1, nwalkers, ln_prior, model, input_fname
+        )
 
         # Run the burnin phase
         print("\n\nExecuting the burn-in phase...")
@@ -143,7 +103,9 @@ def run(
             # position about the first burn
             print("Executing the second burn-in phase")
             p_0 = state.coords[np.argmax(state.log_prob)]
-            p_0 = utils.initialise_walkers(p_0, p0_scatter_2, nwalkers, ln_prior, model)
+            p_0 = utils.initialise_walkers(
+                p_0, p0_scatter_2, nwalkers, ln_prior, model, input_fname
+            )
 
             # Run that burn-in
             state = sampler.run_mcmc(p_0, nburn, store=False, progress=True)
@@ -158,6 +120,9 @@ def run(
         skip_initial_state_check = True
 
     print("Starting the main MCMC chain. Probably going to take a while!")
+    import pickle
+
+    pickle.dump(state, open("state.pkl", "wb"))
     sampler.run_mcmc(
         state,
         nprod,
@@ -225,13 +190,8 @@ if __name__ in "__main__":
     scatter_1 = float(input_dict["first_scatter"])
     scatter_2 = float(input_dict["second_scatter"])
     to_fit = int(input_dict["fit"])
-    use_pt = bool(int(input_dict["usePT"]))
     double_burnin = bool(int(input_dict["double_burnin"]))
     comp_scat = bool(int(input_dict["comp_scat"]))
-
-    if use_pt and noPT:
-        print("\n\n!!!! Can't use Parallel tempering !!!!\n\n")
-        use_pt = False
 
     # neclipses no longer strictly necessary, but can be used to limit the
     # maximum number of fitted eclipses
@@ -257,9 +217,9 @@ if __name__ in "__main__":
     )
     print("\nFrom the wrapper functions with the above parameters, we get;")
     pars = model.dynasty_par_vals
-    print("a ln_prior of {:.3f}".format(ln_prior(pars, model)))
-    print("a ln_like of {:.3f}".format(ln_like(pars, model)))
-    print("a ln_prob of {:.3f}".format(ln_prob(pars, model)))
+    print("a ln_prior of {:.3f}".format(ln_prior(pars, input_fname)))
+    print("a ln_like of {:.3f}".format(ln_like(pars, input_fname)))
+    print("a ln_prob of {:.3f}".format(ln_prob(pars, input_fname)))
     print()
     if np.isinf(model.ln_prior()):
         print("ERROR: Starting position violates priors!")
@@ -352,22 +312,19 @@ if __name__ in "__main__":
 
     # Run MCMC
     with mp.get_context("spawn").Pool(nthreads) as pool:
-        if use_pt:
-            run_pt(nwalkers, npars, ln_prob, ln_prior, p_0, model, pool)
-            plotCV.fit_summary("chain_prod.txt", input_fname, automated=True)
-        else:
-            sampler = run(
-                nwalkers,
-                npars,
-                ln_prob,
-                ln_prior,
-                p_0,
-                model,
-                pool,
-                args.alt_moves,
-                args.extend,
-            )
-            # add parnames to chain file
-            with h5py.File("chain_prod.h5", "r+") as f:
-                f["mcmc"].attrs["var_names"] = model.dynasty_par_names
-            plotCV.fit_summary("chain_prod.h5", input_fname, automated=True)
+        sampler = run(
+            nwalkers,
+            npars,
+            ln_prob,
+            ln_prior,
+            p_0,
+            input_fname,
+            model,
+            pool,
+            args.alt_moves,
+            args.extend,
+        )
+        # add parnames to chain file
+        with h5py.File("chain_prod.h5", "r+") as f:
+            f["mcmc"].attrs["var_names"] = model.dynasty_par_names
+        plotCV.fit_summary("chain_prod.h5", input_fname, automated=True)

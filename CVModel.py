@@ -9,12 +9,11 @@ import os
 
 import configobj
 import george
-import lfit
+import lfit_rust as lfit
 import numpy as np
 from trm import roche
 
 from model import Node, Param, extract_par_and_key
-
 
 BIG = 9e99
 
