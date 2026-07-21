@@ -344,7 +344,7 @@ def readchain(file, **kwargs):
     """Reads in the chain file in a single thread.
     Returns the chain in the shape (nwalkers, nprod, npars)
     """
-    data = pd.read_csv(file, delim_whitespace=True, comment="#", **kwargs)
+    data = pd.read_csv(file, sep=r"\s+", comment="#", **kwargs)
     data = np.array(data)
 
     # Figure out what shape the result should have.
@@ -376,7 +376,7 @@ def readchain_dask(file, **kwargs):
         header=0,
         compression=None,
         na_filter=False,
-        delim_whitespace=True,
+        sep=r"\s+",
         **kwargs
     )
     data = data.compute()
@@ -399,7 +399,7 @@ def readchain_dask(file, **kwargs):
 
 
 def readflatchain(file):
-    data = pd.read_csv(file, header=None, compression=None, delim_whitespace=True)
+    data = pd.read_csv(file, header=None, compression=None, sep=r"\s+")
     data = np.array(data)
     return data
 
