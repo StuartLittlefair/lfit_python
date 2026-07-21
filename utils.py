@@ -11,7 +11,7 @@ def read_chain(chain_fname):
     Returns pandas DataFrame and list of variable names
     """
     try:
-        df = pd.read_csv(chain_fname, delim_whitespace=True)
+        df = pd.read_csv(chain_fname, sep=r"\s+")
         colKeys = list(df.columns.values)[1:-1]
     except UnicodeDecodeError:
         reader = emcee.backends.HDFBackend(chain_fname, read_only=True)

@@ -103,6 +103,18 @@ class PhotometricSystem(Enum):
         else:
             return os.path.join(ROOT, "Bergeron/Table_DA")
 
+    def _strip_band(self, band):
+        """
+        Strip the band name of any suffixes, e.g. 'g_s' -> 'g', 'gs' -> 'g'
+        """
+        band = band[0]
+        BANDS = ("u", "g", "r", "i", "z", "kg5")  # bands in the system
+        if band not in BANDS:
+            raise ValueError(
+                f"Band {band} not recognised in {self.name} photometric system."
+            )
+        return band[0]
+
     def color_correction_data(self, band):
         """
         Information needed for correction from Bergeron table to this band
@@ -119,6 +131,7 @@ class PhotometricSystem(Enum):
         column: str
             Name of column to read from table for correction
         """
+        band = self._strip_band(band)
         if self.name == "USPEC":
             table = os.path.join(
                 ROOT,
@@ -137,6 +150,7 @@ class PhotometricSystem(Enum):
         return table, column
 
     def central_wavelength(self, band):
+        band = self._strip_band(band)
         super_lambda_c = {
             "u": 352.6,
             "g": 473.2,
@@ -203,6 +217,7 @@ class Flux(object):
         correction_table_name, column = photometric_system.color_correction_data(
             self.band
         )
+
         if correction_table_name is not None:
             correction_table = pd.read_csv(correction_table_name)
             self.correction_func = interp.LinearNDInterpolator(
@@ -212,14 +227,15 @@ class Flux(object):
             self.correction_func = None
 
         # Create an interpolator for the Bergeron table
+        self.band = self.band[0]  # strip any suffixes
         DA = pd.read_csv(
             photometric_system.bergeron_table,
-            delim_whitespace=True,
+            sep=r"\s+",
             skiprows=0,
             header=1,
         )
         self.bergeron_func = interp.LinearNDInterpolator(
-            DA[["Teff", "log_g"]], DA[band]
+            DA[["Teff", "log_g"]], DA[self.band]
         )
 
     def __repr__(self):
