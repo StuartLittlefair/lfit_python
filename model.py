@@ -3,6 +3,8 @@ Base classes for the MCMC fitting routine. Allows the creation of a
 hierarchical model structure, that can also track the prior knowledge of the
 parameters of that model.
 """
+
+import inspect
 import os
 import warnings
 
@@ -11,10 +13,7 @@ import numpy as np
 import scipy.integrate as intg
 import scipy.stats as stats
 from scipy.optimize import root
-from scipy.special import gammaincc, gamma
-
-import inspect
-
+from scipy.special import gamma, gammaincc
 
 TINY = -np.inf
 
@@ -38,148 +37,16 @@ def extract_par_and_key(key):
     return par, label
 
 
-class Prior(object):
-    """a class to represent a prior on a parameter, which makes calculating
-    prior log-probability easier.
-
-    Priors can be of five types:
-        gauss, gaussPos, uniform, log_uniform, invgamma and mod_jeff
-
-    gauss is a Gaussian distribution, and is useful for parameters with
-    existing constraints in the literature
-    gaussPos is like gauss but enforces positivity
-    Gaussian priors are initialised as Prior('gauss',mean,stdDev)
-
-    uniform is a uniform prior, initialised like:
-        Prior('uniform',low_limit,high_limit)
-    uniform priors are useful because they are 'uninformative'
-
-    log_uniform priors have constant probability in log-space. They are the
-    uninformative prior for 'scale-factors', such as error bars (look up
-    Jeffreys prior for more info)
-
-    mod_jeff is a modified jeffries prior - see Gregory et al 2007
-    they are useful when you have a large uncertainty in the parameter value,
-    so a jeffreys prior is appropriate, but the range of allowed values
-    starts at 0. They have two parameters, p0 and pmax.
-    they act as a jeffrey's prior about p0, and uniform below p0. typically
-    set p0=noise level
-
-    invgamma (inverse gamma) priors are useful for GP length scales, see e.g
-    https://betanalpha.github.io/assets/case_studies/gp_part3/part3.html#4_adding_an_informative_prior_for_the_length_scale
-    we specify an upper and lower bound...
-    """
-
-    def __init__(self, type, p1, p2):
-        assert type in [
-            "gauss",
-            "gaussPos",
-            "uniform",
-            "log_uniform",
-            "mod_jeff",
-            "invgamma",
-        ]
-        self.type = type
-        self.p1 = p1
-        self.p2 = p2
-        if type == "log_uniform" and self.p1 < 1.0e-30:
-            warnings.warn(
-                "lower limit on log_uniform prior rescaled from %f to 1.0e-30" % self.p1
-            )
-            self.p1 = 1.0e-30
-        if type == "log_uniform":
-            self.normalise = 1.0
-            self.normalise = np.fabs(intg.quad(self.ln_prob, self.p1, self.p2)[0])
-        if type == "mod_jeff":
-            self.normalise = np.log((self.p1 + self.p2) / self.p1)
-        if type == "invgamma":
-            pars = self.estimate_inverse_gamma_parameters(p1, p2)
-            self.p1 = pars["alpha"]
-            self.p2 = pars["beta"]
-            self.low = p1
-            self.high = p2
-            self.normalise = pars["beta"] ** pars["alpha"] / gamma(pars["alpha"])
-
-    def ln_prob(self, val):
-        if self.type == "gauss":
-            prob = stats.norm(scale=self.p2, loc=self.p1).pdf(val)
-            if prob > 0:
-                return np.log(prob)
-            else:
-                return TINY
-        elif self.type == "gaussPos":
-            if val <= 0.0:
-                return TINY
-            else:
-                prob = stats.norm(scale=self.p2, loc=self.p1).pdf(val)
-                if prob > 0:
-                    return np.log(prob)
-                else:
-                    return TINY
-        elif self.type == "invgamma":
-            alpha, beta = self.p1, self.p2
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore")
-                result = self.normalise * val ** (-alpha - 1) * np.exp(-beta / val)
-            return result
-        elif self.type == "uniform":
-            if (val > self.p1) and (val < self.p2):
-                return np.log(1.0 / np.abs(self.p1 - self.p2))
-            else:
-                return TINY
-        elif self.type == "log_uniform":
-            if (val > self.p1) and (val < self.p2):
-                return np.log(1.0 / self.normalise / val)
-            else:
-                return TINY
-        elif self.type == "mod_jeff":
-            if (val > 0) and (val < self.p2):
-                return np.log(1.0 / self.normalise / (val + self.p1))
-            else:
-                return TINY
-
-    def estimate_inverse_gamma_parameters(
-        self, lower, upper, target=0.01, initial=None, **kwargs
-    ):
-        r"""Estimate an inverse Gamma with desired tail probabilities
-        This method numerically solves for the parameters of an inverse Gamma
-        distribution where the tails have a given probability. In other words
-        :math:`P(x < \mathrm{lower}) = \mathrm{target}` and similarly for the
-        upper bound. More information can be found in `part 4 of this blog post
-        <https://betanalpha.github.io/assets/case_studies/gp_part3/part3.html>`_.
-        Args:
-            lower (float): The location of the lower tail
-            upper (float): The location of the upper tail
-            target (float, optional): The desired tail probability
-            initial (ndarray, optional): An initial guess for the parameters
-                ``alpha`` and ``beta``
-        Raises:
-            RuntimeError: If the solver does not converge.
-        Returns:
-            dict: A dictionary with the keys ``alpha`` and ``beta`` for the
-            parameters of the distribution.
-        """
-        lower, upper = np.sort([lower, upper])
-        if initial is None:
-            initial = np.array([2.0, 0.5 * (lower + upper)])
-        if np.shape(initial) != (2,) or np.any(np.asarray(initial) <= 0.0):
-            raise ValueError("invalid initial guess")
-
-        def obj(x):
-            a, b = np.exp(x)
-            return np.array(
-                [
-                    gammaincc(a, b / lower) - target,
-                    1 - gammaincc(a, b / upper) - target,
-                ]
-            )
-
-        result = root(obj, np.log(initial), method="hybr", **kwargs)
-        if not result.success:
-            raise RuntimeError(
-                "failed to find parameter estimates: \n{0}".format(result.message)
-            )
-        return dict(zip(("alpha", "beta"), np.exp(result.x)))
+def scipy_dist(dist_string, val1, val2):
+    val1 = float(val1)
+    val2 = float(val2)
+    if dist_string == "uniform":
+        return stats.uniform(loc=val1, scale=val2 - val1)
+    if dist_string == "gauss":
+        return stats.norm(loc=val1, scale=val2)
+    if dist_string == "log_uniform":
+        return stats.loguniform(val1, val2)
+    raise ValueError(f"distribution {dist_string} not supported")
 
 
 class Param(object):
@@ -200,11 +67,12 @@ class Param(object):
         priorType = fields[1].strip()
         priorP1 = float(fields[2])
         priorP2 = float(fields[3])
+        prior = scipy_dist(priorType, priorP1, priorP2)
         if len(fields) == 5:
             isVar = bool(int(fields[4]))
         else:
             isVar = True
-        return cls(name, val, Prior(priorType, priorP1, priorP2), isVar)
+        return cls(name, val, prior, isVar)
 
     @property
     def isValid(self):
@@ -511,6 +379,45 @@ class Node:
                 return val
         return val
 
+    def __call_recursive_bool_func__(self, name, *args, **kwargs) -> bool:
+        """
+        Descend the model heirarchy, calling a function at each leaf.
+
+        This is used, for example, to evaluate check_validity for a given model,
+        where we want to check that all nodes are valid.
+
+        Inputs:
+        -------
+          name: str
+            The name of the function to be called
+          *args, **kwargs
+            Arguments to be passed to the function.
+
+        Outputs:
+        --------
+          bool:
+            True if all nodes are valid, False otherwise.
+        """
+        val = True
+        if self.is_leaf:
+            raise NotImplementedError(
+                "must overwrite {} on leaf nodes of model".format(name)
+            )
+        for child in self.children:
+            func = getattr(child, name)
+            val = val and func(*args, **kwargs)
+            if not val:
+                # we've got an invalid model, no need to evaluate other leaves
+                return val
+        return val
+
+    def check_validity(self):
+        """Returns the sum of my children's validity checks. Must be overwritten on
+        leaf nodes, or nodes capable of evaluating a model."""
+        # val is sum of validity checks of children, which are True/False.
+        # if all are valid, val should be equal to the number of children, and thus True.
+        return self.__call_recursive_bool_func__("check_validity")
+
     def chisq(self, *args, **kwargs):
         """Returns the sum of my children's  chisqs. Must be overwritten on
         leaf nodes, or nodes capable of evaluating a model."""
@@ -519,98 +426,6 @@ class Node:
     def ln_like(self, *args, **kwargs):
         """Calculate the log likelihood"""
         return self.__call_recursive_func__("ln_like", *args, **kwargs)
-
-    def ln_prior(self, verbose=False):
-        """Return the natural log of the prior probability of the Param objects
-        below this node.
-
-        If model has more prior information not captured in the priors of the
-        parameters, the details of such additional prior information must be
-        codified in subclass methods!."""
-        self.log(
-            "base.ln_prior",
-            "Summing the ln_prior of all my Params ({} Params)".format(
-                len(self.node_par_names)
-            ),
-        )
-
-        # Start at a log prior probablity of 0. We'll add to this for each node
-        lnp = 0.0
-
-        # Get the sum of this node's variable's prior probs
-        for param in [getattr(self, name) for name in self.node_par_names]:
-            if param.isValid and param.isVar:
-                lnp += param.prior.ln_prob(param.currVal)
-
-            elif not param.isValid:
-                if verbose:
-                    print("Param {} in {} is invalid!".format(param.name, self.name))
-                self.log(
-                    "base.ln_prior",
-                    "Param {} in {} is invalid!".format(param.name, self.name),
-                )
-                return -np.inf
-
-        # Reporting, if necessary
-        if verbose:
-            print("{} has the following Params:".format(self.name))
-            for i, _ in enumerate(self.node_par_names[::4]):
-                j = 4 * i
-                k = j + 4
-                print(self.node_par_names[j:k])
-            print(
-                "The sum of parameter ln_priors of {} is {:.3f}\n".format(
-                    self.name, lnp
-                )
-            )
-
-        # self.log('base.ln_prior', "My ln_prior is {}. Gathering my descendant ln_priors".format(lnp))
-
-        # Then recursively fetch my decendants
-        for child in self.children:
-            lnp += child.ln_prior(verbose=verbose)
-
-            # If my child returns negative infinite prob, terminate here.
-            if np.isinf(lnp):
-                self.log(
-                    "base.ln_prior",
-                    "My child, {}, yielded an inf ln_prior".format(child.name),
-                )
-                return lnp
-
-        # Pass it up the chain, or back to the main program
-        self.log(
-            "base.ln_prior",
-            "I computed a total ln_prior at and below me of {}".format(lnp),
-        )
-        return lnp
-
-    def ln_prob(self, verbose=False):
-        """Calculates the natural log of the posterior probability
-        (ln_prior + ln_like)"""
-
-        # First calculate ln_prior
-        lnp = self.ln_prior(verbose=verbose)
-
-        # Then add ln_prior to ln_like
-        if np.isfinite(lnp):
-            try:
-                lnp = lnp + self.ln_like()
-                self.log(
-                    "base.ln_prob",
-                    "Calculated ln_prob = ln_prior + ln_like = {}".format(lnp),
-                )
-                return lnp
-            except:
-                if verbose:
-                    print("Failed to evaluate ln_like at {}".format(self.name))
-                self.log("base.ln_prob", "Failed to evaluate ln_prob!")
-                return -np.inf
-        else:
-            if verbose:
-                print("{} ln_prior returned infinite!".format(self.name))
-            self.log("base.ln_prob", "{} ln_prior returned infinite!".format(self.name))
-            return lnp
 
     # Dunder methods that are generally hidden from the user.
     def __get_inherited_parameter_names__(self):
@@ -685,6 +500,18 @@ class Node:
 
         # Filter out the entries that are non-variable
         vector = [v.currVal for v in params if v.isVar]
+
+        return vector
+
+    def __get_descendant_parameter_priors__(self):
+        """Get a list of the prior distributions of the Param objects at or below this node
+
+        The (V)ector contains the (V)alues
+        """
+        params, _ = self.__get_descendant_params__()
+
+        # Filter out the entries that are non-variable
+        vector = [v.prior for v in params if v.isVar]
 
         return vector
 
@@ -805,6 +632,11 @@ class Node:
                 )
             )
         self.__set_parameter_vector__(dynasty_par_vals)
+
+    @property
+    def priors(self):
+        """A list of the prior distributions of the variable parameters below this node"""
+        return self.__get_descendant_parameter_priors__()
 
     @property
     def dynasty_par_dict(self):

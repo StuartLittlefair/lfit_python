@@ -11,7 +11,7 @@ import configobj
 import george
 import lfit_rust as lfit
 import numpy as np
-from trm import roche
+import roche
 
 from model import Node, Param, extract_par_and_key
 
@@ -140,8 +140,6 @@ class SimpleEclipse(Node):
 
     def calcFlux(self):
         """Fetch the CV parameter vector, and generate it's model lightcurve"""
-        self.log("SimpleEclipse.calcFlux", "Doing calcFlux")
-
         # Get the model CV lightcurve across our data.
         try:
             flx = self.cv.calcFlux(self.cv_parlist, self.lc.x, self.lc.w)
@@ -149,13 +147,7 @@ class SimpleEclipse(Node):
             print(repr(e))
             msg = "Error: {}; parlist: {}".format(str(e), repr(self.cv_parlist))
             print(msg)
-            self.log("SimpleEclipse.calcFlux", msg)
             flx = np.nan
-
-        self.log(
-            "SimpleEclipse.calcFlux",
-            "Computed a lightcurve flux: \n{}\n\n\n".format(flx),
-        )
         return flx
 
     def calcComponents(self):
@@ -168,62 +160,32 @@ class SimpleEclipse(Node):
 
     def chisq(self):
         """Return the chisq of this eclipse, given current params."""
-        self.log("SimpleEclipse.chisq", "Doing chisq")
         flx = self.calcFlux()
 
         # If the model gets any nans, return inf
         if np.any(np.isnan(flx)):
-            if self.DEBUG:
-                print(
-                    "Node returned some ({}/{} data) nans.".format(
-                        np.sum(np.isnan(flx)), flx.shape[0]
-                    )
-                )
-
-            self.log(
-                "SimpleEclipse.chisq",
-                "I computed a flux that contains nans. Returning an inf chisq.",
-            )
             return BIG
 
         # Calculate the chisq of this model.
         chisq = ((self.lc.y - flx) / self.lc.ye) ** 2
         chisq = np.sum(chisq)
 
-        self.log("SimpleEclipse.chisq", "Computed a chisq of {}".format(chisq))
         return chisq
 
     def ln_like(self):
         """Calculate the chisq of this eclipse, against the data stored in its
-        lightcurve object.
-
-        If plot is True, also plot the data in a figure."""
-
-        self.log("SimpleEclipse.ln_like", "Returning an ln_like that is (-0.5 * chisq)")
+        lightcurve object."""
 
         chisq = self.chisq()
-
-        self.log(
-            "SimpleEclipse.ln_like", "Returning a ln_like of {}".format(-0.5 * chisq)
-        )
         return -0.5 * chisq
 
-    def ln_prior(self, verbose=False, *args, **kwargs):
-        """At the eclipse level, three constrains must be validated for each
-        leaf of the tree.
-
-        - Is the disc large enough to precess? We can't handle superhumping!
-        - Is the BS scale unreasonably large, enough to cause the disc model
-            to be inaccurate?
-        - Is the azimuth of the BS out of range?
-
-        If other constraints on the level of the individual eclipse are
-        necessary, they should go in here.
+    def check_validity(self) -> bool:
         """
-        self.log(
-            "SimpleEclipse.ln_prior", "Checking that the values construct a valid CV!"
-        )
+        Check for validity of the parameters at this level.
 
+        Some parameter combinations are invalid (e.g: no eclipse for q and dphi). Here we
+        check for any of these invalid combinations
+        """
         # Before we start, I'm going to collect the necessary parameters. By
         # only calling this once, we save a little effort.
         ancestor_param_dict = self.ancestor_param_dict
@@ -241,28 +203,13 @@ class SimpleEclipse(Node):
         try:
             xl1 = roche.xl1(q)
         except AssertionError:
-            if verbose:
-                print("Failed to get the L1 point!")
-            return -np.inf
+            return False
 
         # Get the rdisc, scaled to the Roche Radius
         rdisc = ancestor_param_dict["rdisc"].currVal
         rdisc_a = rdisc * xl1
-
-        if verbose:
-            print("rDisc: {:.4f} || Max: {:.4f}".format(rdisc_a, rdisc_max_a))
-
         if rdisc_a > rdisc_max_a:
-            if verbose:
-                msg = "The disc radius of {} is large enough to precess! Value: {:.3f}".format(
-                    self.name, rdisc
-                )
-                print(msg)
-            self.log(
-                "SimpleEclipse.ln_prior",
-                "The disc radius is too large. Returning ln_prior = -np.inf",
-            )
-            return -np.inf
+            return False
 
         ##############################################
         # ~~~~~ Is the BS scale physically OK? ~~~~~ #
@@ -288,91 +235,45 @@ class SimpleEclipse(Node):
         rmin = rwd / 4.0
 
         scale = ancestor_param_dict["scale"].currVal
-        if verbose:
-            print("Scale: {:.4f} || Limits: {:.4f} -> {:.4f}".format(scale, rmin, rmax))
-
         if scale > rmax or scale < rmin:
-            if verbose:
-                print(
-                    "Leaf {} has a BS scale that lies outside valid range!".format(
-                        self.name
-                    )
-                )
-                print("Rwd: {:.3f}".format(rwd))
-                print("Scale: {:.3f}".format(scale))
-                print("Range: {:.3f} - {:.3f}".format(rmin, rmax))
-
-            self.log(
-                "SimpleEclipse.ln_prior",
-                "The BS is too large to be accurately modelled. Returning ln_prior = -np.inf",
-            )
-
-            return -np.inf
+            return False
 
         ##############################################
         # ~~~~~ Does the stream miss the disc? ~~~~~ #
         ##############################################
-
-        azimuth_slop = 45.0
         try:
-            # q, rdisc_a were previously retrieved
-            az = ancestor_param_dict["az"].currVal
-
             # If the stream does not intersect the disc, this throws an error
-            x, y, _, _ = roche.bspot(q, rdisc_a)
+            r, _ = roche.bspot(q, rdisc_a)
+        except Exception:
+            return False
 
-            # Find the tangent to the disc
-            alpha = np.degrees(np.arctan2(y, x))
+        ##############################################
+        # ~~~~~~~~~ Is BS azimuth realistic? ~~~~~~~ #
+        ##############################################
+        azimuth_slop = 45.0
+        # q, rdisc_a were previously retrieved
+        az = ancestor_param_dict["az"].currVal
 
-            # If alpha is negative, the BS lags the disc.
-            # However, the angle has to be less than 90 still!
-            if alpha < 0:
-                alpha = 90 - alpha
+        # Find the tangent to the disc
+        alpha = np.degrees(np.arctan2(r.y, r.x))
 
-            # Disc tangent
-            tangent = alpha + 90
+        # If alpha is negative, the BS lags the disc.
+        # However, the angle has to be less than 90 still!
+        if alpha < 0:
+            alpha = 90 - alpha
 
-            # Calculate the min and max azimuths, using the tangent and slop
-            minaz = max(0, tangent - azimuth_slop)
-            maxaz = min(178, tangent + azimuth_slop)
+        # Disc tangent
+        tangent = alpha + 90
 
-            if az < minaz or az > maxaz:
-                if verbose:
-                    print(
-                        "Leaf {} has an azimuth out of tolerance! Az: {:.3f}, min: {:.3f}, max: {:.3f}".format(
-                            self.name, az, minaz, maxaz
-                        )
-                    )
-                self.log(
-                    "SimpleEclipse.ln_prior",
-                    "Azimuth is out of range. Returning ln_prior = -np.inf",
-                )
-                return -np.inf
+        # Calculate the min and max azimuths, using the tangent and slop
+        minaz = max(0, tangent - azimuth_slop)
+        maxaz = min(178, tangent + azimuth_slop)
 
-        except Exception as err:
-            if verbose:
-                print(err)
-                print(
-                    "The mass stream of leaf {} does not intersect the disc!".format(
-                        self.name
-                    )
-                )
+        if az < minaz or az > maxaz:
+            return False
 
-            self.log(
-                "SimpleEclipse.ln_prior",
-                "The mass stream does not intersect the disc, returning ln_prior = -np.inf",
-            )
-            return -np.inf
-
-        self.log(
-            "SimpleEclipse.ln_prior", "Passed validity checks at {}.".format(self.name)
-        )
-
-        # If we pass all that, then calculate the ln_prior normally
-        lnp = super().ln_prior(verbose=verbose, *args, **kwargs)
-
-        self.log("SimpleEclipse.ln_prior", "Computed a ln_prior of {}".format(lnp))
-        return lnp
+        # If we pass all that, then the parameters are valid.
+        return True
 
     @property
     def cv_parnames(self):
@@ -411,12 +312,6 @@ class SimpleEclipse(Node):
                 print("    {}: {}".format(key, val))
             print("}")
             raise error
-
-        self.log(
-            "SimpleEclipse.cv_parlist",
-            "Constructed a cv_parlist of:\n{}".format(parlist),
-        )
-
         return parlist
 
 
@@ -480,13 +375,13 @@ class ComplexEclipse(SimpleEclipse):
 
         return names
 
-    def ln_prior(self, verbose=False, *args, **kwargs):
-        """Constraints on the prior for a single eclipse are handled here."""
+    def check_validity(self) -> bool:
+        """
+        Check for validity of the parameters at this level.
 
-        self.log(
-            "ComplexEclipse.ln_prior", "Checking that the values construct a valid CV!"
-        )
-
+        Some parameter combinations are invalid (e.g: no eclipse for q and dphi). Here we
+        check for any of these invalid combinations
+        """
         # Before we start, I'm going to collect the necessary parameters. By
         # only calling this once, we save a little effort.
         ancestor_param_dict = self.ancestor_param_dict
@@ -501,12 +396,9 @@ class ComplexEclipse(SimpleEclipse):
         exp2 = ancestor_param_dict["exp2"].currVal
         bs_max = pow(exp1 / exp2, 1 / exp2)
         if bs_max > 5:
-            msg = "The bright spot max is more than 5 scale lengths from impact region, returning ln_prior = -np.inf"
-            self.log("ComplexEclipse.ln_prior", msg)
-            return -np.inf
+            return False
 
-        # we're OK - check the params in common with simpleeclispes
-        return SimpleEclipse.ln_prior(self, verbose=verbose, *args, **kwargs)
+        return super().check_validity()
 
 
 class Band(Node):
@@ -556,65 +448,34 @@ class LCModel(Node):
     def eclipses(self):
         return list(self.search_node_type("Eclipse"))
 
-    def ln_prior(self, verbose=False):
-        """Before we calculate the ln_prior of myself or my children, I check
-        that my parameters are valid. I check that dphi is not too large for
-        the current value of q.
-
-        If other constraints on the core parameters become necessary, they
-        should go here. If these tests fail, -np.inf is immediately returned.
+    def check_validity(self) -> bool:
         """
-        self.log("LCModel.ln_prior", "Checking global parameters for validity.")
-        lnp = 0.0
+        Check for invalid parameter combinations.
 
-        # Check that dphi is within limits
-        tol = 1e-6
-
+        This is the top level check (for q and dphi). If this is OK, we will also
+        check the validity of the children nodes, which will check for other invalid combinations.
+        """
         dphi = getattr(self, "dphi").currVal
         q = getattr(self, "q").currVal
-        if q <= 0:
+        # check for invalid q, dphi (phase width too large for q)
+        if roche.findi(q, dphi) < 0.0:
+            return False
+
+        # if the top level is OK, call Node's check validity, which will
+        # descend into the children and check their validity as well
+        return super().check_validity()
+
+    def ln_like(self):
+        """
+        Calculate the log likelihood of the model.
+
+        First we evaluate the validity of the model and return -inf if invalid.
+        If valid, we call the super class ln_like, which will descend into the children
+        and calculate the log likelihood of the model.
+        """
+        if not self.check_validity():
             return -np.inf
-
-        try:
-            # Get the value of dphi that we WOULD have at an
-            # inclination of 90 degrees
-            maxphi = roche.findphi(q, 90.0)
-
-            # If dphi is out of range, return negative inf.
-            if dphi > (maxphi - tol):
-                if verbose:
-                    msg = "{} has a dphi out of tolerance!\nq: {:.3f}"
-                    msg += "\ndphi: {:.3f}, max: {:.3f} - {:.3g}"
-                    msg += "\nReturning inf.\n\n"
-
-                    msg.format(self.name, q, dphi, maxphi, tol)
-
-                    print(msg)
-                self.log(
-                    "LCModel.ln_prior",
-                    "dphi is out of range. Returning ln_prior = -np.inf",
-                )
-                return -np.inf
-
-        except Exception as error:
-            # If we get here, then roche couldn't find a dphi for this q.
-            # That's bad!
-            if verbose:
-                msg = "Failed to calculate a value of dphi at node {} || Exception: {}"
-                print(msg.format(self.name, repr(error)))
-            self.log(
-                "LCModel.ln_prior",
-                "Failed to calculate a value of dphi. Returning ln_prior = -np.inf",
-            )
-            return -np.inf
-
-        self.log("LCModel.ln_prior", "Passed parameter value validity checks.")
-
-        # Then, if we pass this, move on to the 'normal' ln_prior calculation.
-        lnp += super().ln_prior(verbose=verbose)
-
-        self.log("LCModel.ln_prior", "Returning a ln_prior of {}".format(lnp))
-        return lnp
+        return super().ln_like()
 
 
 class GPLCModel(LCModel):
@@ -857,7 +718,7 @@ class ComplexGPEclipse(SimpleGPEclipse):
         return names
 
 
-def construct_model(input_file, debug=False, nodata=False):
+def construct_model(input_file, nodata=False):
     """Takes an input filename, and parses it into a model tree.
 
     Inputs:
@@ -887,45 +748,26 @@ def construct_model(input_file, debug=False, nodata=False):
         # Read in all the available eclipses
         neclipses = 9999
 
-    if debug:
-        print("Input Dict yielded the following immediately interesting params:")
-        print("is_complex: ", is_complex)
-        print("use_gp: ", use_gp)
-        print("neclipses: ", neclipses)
-        print()
-
     # # # # # # # # # # # # # # # # #
     # Get the initial model setup # #
     # # # # # # # # # # # # # # # # #
-
     # Start by creating the overall Node. Gather the parameters:
     if use_gp:
         core_par_names = GPLCModel.node_par_names
         core_pars = [
             Param.fromString(name, input_dict[name]) for name in core_par_names
         ]
-        if debug:
-            print("Using the GP!")
-            print("Core params:")
-            for par, val in zip(core_par_names, core_pars):
-                print("  -> par: {:<10s}  --  value: {:.3f}".format(par, val.currVal))
 
         # and make the model object with no children
-        model = GPLCModel("core", core_pars, DEBUG=debug)
+        model = GPLCModel("core", core_pars)
     else:
         core_par_names = LCModel.node_par_names
         core_pars = [
             Param.fromString(name, input_dict[name]) for name in core_par_names
         ]
 
-        if debug:
-            print("Not using the GP!")
-            print("Core params:")
-            for par, val in zip(core_par_names, core_pars):
-                print("  -> par: {:<10s}  --  value: {:.3f}".format(par, val.currVal))
-
         # and make the model object with no children
-        model = LCModel("core", core_pars, DEBUG=debug)
+        model = LCModel("core", core_pars)
 
     # # # # # # # # # # # # # # # # #
     # # # Now do the band names # # #
@@ -933,29 +775,20 @@ def construct_model(input_file, debug=False, nodata=False):
 
     # Collect the bands and their params. Add them total model.
     band_par_names = Band.node_par_names
-    if debug:
-        print("\nThe bands have these parameters: {}".format(band_par_names))
-
     if not use_gp:
         # Use the Eclipse class to find the parameters we're interested in
         if is_complex:
             ecl_pars = ComplexEclipse.node_par_names
-            if debug:
-                print("Using the complex BS model")
         else:
             ecl_pars = SimpleEclipse.node_par_names
-            if debug:
-                print("Using the simple BS model")
+
     else:
         # Use the Eclipse class to find the parameters we're interested in
         if is_complex:
             ecl_pars = ComplexGPEclipse.node_par_names
-            if debug:
-                print("Using the complex BS model, with a gaussian process")
+
         else:
             ecl_pars = SimpleGPEclipse.node_par_names
-            if debug:
-                print("Using the simple BS model, with a gaussian process")
 
     # I care about the order in which eclipses and bands are defined.
     # Collect that order here.
@@ -982,12 +815,6 @@ def construct_model(input_file, debug=False, nodata=False):
                     if key not in defined_eclipses:
                         defined_eclipses.append(key)
 
-    if debug:
-        print("\nI found the following bands defined in the input dict:")
-        print(defined_bands)
-        print("\nI found the following eclipses defined in the input dict:")
-        print(defined_eclipses)
-
     # Collect the band params into their Band objects.
     for label in defined_bands:
         band_pars = []
@@ -1003,17 +830,6 @@ def construct_model(input_file, debug=False, nodata=False):
 
         # Define the band as a child of the model.
         Band(label, band_pars, parent=model)
-
-        if debug:
-            print("Added the band labelled {} to the model".format(label))
-            print("Band params:")
-            for par, val in zip(band_par_names, band_pars):
-                print("  -> Par: {:>10s}  --- value: {:.3f}".format(par, val.currVal))
-
-    if debug:
-        print("The model has the following bands:")
-        for band in model.children:
-            print("  -> {}".format(band.name))
 
     # # # # # # # # # # # # # # # # #
     # # Finally, get the eclipses # #
@@ -1048,16 +864,6 @@ def construct_model(input_file, debug=False, nodata=False):
         # Get the band object that this eclipse belongs to
         my_band_label = input_dict["band_{}".format(label)]
         my_band = model.search_Node("Band", my_band_label)
-
-        if debug:
-            print("\nThe eclipse labelled {}:".format(label))
-            print("  -> Lightcurve file: {}".format(lc_fname))
-            print("  -> Band: {}".format(my_band.name))
-            print("Band params:")
-            for par in params:
-                print(
-                    "  -> Par: {:>10s}  --- value: {:.3f}".format(par.name, par.currVal)
-                )
 
         if use_gp:
             if is_complex:
