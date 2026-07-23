@@ -22,31 +22,9 @@ import mcmc_utils as utils
 import plot_lc_model as plotCV
 from CVModel import construct_model, extract_par_and_key
 
-
 # I need to wrap the model's ln_like, ln_prior, and ln_prob functions
 # in order to pickle them :(
-def ln_prior(param_vector, input_fname):
-    model = construct_model(input_fname)
-    model.dynasty_par_vals = param_vector
-    val = model.ln_prior()
-
-    return val
-
-
-def ln_prob(param_vector, input_fname):
-    model = construct_model(input_fname)
-    model.dynasty_par_vals = param_vector
-    val = model.ln_prob()
-
-    return val
-
-
-def ln_like(param_vector, input_fname):
-    model = construct_model(input_fname)
-    model.dynasty_par_vals = param_vector
-    val = model.ln_like()
-
-    return val
+from pickle_utils import ln_like, ln_prior, ln_prob
 
 
 def run(
@@ -186,7 +164,6 @@ if __name__ in "__main__":
     nprod = int(input_dict["nprod"])
     nthreads = int(input_dict["nthread"])
     nwalkers = int(input_dict["nwalkers"])
-    ntemps = int(input_dict["ntemps"])
     scatter_1 = float(input_dict["first_scatter"])
     scatter_2 = float(input_dict["second_scatter"])
     to_fit = int(input_dict["fit"])
@@ -221,7 +198,7 @@ if __name__ in "__main__":
     print("a ln_like of {:.3f}".format(ln_like(pars, input_fname)))
     print("a ln_prob of {:.3f}".format(ln_prob(pars, input_fname)))
     print()
-    if np.isinf(model.ln_prior()):
+    if np.isinf(ln_prior(pars, input_fname)):
         print("ERROR: Starting position violates priors!")
         print("Offending parameters are:")
 
@@ -233,7 +210,7 @@ if __name__ in "__main__":
                 print("  -> {}_{}".format(par.name, name))
 
         # Calculate ln_prior verbosely, for the user's benefit
-        model.ln_prior(verbose=True)
+        ln_prior(pars, input_fname)
         print("If all params are valid; they may lead to invalid combinations.")
         print("Check the ln_prior methods of SimpleEclipse and ComplexEclipse")
         exit()

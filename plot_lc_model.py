@@ -15,6 +15,7 @@ import pandas as pd
 
 import mcmc_utils as utils
 from CVModel import construct_model
+from pickle_utils import ln_like, ln_prior, ln_prob
 from utils import read_chain
 
 
@@ -173,8 +174,8 @@ def plot_eclipse(
     axs[1].axhline(0.0, linestyle="--", color="black", alpha=0.7, zorder=0)
 
     # Labelling. Top one gets title, bottom one gets x label
-    title_text = "{} --- chisq: {:.1f} --- ln_prob: {:.1f}".format(
-        ecl_node.lc.name, ecl_node.chisq(), ecl_node.ln_prob()
+    title_text = "{} --- chisq: {:.1f} --- ln_like: {:.1f}".format(
+        ecl_node.lc.name, ecl_node.chisq(), ecl_node.ln_like()
     )
     # axs[0].set_title(title_text)
     axs[0].set_ylabel("Flux (mJy)", fontsize="x-large")
@@ -183,8 +184,8 @@ def plot_eclipse(
 
     # increase the size of the tick labels
     for ax in axs:
-        ax.tick_params(axis='both', which='major', labelsize="x-large")
-        ax.tick_params(axis='both', which='minor', labelsize="large")
+        ax.tick_params(axis="both", which="major", labelsize="x-large")
+        ax.tick_params(axis="both", which="minor", labelsize="large")
 
     # Arrange the figure on the page, and show it
     plt.tight_layout()
@@ -487,9 +488,15 @@ def fit_summary(
         model.chisq(), dof
     )
     model_preport += "\nEvaluating the model, we get;\n"
-    model_preport += "a ln_prior of {:.3f}\n".format(model.ln_prior())
-    model_preport += "a ln_like of {:.3f}\n".format(model.ln_like())
-    model_preport += "a ln_prob of {:.3f}\n".format(model.ln_prob())
+    model_preport += "a ln_prior of {:.3f}\n".format(
+        ln_prior(model.dynasty_par_vals, input_fname)
+    )
+    model_preport += "a ln_like of {:.3f}\n".format(
+        ln_like(model.dynasty_par_vals, input_fname)
+    )
+    model_preport += "a ln_prob of {:.3f}\n".format(
+        ln_prob(model.dynasty_par_vals, input_fname)
+    )
     print(model_preport)
 
     if not automated:
@@ -510,9 +517,15 @@ def fit_summary(
         model.chisq(), dof
     )
     model_report += "\nEvaluating the model, we get;\n"
-    model_report += "a ln_prior of {:.3f}\n".format(model.ln_prior())
-    model_report += "a ln_like of {:.3f}\n".format(model.ln_like())
-    model_report += "a ln_prob of {:.3f}\n".format(model.ln_prob())
+    model_report += "a ln_prior of {:.3f}\n".format(
+        ln_prior(model.dynasty_par_vals, input_fname)
+    )
+    model_report += "a ln_like of {:.3f}\n".format(
+        ln_like(model.dynasty_par_vals, input_fname)
+    )
+    model_report += "a ln_prob of {:.3f}\n".format(
+        ln_prob(model.dynasty_par_vals, input_fname)
+    )
     model_report += "\n\nThe final fits of this chain are attached below.\n\n"
 
     if not automated:
