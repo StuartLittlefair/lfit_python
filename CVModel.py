@@ -196,6 +196,7 @@ class SimpleEclipse(Node):
 
         # Defined the maximum size of the disc before it starts precessing, as
         # a fraction of Roche Radius
+
         rdisc_max_a = 0.46
 
         # get the location of the L1 point from q
@@ -208,6 +209,7 @@ class SimpleEclipse(Node):
         # Get the rdisc, scaled to the Roche Radius
         rdisc = ancestor_param_dict["rdisc"].currVal
         rdisc_a = rdisc * xl1
+        """
         if rdisc_a > rdisc_max_a:
             return False
 
@@ -237,7 +239,7 @@ class SimpleEclipse(Node):
         scale = ancestor_param_dict["scale"].currVal
         if scale > rmax or scale < rmin:
             return False
-
+        """
         ##############################################
         # ~~~~~ Does the stream miss the disc? ~~~~~ #
         ##############################################
@@ -250,7 +252,8 @@ class SimpleEclipse(Node):
         ##############################################
         # ~~~~~~~~~ Is BS azimuth realistic? ~~~~~~~ #
         ##############################################
-        azimuth_slop = 45.0
+
+        azimuth_slop = 80.0
         # q, rdisc_a were previously retrieved
         az = ancestor_param_dict["az"].currVal
 
