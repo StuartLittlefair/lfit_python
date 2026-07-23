@@ -445,9 +445,21 @@ class Watcher:
 
             # Collect the data
             value = param.currVal
-            prior_type = param.prior.type
-            p1 = param.prior.p1
-            p2 = param.prior.p2
+            if param.prior.dist.name == "norm":
+                p1 = param.prior.kwds.get("loc", 0)
+                p2 = param.prior.kwds.get("scale", 1)
+                prior_type = "gauss"
+            elif param.prior.dist.name == "loguniform":
+                p1 = param.prior.a
+                p2 = param.prior.b
+                prior_type = "log_uniform"
+            elif param.prior.dist.name == "uniform":
+                p1 = param.prior.kwds.get("loc", 0)
+                p2 = param.prior.kwds.get("scale", 1) + p1
+                prior_type = "uniform"
+            else:
+                raise ValueError("Unknown prior type: {}".format(param.prior.dist.name))
+
             isVar = param.isVar
 
             newline = "{:>10s} = {:>16.8f} {:>12} {:>16.8f} {:>16.8f} {:>12}\n".format(
@@ -561,9 +573,22 @@ class Watcher:
 
         for key, param in raw_params.items():
             currval = param.currVal
-            lolim = param.prior.p1
-            hilim = param.prior.p2
-            prior = param.prior.type
+            loc = param.prior.kwds.get("loc", 0)
+            scale = param.prior.kwds.get("scale", 1)
+            if param.prior.dist.name == "norm":
+                lolim = -3.0 * scale + loc
+                hilim = 3.0 * scale + loc
+            elif param.prior.dist.name == "loguniform":
+                # uniform or log uniform
+                lolim = param.prior.a
+                hilim = param.prior.b
+            elif param.prior.dist.name == "uniform":
+                lolim = loc
+                hilim = loc + scale
+            else:
+                raise ValueError("Unknown prior type: {}".format(param.prior.dist.name))
+
+            prior = param.prior.dist.name
             self.parDict[key] = [currval, lolim, hilim, prior]
             print("parDict[{}]: {}".format(key, currval))
 
@@ -969,6 +994,6 @@ if __name__ in "__main__":
     print("  bokeh serve --show watchParams.py")
     print("Stopping!")
 else:
-    mc_fname = "mcmc_input_r.dat"
+    mc_fname = "mcmc_input.dat"
 
     watcher = Watcher(mcmc_input=mc_fname)
