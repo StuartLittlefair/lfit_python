@@ -144,9 +144,9 @@ class SimpleEclipse(Node):
         try:
             flx = self.cv.calcFlux(self.cv_parlist, self.lc.x, self.lc.w)
         except Exception as e:
-            print(repr(e))
-            msg = "Error: {}; parlist: {}".format(str(e), repr(self.cv_parlist))
-            print(msg)
+            # print(repr(e))
+            # msg = "Error: {}; parlist: {}".format(str(e), repr(self.cv_parlist))
+            # print(msg)
             flx = np.nan
         return flx
 
@@ -196,7 +196,6 @@ class SimpleEclipse(Node):
 
         # Defined the maximum size of the disc before it starts precessing, as
         # a fraction of Roche Radius
-
         rdisc_max_a = 0.46
 
         # get the location of the L1 point from q
@@ -209,6 +208,15 @@ class SimpleEclipse(Node):
         # Get the rdisc, scaled to the Roche Radius
         rdisc = ancestor_param_dict["rdisc"].currVal
         rdisc_a = rdisc * xl1
+        ##############################################
+        # ~~~~~ Does the stream miss the disc? ~~~~~ #
+        ##############################################
+        try:
+            # If the stream does not intersect the disc, this throws an error
+            r, _ = roche.bspot(q, rdisc_a)
+        except Exception:
+            return False
+
         """
         if rdisc_a > rdisc_max_a:
             return False
@@ -240,40 +248,6 @@ class SimpleEclipse(Node):
         if scale > rmax or scale < rmin:
             return False
         """
-        ##############################################
-        # ~~~~~ Does the stream miss the disc? ~~~~~ #
-        ##############################################
-        try:
-            # If the stream does not intersect the disc, this throws an error
-            r, _ = roche.bspot(q, rdisc_a)
-        except Exception:
-            return False
-
-        ##############################################
-        # ~~~~~~~~~ Is BS azimuth realistic? ~~~~~~~ #
-        ##############################################
-
-        azimuth_slop = 80.0
-        # q, rdisc_a were previously retrieved
-        az = ancestor_param_dict["az"].currVal
-
-        # Find the tangent to the disc
-        alpha = np.degrees(np.arctan2(r.y, r.x))
-
-        # If alpha is negative, the BS lags the disc.
-        # However, the angle has to be less than 90 still!
-        if alpha < 0:
-            alpha = 90 - alpha
-
-        # Disc tangent
-        tangent = alpha + 90
-
-        # Calculate the min and max azimuths, using the tangent and slop
-        minaz = max(0, tangent - azimuth_slop)
-        maxaz = min(178, tangent + azimuth_slop)
-
-        if az < minaz or az > maxaz:
-            return False
 
         # If we pass all that, then the parameters are valid.
         return True
