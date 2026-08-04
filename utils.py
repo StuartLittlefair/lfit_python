@@ -45,6 +45,18 @@ def read_pocoMC_chain(chain_fname):
     return colKeys, df
 
 
+def write_pocoMC_chain(chain_fname, model, sampler):
+    samples, weights, logl, logp = sampler.posterior()
+    # list of strings for parameter names
+    names = model.dynasty_par_names
+    with h5py.File(chain_fname, "w") as f:
+        f.create_dataset("samples", data=samples)
+        f.create_dataset("weights", data=weights)
+        f.create_dataset("logp", data=logp)
+        f.create_dataset("logl", data=logl)
+        f.create_dataset("var_names", data=np.array(names, dtype="S"))
+
+
 def read_emcee_chain(chain_fname):
     reader = emcee.backends.HDFBackend(chain_fname, read_only=True)
     samples = reader.get_chain(discard=0, flat=True, thin=1)
